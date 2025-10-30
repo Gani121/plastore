@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="google_app_id">1:1035556612570:android:1eb518d4bcdc5c5f9a38e3</string>
+    <string name="gcm_defaultSenderId">1035556612570</string>
+    <string name="default_web_client_id"></string> <!-- Empty in your config -->
+    <string name="google_api_key">AIzaSyB4yb-uFPigrfD94umm00ZvJ7JzaUvvoGs</string>
+    <string name="google_crash_reporting_api_key">AIzaSyB4yb-uFPigrfD94umm00ZvJ7JzaUvvoGs</string>
+    <string name="project_id">orbipa4</string>
+    <string name="firebase_database_url"></string> <!-- Not in your config -->
+    <string name="google_storage_bucket">orbipa4.firebasestorage.app</string>
+</resources>
