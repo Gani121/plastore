@@ -213,7 +213,6 @@ class _NewOrderPageState extends State<NewOrderPage> with AutomaticKeepAliveClie
     menuItemBox = store.box<MenuItem>();
     items_all = menuItemBox!.getAll();
     _extractCategories(items_all);
-    _loadItems(items_all);
     loadSelectedStyle();
     
     debugPrint("selectedCategory $selectedCategory $billingType");
@@ -221,7 +220,7 @@ class _NewOrderPageState extends State<NewOrderPage> with AutomaticKeepAliveClie
     WidgetsBinding.instance.addPostFrameCallback((_) {
       // Future.delayed(Duration(milliseconds: 15), () => _loadItems(items_all));
       
-      
+      _loadItems(items_all);
       cartProvider = Provider.of<CartProvider>(context, listen: false);
       cartProvider?.addListener(_handleCartChange);
       Future.delayed(const Duration(milliseconds: 300), () {
@@ -264,7 +263,7 @@ class _NewOrderPageState extends State<NewOrderPage> with AutomaticKeepAliveClie
     });
   }
 
-  void _loadItems(List<MenuItem> items11) async {
+  void _loadItems(List<MenuItem> items11) {
     if (widget.cart1 != null){
       _loadCartData();
     }

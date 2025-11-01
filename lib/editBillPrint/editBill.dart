@@ -946,9 +946,15 @@ DateTime getBusinessDate({int cutoffHour = 4}) {
                     Center(
                       child: ElevatedButton(
                         style: ElevatedButton.styleFrom(
-                          backgroundColor: const Color.fromARGB(255, 21, 199, 27),
+                          backgroundColor: const Color.fromARGB(255, 0, 164, 5),
                         ),
-                        child: const Text("ADD MORE ITEMS"),
+                        child: const Text(
+                          "ADD MORE ITEMS",
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontWeight: FontWeight.bold, // Add this line
+                          ),
+                        ),
                         onPressed: () async {
                           await loadSelectedStyle();
                           

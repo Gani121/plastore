@@ -598,6 +598,7 @@ class BillPrinter {
     // Get print quality from settings or use maximum
     PrintQuality quality = PrintQuality.maximum;
     SoundPattern sound = SoundPattern.tripleBeep;
+    final String dateTime = DateFormat('dd-MMM-yyyy hh:mm a').format(DateTime.now());
     
     // Convert font sizes to ESC/POS sizes
     PosTextSize getTextSize(int size) {
@@ -763,6 +764,14 @@ class BillPrinter {
             bold: true,
             fontType: PosFontType.fontA,
             height: PosTextSize.size1, // Set height to minimum
+          ),
+        );
+
+        
+        bytes += _generator!.text(
+          "Time:- $dateTime",
+          styles: PosStyles(
+          fontType: PosFontType.fontA,
           ),
         );
 
@@ -1009,13 +1018,14 @@ class BillPrinter {
     final prefs = await SharedPreferences.getInstance();
     bool marathi = prefs.getBool('marathi') ?? false;
     PrintQuality quality = PrintQuality.maximum;
+    final String dateTime = DateFormat('dd-MMM-yyyy hh:mm a').format(DateTime.now());
 
     List<Map<String, dynamic>> kotCart = cart.map((item) => Map<String, dynamic>.from(item)).toList();
 
     try {
       await _setPrintQuality(quality);
       if (marathi){
-        Uint8List? imageBytes = await generateKOTImage(cart1: cart,tableNumber:tableNumber);
+        Uint8List? imageBytes = await generateKOTImage(cart1: cart,tableNumber:tableNumber,kotNumber:kotNumber,);
         if (imageBytes != null) {
           // showDialog(
           //   context: context,
@@ -1075,34 +1085,42 @@ class BillPrinter {
         );
 
         bytes += _generator!.text(
-          "Table No: $tableNumber",
-          styles: PosStyles(
-            align: PosAlign.center,
-            bold: true,
-            height: PosTextSize.size2,
-            width: PosTextSize.size2,
-            fontType: PosFontType.fontB,
-          ),
-        );
+            "KOT No: $kotNumber / Table No: $tableNumber",
+            styles: PosStyles(
+              bold: true,
+              align: PosAlign.center,
+              fontType: PosFontType.fontA,
+            ),
+          );
 
-        final String dateTime = DateFormat('dd-MMM-yyyy hh:mm a').format(DateTime.now());
+        // bytes += _generator!.text(
+        //   "Table No: $tableNumber",
+        //   styles: PosStyles(
+        //     align: PosAlign.center,
+        //     bold: true,
+        //     height: PosTextSize.size2,
+        //     width: PosTextSize.size2,
+        //     fontType: PosFontType.fontB,
+        //   ),
+        // );
+
         bytes += _generator!.text(
-          dateTime,
+          "KOT Time:- $dateTime",
           styles: PosStyles(
             align: PosAlign.center,
             fontType: PosFontType.fontA,
           ),
         );
         
-        if (kotNumber != null) {
-          bytes += _generator!.text(
-            "KOT No: $kotNumber",
-            styles: PosStyles(
-              align: PosAlign.center,
-              fontType: PosFontType.fontA,
-            ),
-          );
-        }
+        // if (kotNumber != null) {
+        //   bytes += _generator!.text(
+        //     "KOT No: $kotNumber",
+        //     styles: PosStyles(
+        //       align: PosAlign.center,
+        //       fontType: PosFontType.fontA,
+        //     ),
+        //   );
+        // }
         
         // bytes += _generator!.feed(1);
         
@@ -1143,7 +1161,7 @@ class BillPrinter {
                 PosColumn(
                   text: note,
                   width: 4,
-                  styles: PosStyles(fontType: PosFontType.fontA,bold: true),
+                  styles: PosStyles(align: PosAlign.center,fontType: PosFontType.fontA,bold: true),
                 ),
                 PosColumn(
                   text: "$qty",
@@ -1909,6 +1927,7 @@ Future<Uint8List?> generateReceiptImage({
   double fHeader = 37;//fontSizes[headerFontSize] ?? 30.0;
   double fItem = 21;//fontSizes[itemFontSize] ?? 18.0;
   double fTotal = 30;//fontSizes[2] ?? 24.0; // Total/Discount size is '2' in your code
+  final String dateTime = DateFormat('dd-MMM-yyyy hh:mm a').format(DateTime.now());
   
   
   // --- 3. Setup Canvas ---
@@ -1950,9 +1969,13 @@ Future<Uint8List?> generateReceiptImage({
     //   yOffset += await _drawText(canvas, "", y: yOffset, width: receiptWidth, fontSize: fItem, align: TextAlign.center);
     // }
     
+    yOffset += await _drawText(canvas, "Time:- $dateTime", y: yOffset, width: receiptWidth, fontWeight: FontWeight.bold, fontSize: fItem, align: TextAlign.center);
+
+    
     yOffset += 10; // New line
     yOffset += await _drawText(canvas, "Bill No: $billNo / Table No-: $tableno", y: yOffset, width: receiptWidth,fontWeight: FontWeight.bold, fontSize: fItem, align: TextAlign.center);
     yOffset += 5;
+
 
     if (customerName ) {
       debugPrint("⚠️ check printer is connected tota --$transactionData---");
@@ -2052,7 +2075,8 @@ Future<Uint8List?> generateReceiptImage({
 
 Future<Uint8List?> generateKOTImage({
   required List<Map<String, dynamic>> cart1,
-  int? tableNumber
+  int? tableNumber,
+  int? kotNumber = 1,
 }) async {
   
   // --- 1. Configuration (MUST TWEAK THESE) ---
@@ -2137,7 +2161,7 @@ Future<Uint8List?> generateKOTImage({
 
       yOffset += await _drawText(canvas, " KOT ", y: yOffset, width: receiptWidth, fontSize: fHeader, fontWeight: FontWeight.bold, align: TextAlign.center);
 
-      yOffset += await _drawText(canvas, "kot no.- 1 / table no:- $tableNumber", y: yOffset, width: receiptWidth, fontSize: fItem, align: TextAlign.center);
+      yOffset += await _drawText(canvas, "kot no.- $kotNumber / table no:- $tableNumber", y: yOffset, width: receiptWidth, fontSize: fItem, fontWeight: FontWeight.bold, align: TextAlign.center);
 
       // yOffset += await _drawText(canvas, , y: yOffset, width: receiptWidth, fontSize: fItem, align: TextAlign.center);
 
@@ -2160,6 +2184,7 @@ Future<Uint8List?> generateKOTImage({
       String name = item['name'] ?? 'Item';
       int qty = item['qty'] ?? 0;
       String note = item['note'] ?? " ";
+      debugPrint("jhk bkxb $item");
       // final dynamic rawPrice = item['sellPrice'];
       // final int rate = rawPrice is num
       //     ? rawPrice.toInt()
@@ -2167,8 +2192,7 @@ Future<Uint8List?> generateKOTImage({
       //           double.tryParse(rawPrice.toString())?.toInt() ??
       //           0;
       // int total = qty * rate;
-      String rightText =
-          "${note.padLeft(2)} ${qty.toString().padLeft(2)}";
+      String rightText = "${note.padLeft(1)} ${qty.toString().padLeft(2)}";
 
       // The _drawLeftRight helper handles wrapping, so we don't need your _wrapText loop
       yOffset += await _drawLeftRight(canvas, " $name", rightText, y: yOffset, width: receiptWidth, fontSize: fTotal,leftFontWeight: FontWeight.bold, rightFontWeight: FontWeight.bold);
