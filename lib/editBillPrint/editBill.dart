@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:typed_data';
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import '../objectbox.g.dart';
 import '../billnogenerator/BillCounter.dart';
@@ -63,6 +64,8 @@ class _DetailPageState extends State<DetailPage> {
   final bool _isBoxReady = false;
   String selectedStyle = "List Style Half Full";
   late Map<String, dynamic> transaction = {};
+  List<Map<String, dynamic>> existingcart = [];
+  
   
 
   @override
@@ -71,7 +74,9 @@ class _DetailPageState extends State<DetailPage> {
     final store = Provider.of<ObjectBoxService>(context, listen: false).store;
     billCounterBox = store.box<BillCounter>();
     loadSelectedStyle();
-    
+    existingcart = (widget.cart1 ?? []).map((item) => Map<String, dynamic>.from(item)).toList();
+
+    // debugPrint("oldCartMap.containsKey(key) ${existingcart}");
     void _updateCalculations() {
     if (!mounted) return;
       // debugPrint(" widget.hideadd == null ${widget.table} ${widget.table == null } ${widget.table == null && widget.hideadd == null} ${widget.hideadd != null} ${widget.hideadd}");
@@ -98,7 +103,7 @@ class _DetailPageState extends State<DetailPage> {
       if (widget.mode == "edit") {
         cartProvider.setCart(widget.cart1 ?? []);
         // debugPrint("cartProvider.cart in editbill ${cartProvider.cart}");
-        if (widget.transaction != null) {
+        if (widget.transaction != null && (widget.transaction ?? {}).isNotEmpty) {
           print("transaction in editbill ${widget.transaction}");
           transaction = widget.transaction ?? {};
 
@@ -239,11 +244,57 @@ class _DetailPageState extends State<DetailPage> {
     print("selected style $selectedStyle");
   }
 
+  void _showNoteDialog(BuildContext context, Map<String, dynamic> item,CartProvider cartProvider) {
+  // Controller to manage the text in the dialog's TextField
+  // Initialize it with the current note, if one exists
+  final TextEditingController _noteController = TextEditingController(text: item['note'] ?? '');
+
+  showDialog(
+    context: context,
+    builder: (BuildContext context) {
+      return AlertDialog(
+        title: Text('Add Note for ${item['name']}'),
+        content: TextField(
+          controller: _noteController,
+          autofocus: true,
+          decoration: InputDecoration(hintText: 'Enter KOT note...'),
+          maxLines: 3, // Allow for multi-line notes
+        ),
+        actions: <Widget>[
+          TextButton(
+            child: Text('Cancel'),
+            onPressed: () {
+              Navigator.of(context).pop(); // Close the dialog
+            },
+          ),
+          TextButton(
+            child: Text('Save'),
+            onPressed: () {
+              // Get the note from the controller
+              String note = _noteController.text;
+
+              // Call your updateNote method
+              // Make sure 'id' and 'portion' exist in your 'item' map
+              cartProvider.updateNote(
+                item['id'],     // Or however you get the item ID
+                item['portion'], // Or however you get the portion
+                note,
+              );
+
+              Navigator.of(context).pop(); // Close the dialog
+            },
+          ),
+        ],
+      );
+    },
+  );
+}
+
 
   Widget _buildItemCards() {
     final cartProvider = Provider.of<CartProvider>(context);
     final cart = cartProvider.cart;
-    debugPrint("cart items $cart");
+    debugPrint("cart items _buildItemCards $cart");
 
     return Center(
       child: Container(
@@ -290,16 +341,39 @@ class _DetailPageState extends State<DetailPage> {
                       Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
+                          // This Expanded now holds a Row with the name and the icon
                           Expanded(
-                            child: Text(
-                              item['name'] ?? 'Unknown Item',
-                              style: const TextStyle(
-                                fontSize: 14,
-                                fontWeight: FontWeight.bold,
-                              ),
-                              overflow: TextOverflow.ellipsis,
+                            child: Row(
+                              children: [
+                                // Use Expanded on the Text so it takes available space
+                                Expanded(
+                                  child: Text(
+                                    item['name'] ?? 'Unknown Item',
+                                    style: const TextStyle(
+                                      fontSize: 14,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                ),
+                                // Your new Note Icon Button
+                                IconButton(
+                                  icon: Icon(Icons.note_add_outlined),
+                                  iconSize: 20.0, // Smaller icon size
+                                  color: (item["note"] == null )? Colors.blueGrey :const Color.fromARGB(255, 255, 0, 0), // Optional: style the icon
+                                  padding: EdgeInsets.symmetric(horizontal: 8.0), // Add some spacing
+                                  constraints: BoxConstraints(), // Removes default large padding
+                                  onPressed: () {
+                                    // This function will open the note dialog
+                                    _showNoteDialog(context,item,cartProvider);
+                                    // cartProvider.updateNote(context, item);
+                                  },
+                                ),
+                              ],
                             ),
                           ),
+                          
+                          // This is your existing price Text
                           Text(
                             '₹${total.toStringAsFixed(2)}',
                             style: TextStyle(
@@ -617,7 +691,7 @@ class _DetailPageState extends State<DetailPage> {
 
 
   /// In your real app, you would generate this from your actual bill data.
-  Future<String> _createBillString() async {
+  Future<String> _createBillString(CartProvider cartProvider) async {
     // Example bill number - you can make this dynamic
     final prefs = await SharedPreferences.getInstance();
     String businessName = prefs.getString('businessName') ?? 'Hotel Test';
@@ -625,8 +699,8 @@ class _DetailPageState extends State<DetailPage> {
     String businessAddress = prefs.getString('businessAddress') ?? '';
     String _myUpiId = prefs.getString('upi') ?? '';
 
-    int totalAmount =  (cartProvider?.total ?? 0);
-    final cartItems = (cartProvider?.cart ?? []);
+    int totalAmount =  (cartProvider.total ?? 0);
+    final cartItems = (cartProvider.cart ?? []);
       // Replace these with your actual UPI details.
     final String upiPaymentLink = 'upi://pay?pa=$_myUpiId&am=${totalAmount.toStringAsFixed(2)}&cu=INR';
 
@@ -692,7 +766,7 @@ class _DetailPageState extends State<DetailPage> {
 
 
   /// Launches WhatsApp with a pre-filled message.
-  Future<void> _shareOnWhatsApp() async {
+  Future<void> _shareOnWhatsApp(CartProvider cartProvider) async {
     // 1. Get the mobile number from the controller
     // Note: Ensure the number includes the country code (e.g., +91 for India)
     String mobileNumber = _mobileNoController.text.trim();
@@ -724,7 +798,7 @@ class _DetailPageState extends State<DetailPage> {
     }
     
     // 2. Get the bill details string
-    String billDetails = await _createBillString();
+    String billDetails = await _createBillString(cartProvider);
 
     // 3. URL-encode the message
     String encodedMessage = Uri.encodeComponent(billDetails);
@@ -774,6 +848,8 @@ DateTime getBusinessDate({int cutoffHour = 4}) {
 
   @override
   Widget build(BuildContext context) {
+    final cartProvider = Provider.of<CartProvider>(context, listen: false);
+
     return Scaffold(
       appBar: AppBar(
         title: const Text("Edit Bill"),
@@ -842,7 +918,7 @@ DateTime getBusinessDate({int cutoffHour = 4}) {
                             const SizedBox(width: 12),
                             // This is the button you wanted to add
                             ElevatedButton.icon(
-                              onPressed: _shareOnWhatsApp,
+                              onPressed:() => _shareOnWhatsApp(cartProvider),
                               icon: const FaIcon(FontAwesomeIcons.whatsapp,
                                                   color: Colors.white,
                                                   size: 20.0,),
@@ -868,18 +944,17 @@ DateTime getBusinessDate({int cutoffHour = 4}) {
                     style: TextStyle(fontWeight: FontWeight.bold),
                   ),
                   const SizedBox(height: 10),
-                  if(widget.table == null && widget.hideadd == null )
+                  if(widget.hideadd == null )
                     Center(
                       child: ElevatedButton(
                         style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.green,
+                          backgroundColor: const Color.fromARGB(255, 21, 199, 27),
                         ),
                         child: const Text("ADD MORE ITEMS"),
                         onPressed: () async {
                           await loadSelectedStyle();
+                          
                           if (selectedStyle == "half-Full View") {
-                            final cartProvider = Provider.of<CartProvider>(context, listen: false);
-                            
                             // Navigate and wait for result
                             final result = await Navigator.push(
                               context,
@@ -903,7 +978,7 @@ DateTime getBusinessDate({int cutoffHour = 4}) {
                             final result = await Navigator.push(
                                 context,
                                 MaterialPageRoute(builder: (context) => NewOrderPage(
-                                  cart1: List.from(cartProvider!.cart),
+                                  cart1: List.from(cartProvider.cart),
                                   mode: 'editpj',
                                 )),
                               );
@@ -911,7 +986,7 @@ DateTime getBusinessDate({int cutoffHour = 4}) {
                             // Handle the returned cart
                             if (result != null && result is List<Map<String, dynamic>>) {
                               // cartProvider.clearCart();
-                              cartProvider?.setCart(result);
+                              cartProvider.setCart(result);
                               _calculateSubtotal();
                             }
                           }
@@ -955,6 +1030,7 @@ DateTime getBusinessDate({int cutoffHour = 4}) {
                 mobileNo: _mobileNo1, // Use .text
                 billno: billNo,
                 cartProvider:cartProvider,
+                existingcart:existingcart,
               );
             }
           ),
@@ -1148,6 +1224,7 @@ class _BottomBar extends StatefulWidget {
   final String? name;
   final int? billno;
   final CartProvider? cartProvider;
+  final List<Map<String, dynamic>> existingcart;
 
   const _BottomBar({
     required this.subtotalNotifier,
@@ -1165,6 +1242,7 @@ class _BottomBar extends StatefulWidget {
     this.name,
     this.billno,
     this.cartProvider,
+    required this.existingcart,
   });
 
   @override
@@ -1228,6 +1306,62 @@ class __BottomBarState extends State<_BottomBar> {
     );
   }
 
+  /// Compares an old cart list with a new one and returns a list of
+  /// brand new items or items with an increased quantity.
+  List<Map<String, dynamic>> getNewKotItems({
+    required List<Map<String, dynamic>> oldCart,
+    required List<Map<String, dynamic>> newCart,
+  }) {
+    
+    final List<Map<String, dynamic>> kotItems = [];
+
+    // 1. Create a Map of the old cart for fast lookup.
+    // The key is a unique identifier: "id-portion"
+    // The value is the quantity.
+    final Map<String, int> oldCartMap = {};
+    for (var item in oldCart) {
+      String key = "${item['id']}-${item['portion']}";
+      oldCartMap[key] = item['qty'] as int;
+    }
+    // debugPrint("oldCartMap.containsKey(key) ${oldCart}");
+    // debugPrint("oldCartMap.containsKey(key) ${newCart}");
+    // 2. Loop through the new cart and compare against the old map.
+    for (var newItem in newCart) {
+      String key = "${newItem['id']}-${newItem['portion']}";
+      int newQty = newItem['qty'] as int;
+      
+      if (oldCartMap.containsKey(key)) {
+        // Item existed before. Check if quantity increased.
+        int oldQty = oldCartMap[key]!;
+        // debugPrint("oldCartMap.containsKey(key) $newQty > $oldQty ${newQty > oldQty}");
+        if (newQty > oldQty) {
+          // Quantity increased. Send the difference to the KOT.
+          int qtyToSend = newQty - oldQty;
+          // debugPrint("oldCartMap.containsKey(key) ${qtyToSend}");
+
+          // Create a copy of the item
+          Map<String, dynamic> kotItem = Map.from(newItem);
+          
+          // Set the quantity to the *difference*
+          kotItem['qty'] = qtyToSend;
+          
+          // Recalculate the total for the KOT
+          kotItem['total'] = (kotItem['sellPrice'] as double) * qtyToSend;
+          // debugPrint("oldCartMap.containsKey(key) ${kotItem}");
+          kotItems.add(kotItem);
+        }
+        // If newQty <= oldQty, do nothing (item was not added or was removed)
+        
+      } else {
+        // This is a brand new item (key didn't exist in old map).
+        // Add the full item as-is.
+        kotItems.add(Map.from(newItem));
+      }
+    }
+
+    return (kotItems.isEmpty) ? oldCart : kotItems;
+  }
+
 
   @override
   Widget build(BuildContext context) {
@@ -1279,30 +1413,36 @@ class __BottomBarState extends State<_BottomBar> {
                                 ),
                                 // ✅ 1. Disable the button when printing
                                 onPressed: _isPrinting ? null : () async {
+                                  List<Map<String, dynamic>> newItemsForKot = getNewKotItems(oldCart: widget.existingcart,newCart: widget.cart,);
                                   
                                   setState(() {
                                     _isPrinting = true;
                                   });
                                   try {
                                      if(widget.table != null && widget.table!['kot'] > 0){
-                                        debugPrint("PrinterCart ${widget.table} and widget.transaction ${widget.transaction}");
+                                        debugPrint("PrinterCart ${widget.table} and widget.transaction ${widget.transaction} newItemsForKot $newItemsForKot");
                                         await printer.printCart(
                                           context: context,
-                                          cart1: widget.cart,
+                                          cart1: newItemsForKot,
                                           total: total.toInt(),
                                           mode: "kot",
                                           payment_mode: "CASH",
                                           transactionData : widget.transaction,
                                           kot: widget.table!['kot'],
-                                        ).then((value) {
-                                          Navigator.of(context).popUntil((route) => route.isFirst);
-                                          // Navigator.of(context).pop(context);
+                                        ).then((value) async {
+                                            debugPrint("PrinterCart ${widget.table}");
+                                            final prefs = await SharedPreferences.getInstance();
+                                            final key = "table${widget.table!['kot']}";
+                                            final stringcart = json.encode(widget.cart);
+                                            await prefs.setString(key, stringcart);
+                                            debugPrint("table is settle : $key key ${stringcart}");
+                                            Navigator.of(context).pop(context);
                                         });
                                       } else{
                                         debugPrint("PrinterCart ${widget.cart} and widget.transaction ${widget.transaction} ${widget.transaction['id']}");
                                         await printer.printCart(
                                           context: context,
-                                          cart1: widget.cart,
+                                          cart1: newItemsForKot,
                                           total: total.toInt(),
                                           mode: "print",
                                           transactionData : widget.transaction,
@@ -1348,21 +1488,25 @@ class __BottomBarState extends State<_BottomBar> {
                                   setState(() {
                                     _isPrinting = true;
                                   });
-
+                                  final prefs = await SharedPreferences.getInstance();
+                                  debugPrint(" ${(widget.table ?? {"kot":1})['kot']} PrinterCart ${widget.cart} and widget.transaction ${widget.transaction} ${widget.transaction['id']}");
                                   try {
-                                    if(widget.table != null && widget.table!['kot'] > 0){
-                                        debugPrint("PrinterCart ${widget.table} and widget.transaction ${widget.transaction}");
-                                        await printer.printCart(context: context,
-                                                       cart1: widget.cart,
-                                                        total:total.toInt(),
-                                                        mode:"onlyPrint",
-                                                        payment_mode:"CASH",
-                                                        transactionData : widget.transaction,
-                                                        kot:widget.table!['kot'],
-                                                        ).then((value) {
-                                                          Navigator.of(context).popUntil((route) => route.isFirst);
-                                                        });
-                                      } else{
+                                    if(widget.table != null && (widget.table ?? {"kot":1})['kot'] > 0){
+                                      final ttid = prefs.getInt("tt${(widget.table ?? {"kot":1})['kot']}");
+                                      debugPrint("PrinterCart ${widget.table}");
+                                      final key = "table${widget.table!['kot']}";
+                                      final stringcart = json.encode(widget.cart);
+                                      await prefs.setString(key, stringcart);
+                                      debugPrint("table is settle : $key key ${stringcart}");
+                                      await printer.printCart(context: context,
+                                                      cart1: widget.cart,
+                                                      total:total.toInt(),
+                                                      mode:"print",
+                                                      payment_mode: (ttid != null) ? 'print_${widget.transaction['id']}' : 'print',
+                                                      transactionData : widget.transaction,
+                                                      kot: (widget.table ?? {"kot":1})['kot'],
+                                                      );
+                                      } else {
                                         debugPrint("PrinterCart ${widget.cart} and transaction ${widget.transaction}");
                                         await printer.printCart(
                                           context: context,
@@ -1370,7 +1514,7 @@ class __BottomBarState extends State<_BottomBar> {
                                           total: total.toInt(),
                                           mode: "print",
                                           transactionData : widget.transaction,
-                                          payment_mode: (widget.mode == 'edit') ? 'no_${widget.transaction['id']}' : 'print',
+                                          payment_mode: (widget.mode == 'edit') ? 'print_${widget.transaction['id']}' : 'print',
                                         );
                                       }
                                     
@@ -1434,7 +1578,7 @@ class __BottomBarState extends State<_BottomBar> {
                                           cart1: widget.cart,
                                           total: total.toInt(),
                                           mode: 'onlySettle',
-                                          payment_mode:  paymentMode.toUpperCase(),
+                                          payment_mode: paymentMode.toUpperCase(),
                                           transactionData : widget.transaction,
                                           kot:widget.table!['kot'],
                                         );
@@ -1446,7 +1590,7 @@ class __BottomBarState extends State<_BottomBar> {
                                           cart1: widget.cart,
                                           total: total.toInt(),
                                           mode: "settle1",
-                                          payment_mode: (widget.mode == 'edit' && widget.transaction.isNotEmpty) ? '${paymentMode.toUpperCase()}_${widget.transaction['id']}' : paymentMode.toUpperCase(),
+                                          payment_mode: paymentMode.toUpperCase(),
                                           transactionData : widget.transaction,
                                         );
                                       }
@@ -1473,11 +1617,63 @@ class __BottomBarState extends State<_BottomBar> {
                                       ),
                                     )
                                   : Text(
-                                      "Print/Settle",
+                                      (widget.table != null && widget.table!['kot'] > 0) ? "Settle" : "Print/Settle",
                                       style: const TextStyle(color: Colors.white),
                                     ),
                                   ),
                                 ),
+                            const SizedBox(width: 6),
+                            if (widget.table != null)
+                              Expanded(
+                                flex: 2,
+                                child: ElevatedButton(
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor: Colors.blue,
+                                    padding: const EdgeInsets.symmetric(vertical: 14),
+                                  ),
+                                  // ✅ 1. Disable the button when printing
+                                  onPressed: _isPrinting ? null : () async {
+                                    // ✅ 2. Start the loading indicator
+                                    setState(() {
+                                      _isPrinting = true;
+                                    });
+
+
+                                    try {
+                                    if(widget.table != null && widget.table!['kot'] > 0){
+                                        debugPrint("PrinterCart ${widget.table}");
+                                        final prefs = await SharedPreferences.getInstance();
+                                        final key = "table${widget.table!['kot']}";
+                                        final stringcart = json.encode(widget.cart);
+                                        await prefs.setString(key, stringcart);
+                                        debugPrint("table is settle : $key key ${stringcart}");
+                                        Navigator.of(context).pop(context);
+                                      }
+                                      
+                                    } finally {
+                                      if (mounted) { 
+                                        setState(() {
+                                          _isPrinting = false;
+                                        });
+                                      }
+                                    }
+                                  },
+                                  // ✅ 3. Show a loading indicator or text based on the state
+                                  child: _isPrinting
+                                    ? const SizedBox(
+                                        height: 20,
+                                        width: 20,
+                                        child: CircularProgressIndicator(
+                                          color: Colors.white,
+                                          strokeWidth: 2.5,
+                                        ),
+                                      )
+                                    : Text(
+                                        "ADD",
+                                        style: const TextStyle(color: Colors.white),
+                                      ),
+                                    ),
+                                  ),
                           ],
                         ),
                       )

@@ -73,6 +73,7 @@ class BillPrinter {
           bytes.clear();
           final stopwatch = Stopwatch()..start();
           final cart = cart1;
+          final prefs = await SharedPreferences.getInstance();
           final int billNo = (transactionData?['billNo'] == null) ? getNextBillNo(context) : transactionData?['billNo'];
           debugPrint("check printer is connected total $total mode $mode payment_mode $payment_mode  $transactionData billNo $billNo");
           
@@ -87,43 +88,64 @@ class BillPrinter {
               final store = Provider.of<ObjectBoxService>(context, listen: false).store;
               final box = store.box<Transaction>();
               debugPrint(" mode ${isConnected}  payment_mode $payment_mode");
+              int pageback1 = 0;
+              // if (mode == "settle1") pageback1 = 2;
+              if ((kot ?? 0) > 0) pageback1 = 1;
+              
               
               switch (mode) {
                 case "kot":
                   await sendKotToPrinter(context: context,cart:cart,tableNumber: kot,kotNumber: 1,);
                   return true;
                 case "onlyPrint":
-                  await sendDataToPrinter(context: context, cart1:cart, total:total, billNo: billNo,transactionData:transactionData);
+                  await sendDataToPrinter(context: context, cart1:cart, total:total, billNo: billNo,tableNumber: kot ?? 1,transactionData:transactionData);
                   return true;
                 case "onlySettle":
                   await _disconnect();
-                  int id  = await saveTransactionToObjectBox(
-                    context: context,
-                    cart: cart,
-                    total: total,
-                    tableNo: kot ?? 1,
-                    pageback: 1,
-                    payment_mode: payment_mode,
-                    status: mode,
-                    transactionData:transactionData
-                  );
-                  final prefs = await SharedPreferences.getInstance();
+                  final ttid = prefs.getInt("tt$kot");
+                  int id;
+                  if(ttid != null){
+                    id = ttid;
+                    await updateTransactionToObjectBox(
+                      context: context,
+                      cart: cart,
+                      total: total,
+                      tableNo: kot ?? 1,
+                      pageback: pageback1,
+                      payment_mode: payment_mode,
+                      status: mode,
+                      id: ttid.toString(),
+                      transactionData:transactionData,
+                    );
+                    // int gotId = int.parse(ttid.toString());
+                    sendTransactionToServer(box, ttid);
+                  }else {
+                    id  = await saveTransactionToObjectBox(
+                      context: context,
+                      cart: cart,
+                      total: total,
+                      tableNo: kot ?? 1,
+                      pageback: pageback1,
+                      payment_mode: payment_mode,
+                      status: mode,
+                      transactionData:transactionData
+                    );
+                  }
+                  
                   final key = "table${kot}";
                   prefs.remove(key);
                   debugPrint("saveTransactionToObjectBox with id - $id  table $key ");
                   sendTransactionToServer(box, id);
+                  prefs.remove("tt$kot",);
                   return true;
               }
 
               if(payment_mode == "KOT"){
                 await sendKotToPrinter(context: context,cart:cart,tableNumber: kot,kotNumber: 1,);
               }else{
-                await sendDataToPrinter(context: context, cart1:cart, total:total, billNo: billNo,transactionData:transactionData);
+                await sendDataToPrinter(context: context, cart1:cart, total:total, billNo: billNo,tableNumber: kot ?? 1,transactionData:transactionData);
               }
               
-              int pageback1 =0;
-              if (mode == "settle1") pageback1 = 2;
-              if (mode == "print") pageback1 = 3;
               late final String id;
               
               if (payment_mode.contains("_")) {
@@ -159,6 +181,9 @@ class BillPrinter {
 
                 debugPrint("saveTransactionToObjectBox with id - $id ");
                 sendTransactionToServer(box, id);
+                if (kot != null){
+                  prefs.setInt("tt$kot", id);
+                }
               }
 
               stopwatch.stop();
@@ -187,32 +212,36 @@ class BillPrinter {
   Future<bool> _connectToPrinter(bl.BluetoothDevice device) async {
     try {
       // Connect to the device
-      await device.connect();
+      try{
+        await device.connect();
+      }catch (e) {
+        await device.connect(timeout: Duration(seconds: 10));
+      }
       
       // Discover services
-      List<bl.BluetoothService> services = await device.discoverServices();
-      debugPrint("✅ Found ${services.length} services");
+      // List<bl.BluetoothService> services = await device.discoverServices();
+      // debugPrint("✅ Found ${services.length} services");
       
-      for (int i = 0; i < services.length; i++) {
-        bl.BluetoothService service = services[i];
-        // debugPrint("--- Service $service ---");
-        // debugPrint("--- Service ${i + 1} ---");
-        // debugPrint("Service UUID: ${service.uuid}");
-        // debugPrint("Service UUID (full): ${service.uuid.toString()}");
+      // for (int i = 0; i < services.length; i++) {
+      //   bl.BluetoothService service = services[i];
+      //   // debugPrint("--- Service $service ---");
+      //   // debugPrint("--- Service ${i + 1} ---");
+      //   // debugPrint("Service UUID: ${service.uuid}");
+      //   // debugPrint("Service UUID (full): ${service.uuid.toString()}");
         
-        for (int j = 0; j < service.characteristics.length; j++) {
-          bl.BluetoothCharacteristic characteristic = service.characteristics[j];
-          debugPrint("  Characteristic ${j + 1}:");
-          debugPrint("    UUID: ${characteristic.uuid}");
-          debugPrint("    Properties: ${characteristic.properties}");
-          debugPrint("    Read: ${characteristic.properties.read}");
-          debugPrint("    Write: ${characteristic.properties.write}");
-          debugPrint("    WriteWithoutResponse: ${characteristic.properties.writeWithoutResponse}");
-          debugPrint("    Notify: ${characteristic.properties.notify}");
-          debugPrint("    Indicate: ${characteristic.properties.indicate}");
-        }
-        debugPrint(""); // Empty line for readability
-      }
+      //   for (int j = 0; j < service.characteristics.length; j++) {
+      //     bl.BluetoothCharacteristic characteristic = service.characteristics[j];
+      //     debugPrint("  Characteristic ${j + 1}:");
+      //     debugPrint("    UUID: ${characteristic.uuid}");
+      //     debugPrint("    Properties: ${characteristic.properties}");
+      //     debugPrint("    Read: ${characteristic.properties.read}");
+      //     debugPrint("    Write: ${characteristic.properties.write}");
+      //     debugPrint("    WriteWithoutResponse: ${characteristic.properties.writeWithoutResponse}");
+      //     debugPrint("    Notify: ${characteristic.properties.notify}");
+      //     debugPrint("    Indicate: ${characteristic.properties.indicate}");
+      //   }
+      //   debugPrint(""); // Empty line for readability
+      // }
       // Initialize generator
       final prefs = await SharedPreferences.getInstance();
       String paperSize = prefs.getString('paperSize') ?? '2';
@@ -538,6 +567,7 @@ class BillPrinter {
     required int total,
     required int billNo,
     required Map<String, dynamic>? transactionData,
+    required int tableNumber,
   }) async {
     debugPrint("recived cart to send to printer total $total and cart $cart1 billNo $billNo transactionData $transactionData");
     List<Map<String, dynamic>> cart = cart1.map((item) => Map<String, dynamic>.from(item)).toList();
@@ -610,6 +640,7 @@ class BillPrinter {
                                         total: total,
                                         billNo: billNo,
                                         transactionData: transactionData,
+                                        tableno:tableNumber,
                                       );
         if (imageBytes != null) {
           // showDialog(
@@ -634,8 +665,8 @@ class BillPrinter {
             // Convert to grayscale for better thermal printing
             final grayscale = img.grayscale(original);
             bytes += _generator!.imageRaster(grayscale);
-            // bytes += _generator!.feed(3);
-            bytes += _generator!.cut();
+            bytes += _generator!.feed(1);
+            // bytes += _generator!.cut();
           }
 
           await _sendToPrinter(imageBytes:imageBytes);
@@ -727,7 +758,7 @@ class BillPrinter {
 
         // Bill number
         bytes += _generator!.text(
-          "Bill No: ${billNo ?? 0}",
+          "Bill No: ${billNo ?? 0} / Table No : $tableNumber",
           styles: PosStyles(
             bold: true,
             fontType: PosFontType.fontA,
@@ -920,8 +951,8 @@ class BillPrinter {
           ),
         );
 
-        // bytes += _generator!.feed(3);
-        bytes += _generator!.cut();
+        bytes += _generator!.feed(1);
+        // bytes += _generator!.cut();
 
         // debugPrint("before clear total ${bytes.length} and cart $bytes");
         // Send to printer
@@ -1005,7 +1036,8 @@ class BillPrinter {
             // Convert to grayscale for better thermal printing
             final grayscale = img.grayscale(original);
             bytes += _generator!.imageRaster(grayscale);
-            bytes += _generator!.cut();
+            bytes += _generator!.feed(1);
+            // bytes += _generator!.cut();
           }
 
           await _sendToPrinter(imageBytes:imageBytes);
@@ -1095,6 +1127,7 @@ class BillPrinter {
         for (var item in kotCart) {
           String name = item['name'] ?? 'Item';
           int qty = item['qty'] ?? 0;
+          String note = item['note'] ?? ' ';
           
           // const int maxNameWidth = 20;
           // List<String> wrapped = _wrapText(name, maxNameWidth);
@@ -1104,12 +1137,17 @@ class BillPrinter {
               bytes += _generator!.row([
                 PosColumn(
                   text: name,
-                  width: 10,
+                  width: 7,
                   styles: PosStyles(fontType: PosFontType.fontA,bold: true),
                 ),
                 PosColumn(
-                  text: "$qty ",
-                  width: 2,
+                  text: note,
+                  width: 4,
+                  styles: PosStyles(fontType: PosFontType.fontA,bold: true),
+                ),
+                PosColumn(
+                  text: "$qty",
+                  width: 1,
                   styles: PosStyles(align: PosAlign.right, fontType: PosFontType.fontA,bold: true),
                 ),
               ]);
@@ -1124,8 +1162,8 @@ class BillPrinter {
         }
 
         bytes += _generator!.hr();
-        // bytes += _generator!.feed(3);
-        bytes += _generator!.cut();
+        bytes += _generator!.feed(1);
+        // bytes += _generator!.cut();
 
         await _sendToPrinter();
         kotCart.clear();
@@ -1261,65 +1299,19 @@ class BillPrinter {
     onTransactionAdded?.call();
     // debugPrint("🔁 Transaction added callback fired!");
     // To go back to the very first screen (the "home" screen)
-    Navigator.of(context).popUntil((route) => route.isFirst);
+    
+      if(pageback != null && pageback > 0){
+        for(int i =0 ;i < pageback ;i++){
+          debugPrint("save pageback1 $pageback");
+          Navigator.of(context).pop();
+        }
+      }else{
+        Navigator.of(context).popUntil((route) => route.isFirst);
+      }
     
     return createdId;
   }
 
-
-  Future<void> adjustStock(BuildContext context, List<Map<String, dynamic>> cart1) async {
-    // Clone the cart list to avoid modifying the original
-    List<Map<String, dynamic>> cart = cart1.map((item) => Map<String, dynamic>.from(item)).toList();
-
-    // Access ObjectBox store and MenuItem box
-    final store = Provider.of<ObjectBoxService>(context, listen: false).store;
-    final Box<MenuItem> menuItemBox = store.box<MenuItem>();
-
-    // Fetch all items from the database
-    final List<MenuItem> allItems = menuItemBox.getAll();
-
-    // Loop through each item in the cart
-    for (var cartItem in cart) {
-      final int? cartItemId = cartItem['id'];
-      final int qtyToReduce = cartItem['qty'] ?? 0;
-
-      if (cartItemId == null || qtyToReduce <= 0) continue;
-
-      // Find the matching MenuItem in ObjectBox
-      final MenuItem? menuItem = allItems.firstWhere(
-        (item) => item.id == cartItemId,
-        // orElse: () => null,
-      );
-
-      if (menuItem != null) {
-        // Adjust stock safely (prevent going below 0)
-        int currentStock = menuItem.adjustStock ?? 0;
-        int newStock = (currentStock - qtyToReduce).clamp(0, double.infinity).toInt();
-
-        // Update the item
-        menuItem.adjustStock = newStock;
-
-        // Save back to ObjectBox
-        menuItemBox.put(menuItem);
-      }
-    }
-
-    debugPrint("✅ Stock adjusted successfully for ${cart.length} items.");
-  }
-
-
-  Future<bool> isDeviceConnected() async {
-    final connectivityResult = await (Connectivity().checkConnectivity());
-    if (connectivityResult.contains(ConnectivityResult.mobile) ||
-        connectivityResult.contains(ConnectivityResult.bluetooth) ||
-        connectivityResult.contains(ConnectivityResult.wifi) ||
-        connectivityResult.contains(ConnectivityResult.ethernet)) {
-      // Now, check for actual internet access
-      debugPrint(" connectivityResult ${connectivityResult}");
-      return await InternetConnection().hasInternetAccess;
-    }
-    return false;
-  }
 
   Future<void> updateTransactionToObjectBox({
     required BuildContext context,
@@ -1385,7 +1377,16 @@ class BillPrinter {
       
       // Navigate back
       // To go back to the very first screen (the "home" screen)
-      Navigator.of(context).popUntil((route) => route.isFirst);
+      debugPrint(" up pageback1 $pageback");
+      if(pageback != null && pageback > 0){
+        for(int i =0 ;i < pageback ;i++){
+          debugPrint(" up pageback1 $pageback");
+          Navigator.of(context).pop();
+        }
+      }else{
+        Navigator.of(context).popUntil((route) => route.isFirst);
+      }
+
       
     } else {
       // 5. Handle the case where no transaction with that ID was found
@@ -1453,6 +1454,62 @@ class BillPrinter {
 
     return false;
   }
+
+  
+  Future<void> adjustStock(BuildContext context, List<Map<String, dynamic>> cart1) async {
+    // Clone the cart list to avoid modifying the original
+    List<Map<String, dynamic>> cart = cart1.map((item) => Map<String, dynamic>.from(item)).toList();
+
+    // Access ObjectBox store and MenuItem box
+    final store = Provider.of<ObjectBoxService>(context, listen: false).store;
+    final Box<MenuItem> menuItemBox = store.box<MenuItem>();
+
+    // Fetch all items from the database
+    final List<MenuItem> allItems = menuItemBox.getAll();
+
+    // Loop through each item in the cart
+    for (var cartItem in cart) {
+      final int? cartItemId = cartItem['id'];
+      final int qtyToReduce = cartItem['qty'] ?? 0;
+
+      if (cartItemId == null || qtyToReduce <= 0) continue;
+
+      // Find the matching MenuItem in ObjectBox
+      final MenuItem? menuItem = allItems.firstWhere(
+        (item) => item.id == cartItemId,
+        // orElse: () => null,
+      );
+
+      if (menuItem != null) {
+        // Adjust stock safely (prevent going below 0)
+        int currentStock = menuItem.adjustStock ?? 0;
+        int newStock = (currentStock - qtyToReduce).clamp(0, double.infinity).toInt();
+
+        // Update the item
+        menuItem.adjustStock = newStock;
+
+        // Save back to ObjectBox
+        menuItemBox.put(menuItem);
+      }
+    }
+
+    debugPrint("✅ Stock adjusted successfully for ${cart.length} items.");
+  }
+
+
+  Future<bool> isDeviceConnected() async {
+    final connectivityResult = await (Connectivity().checkConnectivity());
+    if (connectivityResult.contains(ConnectivityResult.mobile) ||
+        connectivityResult.contains(ConnectivityResult.bluetooth) ||
+        connectivityResult.contains(ConnectivityResult.wifi) ||
+        connectivityResult.contains(ConnectivityResult.ethernet)) {
+      // Now, check for actual internet access
+      debugPrint(" connectivityResult ${connectivityResult}");
+      return await InternetConnection().hasInternetAccess;
+    }
+    return false;
+  }
+
 
 
   void listenForNetworkChanges(BuildContext context) {
@@ -1889,12 +1946,12 @@ Future<Uint8List?> generateReceiptImage({
     if (gst.isNotEmpty) {
       yOffset += await _drawText(canvas, "GST: $gst", y: yOffset, width: receiptWidth, fontSize: fItem, align: TextAlign.center);
     }
-    if (tableno != null) {
-      yOffset += await _drawText(canvas, "Table No-: $tableno", y: yOffset, width: receiptWidth, fontSize: fItem, align: TextAlign.center);
-    }
+    // if (tableno != null) {
+    //   yOffset += await _drawText(canvas, "", y: yOffset, width: receiptWidth, fontSize: fItem, align: TextAlign.center);
+    // }
     
     yOffset += 10; // New line
-    yOffset += await _drawText(canvas, "Bill No: $billNo", y: yOffset, width: receiptWidth,fontWeight: FontWeight.bold, fontSize: fItem, align: TextAlign.center);
+    yOffset += await _drawText(canvas, "Bill No: $billNo / Table No-: $tableno", y: yOffset, width: receiptWidth,fontWeight: FontWeight.bold, fontSize: fItem, align: TextAlign.center);
     yOffset += 5;
 
     if (customerName ) {
@@ -1968,7 +2025,7 @@ Future<Uint8List?> generateReceiptImage({
     
     // Footer
     yOffset += await _drawText(canvas, footer, y: yOffset, width: receiptWidth, fontSize: fItem, align: TextAlign.center);
-    yOffset += 60; // Extra padding at the bottom
+    yOffset += 10; // Extra padding at the bottom
     
     // --- 5. Finalize and Encode Image ---
     
@@ -2102,6 +2159,7 @@ Future<Uint8List?> generateKOTImage({
     for (var item in cart) {
       String name = item['name'] ?? 'Item';
       int qty = item['qty'] ?? 0;
+      String note = item['note'] ?? " ";
       // final dynamic rawPrice = item['sellPrice'];
       // final int rate = rawPrice is num
       //     ? rawPrice.toInt()
@@ -2110,7 +2168,7 @@ Future<Uint8List?> generateKOTImage({
       //           0;
       // int total = qty * rate;
       String rightText =
-          "${qty.toString().padLeft(2)}  ";
+          "${note.padLeft(2)} ${qty.toString().padLeft(2)}";
 
       // The _drawLeftRight helper handles wrapping, so we don't need your _wrapText loop
       yOffset += await _drawLeftRight(canvas, " $name", rightText, y: yOffset, width: receiptWidth, fontSize: fTotal,leftFontWeight: FontWeight.bold, rightFontWeight: FontWeight.bold);
@@ -2119,7 +2177,7 @@ Future<Uint8List?> generateKOTImage({
     
     // Line
     yOffset += await _drawDashedLine(canvas, yOffset, receiptWidth, fItem);
-    yOffset += 60;
+    yOffset += 10;
     
     // Totals
     // if (transactionData != null) {

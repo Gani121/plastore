@@ -23,6 +23,9 @@ class Active_Table_view {
   });
 }
 
+
+
+
 @Entity()
 class CartItem {
   @Id()

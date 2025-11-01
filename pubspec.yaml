@@ -72,6 +72,8 @@ dependencies:
   printing: ^5.11.1
   android_intent_plus: ^6.0.0
   esc_pos_utils_plus: ^2.0.1
+  objectbox_generator: ^4.3.1
+  build_runner: ^2.7.1
 
 
 
@@ -102,8 +104,6 @@ dev_dependencies:
   flutter_test:
     sdk: flutter
   flutter_lints: ^5.0.0
-  objectbox_generator: any
-  build_runner: any
   flutter_launcher_icons: ^0.14.4
   android_intent_plus: ^6.0.0
 

@@ -34,6 +34,7 @@ import './udhari/DashboardPage.dart';
 import './MenuItemPage.dart';
 import 'package:connectivity_plus/connectivity_plus.dart';
 import './table_selection/tabledata.dart';
+import 'table_selection/table_view.dart';
 
 final printer = BillPrinter();
 String selectedStyle = "";
@@ -1803,8 +1804,10 @@ children: [
           } else if (index == 4) {
             Navigator.push(
               context,
-              MaterialPageRoute(builder: (context) => SettingsPage(menuItemBox:menuItemBox)),
-            );
+              MaterialPageRoute(builder: (context) => TableView()),
+            ).then((_) {
+              loadRecentTransactions(store);
+            });
           }
         },
         items: const [
@@ -1819,8 +1822,8 @@ children: [
             label: "Inventory",
           ),
           BottomNavigationBarItem(
-            icon: Icon(Icons.settings),
-            label: "Settings",
+            icon: Icon(Icons.table_bar_sharp),
+            label: "Tables",
           ),
         ],
       ),

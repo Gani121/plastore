@@ -250,6 +250,7 @@ class CartProvider extends ChangeNotifier {
       // await prefs.setString(key, cartJson);
 
       // Update local state
+      // _cart.clear();
       _cart = List.from(cartData);
       notifyListeners();
 
@@ -312,8 +313,24 @@ class CartProvider extends ChangeNotifier {
     return tableNo == null ? 'cart' : 'cart$tableNo';
   }
 
+    // Update item price in cart
+  void updateNote(
+    int id,
+    String portion,
+    String note,
+    ) async {
+    for (int i = 0; i < _cart.length; i++) {
+      if (_cart[i]['id'] == id && (_cart[i]['portion'].toString()).toLowerCase() == portion.toLowerCase()) {
+        // Update quantity if item exists
+        _cart[i]['note'] = note;
+        notifyListeners();
+        break;
+      }
+    }
+  }
+
   // Save current cart to SharedPreferences
-  void _saveCartToPrefs({int? tableNo}) async {
+  void saveCartToPrefs({int? tableNo}) async {
     final key = _getKey(tableNo);
     final prefs = await SharedPreferences.getInstance();
     try {
@@ -325,4 +342,25 @@ class CartProvider extends ChangeNotifier {
       }
     }
   }
+
+  // Get current cart From SharedPreferences
+  void getCartFromPrefs({int? tableNo}) async {
+    final key = _getKey(tableNo);
+    final prefs = await SharedPreferences.getInstance();
+    try {
+      // final String cartJson = jsonEncode(_cart);
+      final tablecart = await prefs.getString(key);
+      if(tablecart != null){
+        _cart = jsonDecode(tablecart);
+      } else {
+        _cart = [];
+      }
+    } catch (e) {
+      if (kDebugMode) {
+        print('Error saving cart to prefs: $e');
+      }
+    }
+  }
+
+  
 }

@@ -7,19 +7,19 @@ plugins {
 
 android {
     namespace = "com.orbipay.test7"
-    compileSdk = 35
+    compileSdk = 36
 
     defaultConfig {
         applicationId = "com.orbipay.test7"
-        minSdk = 21
-        targetSdk = 35
-        versionCode =4
+        minSdk = flutter.minSdkVersion
+        targetSdk = 36 
+        versionCode = 4
         versionName = "1.0"
     }
 
     signingConfigs {
         create("release") {
-            storeFile = file("C:/Users/Acer/.android/release-key.jks")
+            storeFile = file("C:/Users/PARDEEP/.android/release-key.jks")
             storePassword = "Ganesh@1234"
             keyAlias = "release_key"
             keyPassword = "Ganesh@1234"
