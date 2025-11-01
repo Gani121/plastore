@@ -26,6 +26,7 @@ class _SalesReportPageState extends State<SalesReportPage> {
   double cashTotal = 0;
   double cardTotal = 0;
   double upiTotal = 0;
+  double otherTotal = 0; // Add this line
   double todayExpenses = 0;
   double expensesToday = 0.0;
   double expensesDateRange = 0.0;
@@ -156,6 +157,11 @@ class _SalesReportPageState extends State<SalesReportPage> {
         case "UPI":
           uTotal += tx.total;
           break;
+        default:
+      // Handle any other payment methods
+      otherTotal += tx.total; // Add this variable declaration at the top
+      debugPrint('Other payment mode: ${tx.payment_mode} - Amount: ${tx.total}');
+      break;
       }
 
       for (var item in tx.decodedCart) {
@@ -269,6 +275,7 @@ class _SalesReportPageState extends State<SalesReportPage> {
     reportBuffer.writeln("💵 Cash: ₹ ${cashTotal.toStringAsFixed(2)}");
     reportBuffer.writeln("💳 Card: ₹ ${cardTotal.toStringAsFixed(2)}");
     reportBuffer.writeln("📱 UPI: ₹ ${upiTotal.toStringAsFixed(2)}");
+    reportBuffer.writeln("📱 Not Settled:₹ ${otherTotal.toStringAsFixed(2)}");
     reportBuffer.writeln("\n💰 $expensesLabel:");
     reportBuffer.writeln("₹ ${displayExpenses.toStringAsFixed(2)}");
 
@@ -480,6 +487,7 @@ class _SalesReportPageState extends State<SalesReportPage> {
           Text("💵 Cash: ₹ ${cashTotal.toStringAsFixed(2)}"),
           Text("💳 Card: ₹ ${cardTotal.toStringAsFixed(2)}"),
           Text("📱 UPI: ₹ ${upiTotal.toStringAsFixed(2)}"),
+          Text("📱 Not Settled: ₹ ${otherTotal.toStringAsFixed(2)}"),
           Divider(),
 
           // Expenses Section
