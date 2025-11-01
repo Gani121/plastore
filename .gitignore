@@ -1,0 +1,17 @@
+# General
+*.log
+.DS_Store
+
+
+# IDE files
+.idea/
+.vscode/
+.flutter-plugins-dependencies
+
+# Flutter/Dart
+build/
+.dart_tool/
+.packages
+.flutter-plugins
+.flutter-plugins-dependencies
+pubspec.lock

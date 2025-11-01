@@ -60,7 +60,7 @@ class _TableViewState extends State<TableView> {
   /// Adds a new table to the database and reloads the list.
 void _addNewTable() {
     // This controller will hold the section name
-    final TextEditingController sectionController = TextEditingController(text: "General");
+    final TextEditingController sectionController = TextEditingController(text: "Family Section");
     // 1. Get a unique list of all existing section names BEFORE showing the dialog
     //    I'm using 'paymentMethod' because that's what your constructor uses for the section.
     final allSections = activeTables
@@ -68,9 +68,9 @@ void _addNewTable() {
         .toSet() // .toSet() automatically gets only unique names
         .toList();
 
-    // 2. Add a default "General" section if it doesn't exist
-    if (!allSections.contains("General")) {
-      allSections.insert(0, "General");
+    // 2. Add a default "Family Section" section if it doesn't exist
+    if (!allSections.contains("Family Section")) {
+      allSections.insert(0, "Family Section");
     }
 
     // 3. These variables will hold the dialog's state
@@ -179,11 +179,11 @@ void _addNewTable() {
                       // Get text from the controller
                       sectionName = newSectionController.text.trim();
                       if (sectionName.isEmpty) {
-                        sectionName = "General"; // Default if new and empty
+                        sectionName = "Family Section"; // Default if new and empty
                       }
                     } else {
                       // Get text from the dropdown
-                      sectionName = selectedSection ?? "General"; // Use selected or default
+                      sectionName = selectedSection ?? "Family Section"; // Use selected or default
                     }
 
                     // --- This logic for creating the object is unchanged ---
