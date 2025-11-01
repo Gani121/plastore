@@ -1770,8 +1770,9 @@ children: [
       floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
 
       bottomNavigationBar: BottomNavigationBar(
+        type: BottomNavigationBarType.fixed,
         currentIndex: _selectedIndex,
-        selectedItemColor: Colors.red,
+        selectedItemColor:  Colors.blue,
         unselectedItemColor: Colors.blue,
         onTap: (index) {
           setState(() {

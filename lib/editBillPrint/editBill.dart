@@ -103,15 +103,13 @@ class _DetailPageState extends State<DetailPage> {
       if (widget.mode == "edit") {
         cartProvider.setCart(widget.cart1 ?? []);
         // debugPrint("cartProvider.cart in editbill ${cartProvider.cart}");
+        debugPrint("transaction in editbill ${widget.transaction}");
         if (widget.transaction != null && (widget.transaction ?? {}).isNotEmpty) {
-          print("transaction in editbill ${widget.transaction}");
           transaction = widget.transaction ?? {};
 
           // 2. Now, populate all the text fields
           final discount = (transaction['discount'] as num?)?.toDouble() ?? 0.0;
-          
           fetchData(_discountAmountController, discount.toStringAsFixed(2));
-
           
           Future.delayed(const Duration(milliseconds: 1000), () {
             final serviceCharge = (transaction['serviceCharge'] as num?)?.toDouble() ?? 0.0;
@@ -358,9 +356,9 @@ class _DetailPageState extends State<DetailPage> {
                                 ),
                                 // Your new Note Icon Button
                                 IconButton(
-                                  icon: Icon(Icons.note_add_outlined),
+                                  icon: Icon(Icons.note_add_sharp),
                                   iconSize: 20.0, // Smaller icon size
-                                  color: (item["note"] == null )? Colors.blueGrey :const Color.fromARGB(255, 255, 0, 0), // Optional: style the icon
+                                  color: (item["note"] == null )? Colors.blueGrey :const Color.fromARGB(255, 0, 17, 255), // Optional: style the icon
                                   padding: EdgeInsets.symmetric(horizontal: 8.0), // Add some spacing
                                   constraints: BoxConstraints(), // Removes default large padding
                                   onPressed: () {
@@ -1590,7 +1588,7 @@ class __BottomBarState extends State<_BottomBar> {
                                           cart1: widget.cart,
                                           total: total.toInt(),
                                           mode: "settle1",
-                                          payment_mode: paymentMode.toUpperCase(),
+                                          payment_mode: (widget.mode == 'edit' && widget.transaction.isNotEmpty) ? '${paymentMode.toUpperCase()}_${widget.transaction['id']}' : paymentMode.toUpperCase(),
                                           transactionData : widget.transaction,
                                         );
                                       }

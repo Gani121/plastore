@@ -665,7 +665,7 @@ class BillPrinter {
             // Convert to grayscale for better thermal printing
             final grayscale = img.grayscale(original);
             bytes += _generator!.imageRaster(grayscale);
-            bytes += _generator!.feed(1);
+            // bytes += _generator!.feed(2);
             // bytes += _generator!.cut();
           }
 
@@ -951,7 +951,7 @@ class BillPrinter {
           ),
         );
 
-        bytes += _generator!.feed(1);
+        bytes += _generator!.feed(2);
         // bytes += _generator!.cut();
 
         // debugPrint("before clear total ${bytes.length} and cart $bytes");
@@ -1036,7 +1036,7 @@ class BillPrinter {
             // Convert to grayscale for better thermal printing
             final grayscale = img.grayscale(original);
             bytes += _generator!.imageRaster(grayscale);
-            bytes += _generator!.feed(1);
+            // bytes += _generator!.feed(2);
             // bytes += _generator!.cut();
           }
 
@@ -1162,7 +1162,7 @@ class BillPrinter {
         }
 
         bytes += _generator!.hr();
-        bytes += _generator!.feed(1);
+        bytes += _generator!.feed(2);
         // bytes += _generator!.cut();
 
         await _sendToPrinter();
@@ -2025,7 +2025,7 @@ Future<Uint8List?> generateReceiptImage({
     
     // Footer
     yOffset += await _drawText(canvas, footer, y: yOffset, width: receiptWidth, fontSize: fItem, align: TextAlign.center);
-    yOffset += 10; // Extra padding at the bottom
+    yOffset += 70; // Extra padding at the bottom
     
     // --- 5. Finalize and Encode Image ---
     
@@ -2177,7 +2177,7 @@ Future<Uint8List?> generateKOTImage({
     
     // Line
     yOffset += await _drawDashedLine(canvas, yOffset, receiptWidth, fItem);
-    yOffset += 10;
+    yOffset += 60;
     
     // Totals
     // if (transactionData != null) {

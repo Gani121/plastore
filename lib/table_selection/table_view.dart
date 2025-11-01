@@ -449,13 +449,13 @@ void _addNewTable() {
                                       Text(
                                         'Table',
                                         style: TextStyle(
-                                            fontSize: 16,
+                                            fontSize: 12,
                                             color: (table.total > 0) ? const Color.fromARGB(255, 255, 255, 255) : Colors.green.shade900),
                                       ),
                                       Text(
                                         table.number.toString(),
                                         style: TextStyle(
-                                          fontSize: 28,
+                                          fontSize: 25,
                                           fontWeight: FontWeight.bold,
                                           color:  (table.total > 0) ? const Color.fromARGB(255, 255, 255, 255) :const Color.fromARGB(
                                               255, 0, 0, 0),
