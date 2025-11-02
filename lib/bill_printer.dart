@@ -98,7 +98,7 @@ class BillPrinter {
                   await sendKotToPrinter(context: context,cart:cart,tableNumber: kot,kotNumber: 1,);
                   return true;
                 case "onlyPrint":
-                  await sendDataToPrinter(context: context, cart1:cart, total:total, billNo: billNo,tableNumber: kot ?? 1,transactionData:transactionData);
+                  await sendDataToPrinter(context: context, cart1:cart, total:total, billNo: billNo,tableNumber: kot,transactionData:transactionData);
                   return true;
                 case "onlySettle":
                   await _disconnect();
@@ -143,7 +143,7 @@ class BillPrinter {
               if(payment_mode == "KOT"){
                 await sendKotToPrinter(context: context,cart:cart,tableNumber: kot,kotNumber: 1,);
               }else{
-                await sendDataToPrinter(context: context, cart1:cart, total:total, billNo: billNo,tableNumber: kot ?? 1,transactionData:transactionData);
+                await sendDataToPrinter(context: context, cart1:cart, total:total, billNo: billNo,tableNumber: kot,transactionData:transactionData);
               }
               
               late final String id;
@@ -567,7 +567,7 @@ class BillPrinter {
     required int total,
     required int billNo,
     required Map<String, dynamic>? transactionData,
-    required int tableNumber,
+    required int? tableNumber,
   }) async {
     debugPrint("recived cart to send to printer total $total and cart $cart1 billNo $billNo transactionData $transactionData");
     List<Map<String, dynamic>> cart = cart1.map((item) => Map<String, dynamic>.from(item)).toList();
@@ -758,8 +758,9 @@ class BillPrinter {
         }
 
         // Bill number
+        String billtable = (tableNumber != null) ?  "Bill No: $billNo / Table No-: $tableNumber" :  "Bill No: $billNo" ;
         bytes += _generator!.text(
-          "Bill No: ${billNo ?? 0} / Table No : $tableNumber",
+          billtable,
           styles: PosStyles(
             bold: true,
             fontType: PosFontType.fontA,
@@ -1971,9 +1972,9 @@ Future<Uint8List?> generateReceiptImage({
     
     yOffset += await _drawText(canvas, "Time:- $dateTime", y: yOffset, width: receiptWidth, fontWeight: FontWeight.bold, fontSize: fItem, align: TextAlign.center);
 
-    
+    String billtable = (tableno != null) ?  "Bill No: $billNo / Table No-: $tableno" :  "Bill No: $billNo" ;
     yOffset += 10; // New line
-    yOffset += await _drawText(canvas, "Bill No: $billNo / Table No-: $tableno", y: yOffset, width: receiptWidth,fontWeight: FontWeight.bold, fontSize: fItem, align: TextAlign.center);
+    yOffset += await _drawText(canvas, billtable, y: yOffset, width: receiptWidth,fontWeight: FontWeight.bold, fontSize: fItem, align: TextAlign.center);
     yOffset += 5;
 
 
