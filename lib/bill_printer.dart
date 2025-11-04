@@ -58,6 +58,7 @@ class BillPrinter {
   static const String SERVICE_UUID = "49535343-8841-43f4-a8d4-ecbe34729bb3";
   late List<int> bytes = [];
   final int printerWidth = 384;
+  late bool KOT_Print = false;
 
 
 
@@ -76,9 +77,12 @@ class BillPrinter {
           final cart = cart1;
           final prefs = await SharedPreferences.getInstance();
           final int billNo = (transactionData?['billNo'] == null) ? getNextBillNo(context) : transactionData?['billNo'];
+
           debugPrint("check printer is connected total $total mode $mode payment_mode $payment_mode  $transactionData billNo $billNo");
+
+          KOT_Print = mode.toLowerCase() == "kot" || payment_mode.toLowerCase() == "kot";
           
-          final device = await _getSavedPrinter();
+          final device = await _getSavedPrinter(KOTmode:KOT_Print,);
           if (device != null) {
             
             bool isConnected = await _isConnected();
@@ -276,14 +280,63 @@ class BillPrinter {
     }
     final prefs = await SharedPreferences.getInstance();
     final bool miniPrinter = prefs.getBool('miniPrinter') ?? false;
+    final bool miniPrinterKOT = prefs.getBool('miniPrinterKOT') ?? false  ;
     
     // Discover services
     List<bl.BluetoothService> services = await _connectedDevice!.discoverServices();
     // Find the printer service and characteristic
     bl.BluetoothCharacteristic? printerCharacteristic;
+    
 
+    debugPrint("Error: Failed to decode PNG image. $miniPrinter && ${!miniPrinterKOT} || ($miniPrinterKOT && $KOT_Print  ${( (miniPrinter && !KOT_Print) || (miniPrinterKOT && KOT_Print))}");
+    if( (miniPrinter && !KOT_Print) || (miniPrinterKOT && KOT_Print)){
+      
+      final img.Image? originalImage = img.decodeImage(imageBytes!); //bytes ti image
 
-    if( !miniPrinter){
+      if (originalImage == null) {
+        debugPrint("Error: Failed to decode PNG image.");
+        return;
+      }
+
+      final service = services.firstWhere((s) => s.uuid == CAT_PRINT_SRV);
+      printerCharacteristic = service.characteristics.firstWhere((c) => c.uuid == CAT_PRINT_TX_CHAR);
+      final printer = CatPrinter(printerCharacteristic);
+      final prefs = await SharedPreferences.getInstance();
+      final speed = prefs.getInt('speed') ?? 32;
+      final energy = prefs.getInt('energy') ?? 35000;
+      final finishFeed = 50;
+      await printer.prepare(speed, energy);
+
+      final Uint8List processedBitmap = _processImageForPrinter(
+        originalImage.buffer.asUint8List(),
+        originalImage.width,
+        originalImage.height,
+        printerWidth
+      );
+
+      final pitch = printerWidth ~/ 8; // 384 / 8 = 48 bytes per line
+      int blankLines = 0;
+      for (int y = 0; y < processedBitmap.length ~/ pitch; y++) {
+        final start = y * pitch;
+        final end = start + pitch;
+        if (end > processedBitmap.length) break;
+        final line = processedBitmap.sublist(start, end);
+        if (line.every((byte) => byte == 0)) {
+          blankLines += 1; // It's a blank line, just count it
+        } else {
+          if (blankLines > 0) {
+            await printer.feed(2);  //to increase the gap of line
+            blankLines = 0; // Reset the counter
+          }
+          await printer.draw(line);
+          await Future.delayed(const Duration(milliseconds: 1));
+        }
+      }
+      await printer.finish(finishFeed);
+      return;
+
+    } else {
+
       debugPrint("⚠️ bytes.length --${bytes.length}---");
 
       for (bl.BluetoothService service in services) {
@@ -334,50 +387,7 @@ class BillPrinter {
         }
       }
 
-    } else {
-      final img.Image? originalImage = img.decodeImage(imageBytes!); //bytes ti image
 
-      if (originalImage == null) {
-        debugPrint("Error: Failed to decode PNG image.");
-        return;
-      }
-
-      final service = services.firstWhere((s) => s.uuid == CAT_PRINT_SRV);
-      printerCharacteristic = service.characteristics.firstWhere((c) => c.uuid == CAT_PRINT_TX_CHAR);
-      final printer = CatPrinter(printerCharacteristic);
-      final prefs = await SharedPreferences.getInstance();
-      final speed = prefs.getInt('speed') ?? 32;
-      final energy = prefs.getInt('energy') ?? 35000;
-      final finishFeed = 50;
-      await printer.prepare(speed, energy);
-
-      final Uint8List processedBitmap = _processImageForPrinter(
-        originalImage.buffer.asUint8List(),
-        originalImage.width,
-        originalImage.height,
-        printerWidth
-      );
-
-      final pitch = printerWidth ~/ 8; // 384 / 8 = 48 bytes per line
-      int blankLines = 0;
-      for (int y = 0; y < processedBitmap.length ~/ pitch; y++) {
-        final start = y * pitch;
-        final end = start + pitch;
-        if (end > processedBitmap.length) break;
-        final line = processedBitmap.sublist(start, end);
-        if (line.every((byte) => byte == 0)) {
-          blankLines += 1; // It's a blank line, just count it
-        } else {
-          if (blankLines > 0) {
-            await printer.feed(2);  //to increase the gap of line
-            blankLines = 0; // Reset the counter
-          }
-          await printer.draw(line);
-          await Future.delayed(const Duration(milliseconds: 1));
-        }
-      }
-      await printer.finish(finishFeed);
-      return;
     }
 
     debugPrint("🎉 All data sent successfully to printer!");
@@ -1235,9 +1245,14 @@ class BillPrinter {
     return lines;
   }
 
-  Future<bl.BluetoothDevice?> _getSavedPrinter() async {
+  Future<bl.BluetoothDevice?> _getSavedPrinter( {required bool KOTmode,}) async {
     final prefs = await SharedPreferences.getInstance();
-    String? address = prefs.getString('saved_printer_address');
+    String? address;
+    if(KOTmode){
+       address = prefs.getString('saved_KOT_printer_address');
+    } else{
+       address = prefs.getString('saved_printer_address');
+    }
     debugPrint("Looking for saved printer with address: $address");
     
     if (address == null) {

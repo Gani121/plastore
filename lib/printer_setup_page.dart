@@ -16,9 +16,14 @@ class _PrinterSetupPageState extends State<PrinterSetupPage>
     with WidgetsBindingObserver {
   List<thermal.BluetoothDevice> _devices = [];
   thermal.BluetoothDevice? _selectedDevice;
+  thermal.BluetoothDevice? _selectedKOTDevice;
   String? _savedDeviceName;
+  String? _savedKOTDeviceName;
+  String? _savedDeviceAddress;
+  String? _savedKOTDeviceAddress;
   bool _isScanning = false;
   bool _isConnected = false;
+  bool _isTesting = false; // ✨ ADD This
 
   // Bluetooth state
   bool _isBluetoothOn = false;
@@ -30,6 +35,7 @@ class _PrinterSetupPageState extends State<PrinterSetupPage>
   bool _printQRlogo = true;
   bool _printName = true;
   bool miniPrinter = false;
+  bool miniPrinterKOT = false;
   bool marathi = false;
   bool _customerName = false;
   double _fontSize = 1; // 1 = small, 2 = medium, 3 = large
@@ -140,6 +146,8 @@ class _PrinterSetupPageState extends State<PrinterSetupPage>
 
     setState(() {
       _savedDeviceName = device.name;
+      _selectedDevice = device;
+      _savedDeviceAddress = device.address; // ✨ NEW: Save address to state
     });
 
     ScaffoldMessenger.of(
@@ -147,10 +155,34 @@ class _PrinterSetupPageState extends State<PrinterSetupPage>
     ).showSnackBar(SnackBar(content: Text("✅ Printer saved: ${device.name}")));
   }
 
+// 🛠️ MODIFIED: CRITICAL FIX - Use unique keys for KOT printer
+  Future<void> _saveSelectedKOTDevice(thermal.BluetoothDevice device) async {
+    final prefs = await SharedPreferences.getInstance();
+    // ✨ NEW: Use KOT-specific keys
+    await prefs.setString('saved_KOT_printer_address', device.address ?? '');
+    await prefs.setString('savedKOTDeviceName', device.name ?? "Unknown");
+
+    setState(() {
+      _selectedKOTDevice = device; // Set the active KOT device
+      _savedKOTDeviceName = device.name;
+      _savedKOTDeviceAddress = device.address; // ✨ NEW: Save address to state
+    });
+
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text("✅ KOT Printer saved: ${device.name}")));
+  }
+  
+  
   Future<void> _loadSavedSettings() async {
     final prefs = await SharedPreferences.getInstance();
     setState(() {
       _savedDeviceName = prefs.getString('savedDeviceName');
+      _savedDeviceAddress = prefs.getString('saved_printer_address');
+      
+      _savedKOTDeviceName = prefs.getString('savedKOTDeviceName');
+      _savedKOTDeviceAddress = prefs.getString('saved_KOT_printer_address');
+
       _printQR = prefs.getBool('printQR') ?? true;
       _printlogo = prefs.getBool('printLogo') ?? true;
       _printQRlogo = prefs.getBool('printQRlogo') ?? true;
@@ -160,6 +192,7 @@ class _PrinterSetupPageState extends State<PrinterSetupPage>
       _qrSize = prefs.getString('qrSize') ?? "5";
       _paperSize = prefs.getString('paperSize') ?? "2";
       miniPrinter = prefs.getBool('miniPrinter') ?? false;
+      miniPrinterKOT = prefs.getBool('miniPrinterKOT') ?? false;
       marathi = prefs.getBool('marathi') ?? false;
       _customerName = prefs.getBool('customerName') ?? false;
       _logoWidth =  prefs.getInt('logoWidth')?? 200;
@@ -179,6 +212,7 @@ class _PrinterSetupPageState extends State<PrinterSetupPage>
     await prefs.setInt('charsPerLine', _charsPerLine);
     await prefs.setString('qrSize', _qrSize);
     await prefs.setBool('miniPrinter', miniPrinter);
+    await prefs.setBool('miniPrinterKOT', miniPrinterKOT);
     await prefs.setBool('marathi', marathi);
     await prefs.setBool('customerName', _customerName);
     await prefs.setInt('logoWidth', _logoWidth);
@@ -207,6 +241,7 @@ class _PrinterSetupPageState extends State<PrinterSetupPage>
     await prefs.setString('qrSize', _qrSize);
     await prefs.setString('paperSize', _paperSize);
     await prefs.setBool('miniPrinter', miniPrinter);
+    await prefs.setBool('miniPrinterKOT', miniPrinterKOT);
     await prefs.setBool('marathi', marathi);
     await prefs.setBool('customerName', _customerName);
     await prefs.setString('footerText', _footerController.text);
@@ -218,7 +253,64 @@ class _PrinterSetupPageState extends State<PrinterSetupPage>
     ).showSnackBar(SnackBar(content: Text("💾 Printer settings saved")));
   }
 
-  Future<void> _connectPrinter() async {
+  // Future<void> _connectPrinter() async {
+  //   if (!_isBluetoothOn) {
+  //     ScaffoldMessenger.of(context).showSnackBar(
+  //       SnackBar(content: Text("⚠️ Please turn on Bluetooth first")),
+  //     );
+  //     return;
+  //   }
+
+  //   if (_selectedDevice == null) {
+  //     ScaffoldMessenger.of(
+  //       context,
+  //     ).showSnackBar(SnackBar(content: Text("⚠️ Select a printer first")));
+  //     return;
+  //   }
+
+  //   try {
+  //     // 1️⃣ Connect
+  //     await printer.connect(_selectedDevice!);
+  //     setState(() {
+  //       _isConnected = true;
+  //     });
+
+  //     ScaffoldMessenger.of(context).showSnackBar(
+  //       SnackBar(content: Text("🔌 Connected to ${_selectedDevice!.name}")),
+  //     );
+
+  //     // 2️⃣ Wait 2 seconds
+  //     await Future.delayed(Duration(seconds: 2));
+
+  //     printer.printNewLine();
+  //     printer.printCustom("✅ Test Print Successful", 1, 1);
+  //     printer.printNewLine();
+  //     printer.printNewLine();
+  //     printer.printNewLine();
+  //     printer.printNewLine();
+  //     await printer.disconnect();
+  //     _saveSettings();
+
+  //     ScaffoldMessenger.of(
+  //       context,
+  //     ).showSnackBar(SnackBar(content: Text("🖨️ Test print sent")));
+  //   } catch (e) {
+  //     print("❌ Connection/Print error: $e");
+  //     ScaffoldMessenger.of(
+  //       context,
+  //     ).showSnackBar(SnackBar(content: Text("❌ Error: $e")));
+  //   }
+  // }
+
+  Future<void> _disconnectPrinter() async {
+    await printer.disconnect();
+    setState(() {
+      _isConnected = false;
+    });
+  }
+
+
+Future<void> _connectPrinter() async {
     if (!_isBluetoothOn) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text("⚠️ Please turn on Bluetooth first")),
@@ -229,32 +321,42 @@ class _PrinterSetupPageState extends State<PrinterSetupPage>
     if (_selectedDevice == null) {
       ScaffoldMessenger.of(
         context,
-      ).showSnackBar(SnackBar(content: Text("⚠️ Select a printer first")));
+      ).showSnackBar(SnackBar(content: Text("⚠️ Select a Bill printer first")));
       return;
     }
+
+    // ✨ NEW: Check if already testing
+    if (_isTesting) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text("⏳ Test already in progress...")));
+      return;
+    }
+
+    // ✨ NEW: Set testing flag
+    setState(() {
+      _isTesting = true;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text("⏳ Test Print in progress..."),
+      duration: Duration(seconds :10),));
+    });
 
     try {
       // 1️⃣ Connect
       await printer.connect(_selectedDevice!);
-      setState(() {
-        _isConnected = true;
-      });
 
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text("🔌 Connected to ${_selectedDevice!.name}")),
       );
 
-      // 2️⃣ Wait 2 seconds
+      // 2️⃣ Wait for connection to be stable
       await Future.delayed(Duration(seconds: 2));
 
       printer.printNewLine();
-      printer.printCustom("✅ Test Print Successful", 1, 1);
+      printer.printCustom("✅ BILL PRINTER Test", 1, 1);
       printer.printNewLine();
       printer.printNewLine();
-      printer.printNewLine();
-      printer.printNewLine();
-      await printer.disconnect();
-      _saveSettings();
 
       ScaffoldMessenger.of(
         context,
@@ -264,17 +366,81 @@ class _PrinterSetupPageState extends State<PrinterSetupPage>
       ScaffoldMessenger.of(
         context,
       ).showSnackBar(SnackBar(content: Text("❌ Error: $e")));
+    } finally {
+      // ✨ NEW: Always disconnect and reset the flag
+      await printer.disconnect();
+      setState(() {
+        _isTesting = false;
+      });
     }
   }
 
-  Future<void> _disconnectPrinter() async {
-    await printer.disconnect();
+// ✨ NEW: Test connection for KOT printer
+Future<void> _connectKOTPrinter() async {
+    if (!_isBluetoothOn) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text("⚠️ Please turn on Bluetooth first")),
+      );
+      return;
+    }
+
+    if (_selectedKOTDevice == null) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text("⚠️ Select a KOT printer first")));
+      return;
+    }
+
+    // ✨ NEW: Check if already testing
+    if (_isTesting) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text("⏳ Test already in progress...")));
+      return;
+    }
+
+    // ✨ NEW: Set testing flag
     setState(() {
-      _isConnected = false;
+      _isTesting = true;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text("⏳ Test Print in progress..."),
+      duration: Duration(seconds :10),));
     });
+
+    try {
+      await printer.connect(_selectedKOTDevice!);
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text("🔌 Connected to ${_selectedKOTDevice!.name}")),
+      );
+
+      await Future.delayed(Duration(seconds: 2));
+
+      printer.printNewLine();
+      printer.printCustom("🔥 KOT PRINTER Test", 1, 1);
+      printer.printNewLine();
+      printer.printNewLine();
+
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text("🖨️ KOT Test print sent")));
+    } catch (e) {
+      print("❌ Connection/Print error: $e");
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text("❌ Error: $e")));
+    } finally {
+      // ✨ NEW: Always disconnect and reset the flag
+      await printer.disconnect();
+      setState(() {
+        _isTesting = false;
+      });
+    }
   }
 
-  @override
+
+@override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
@@ -316,11 +482,13 @@ class _PrinterSetupPageState extends State<PrinterSetupPage>
 
             SizedBox(height: 16),
 
+            // 🛠️ MODIFIED: Main Saved Printer Card
             if (_savedDeviceName != null)
               Card(
                 color: Colors.green[100],
                 child: ListTile(
-                  title: Text("✅ Saved Printer: $_savedDeviceName"),
+                  leading: Icon(Icons.print, color: Colors.green[800]),
+                  title: Text("✅ Saved Bill Printer: $_savedDeviceName"),
                   trailing: IconButton(
                     icon: Icon(Icons.delete, color: Colors.red),
                     onPressed: () async {
@@ -329,6 +497,31 @@ class _PrinterSetupPageState extends State<PrinterSetupPage>
                       await prefs.remove('savedDeviceName');
                       setState(() {
                         _savedDeviceName = null;
+                        // _savedDeviceAddress = null;
+                        _selectedDevice = null; // Clear active selection
+                      });
+                    },
+                  ),
+                ),
+              ),
+
+            // ✨ NEW: KOT Saved Printer Card
+            if (_savedKOTDeviceName != null)
+              Card(
+                color: Colors.red[100], // Red as requested
+                child: ListTile(
+                  leading: Icon(Icons.kitchen, color: Colors.red[800]),
+                  title: Text("🔥 Saved KOT Printer: $_savedKOTDeviceName"),
+                  trailing: IconButton(
+                    icon: Icon(Icons.delete, color: Colors.red),
+                    onPressed: () async {
+                      final prefs = await SharedPreferences.getInstance();
+                      await prefs.remove('saved_KOT_printer_address');
+                      await prefs.remove('savedKOTDeviceName');
+                      setState(() {
+                        _savedKOTDeviceName = null;
+                        // _savedKOTDeviceAddress = null;
+                        _selectedKOTDevice = null; // Clear active selection
                       });
                     },
                   ),
@@ -381,26 +574,68 @@ class _PrinterSetupPageState extends State<PrinterSetupPage>
 
             SizedBox(height: 8),
 
-            // Printer List
+            // 🛠️ MODIFIED: Printer List
             if (_isBluetoothOn)
               ..._devices.map((device) {
+                // Check selection status for both types
                 final isSelected = _selectedDevice?.address == device.address;
+                final isKOTSelected = _selectedKOTDevice?.address == device.address;
+                // final isSelected = _savedDeviceAddress == device.address;
+                // final isKOTSelected = _savedKOTDeviceAddress == device.address;
+                debugPrint("isSelected $isSelected  ${_selectedDevice?.address} == ${device.address} isKOTSelected} $isKOTSelected");
+
+                // Determine card color
+                Color? cardColor;
+                if (isKOTSelected) {
+                  cardColor = Colors.red[100]; // KOT selection is red
+                } else if (isSelected) {
+                  cardColor = Colors.green[100]; // Bill selection is green
+                }
+
                 return Card(
-                  color: isSelected ? Colors.green[100] : null,
+                  color: cardColor,
                   child: ListTile(
-                    leading: isSelected
-                        ? Icon(Icons.check_circle, color: Colors.green)
-                        : Icon(Icons.print),
+                    // Determine leading icon
+                    leading: isKOTSelected
+                        ? Icon(Icons.kitchen, color: Colors.red)
+                        : (isSelected
+                            ? Icon(Icons.check_circle, color: Colors.green)
+                            : Icon(Icons.print_outlined)),
                     title: Text(device.name ?? "Unknown"),
                     subtitle: Text(device.address ?? "Unknown Address"),
-                    trailing: ElevatedButton(
-                      onPressed: () {
-                        setState(() {
-                          _selectedDevice = device;
-                        });
-                        _saveSelectedDevice(device);
-                      },
-                      child: Text("Select"),
+                    
+                    // ✨ NEW: Trailing buttons
+                    trailing: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        // Bill Printer Button
+                        ElevatedButton(
+                          onPressed: () {
+                            _saveSelectedDevice(device);
+                          },
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor:
+                                isSelected ? Colors.green : Colors.grey[300],
+                            foregroundColor:
+                                isSelected ? Colors.white : Colors.black,
+                          ),
+                          child: Text("Bill"),
+                        ),
+                        SizedBox(width: 8),
+                        // KOT Printer Button
+                        ElevatedButton(
+                          onPressed: () {
+                            _saveSelectedKOTDevice(device);
+                          },
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor:
+                                isKOTSelected ? Colors.red : Colors.grey[300],
+                            foregroundColor:
+                                isKOTSelected ? Colors.white : Colors.black,
+                          ),
+                          child: Text("KOT"),
+                        ),
+                      ],
                     ),
                   ),
                 );
@@ -418,7 +653,21 @@ class _PrinterSetupPageState extends State<PrinterSetupPage>
             Divider(),
             Text("⚙️ Printer Settings", style: TextStyle(fontSize: 16)),
 
-            // Print QR Toggle with ON/OFF labels
+            // ... (All your settings Toggles, Sliders, and TextFields remain here)
+            // ... (Card for "Print QR Code")
+            // ... (Card for "Print LOGO")
+            // ... (Card for "Print Business Name")
+            // ... (SwitchListTile for "print logo in QR")
+            // ... (SwitchListTile for "Mini Printer")
+            // ... (SwitchListTile for "Marathi Bill")
+            // ... (SwitchListTile for "customer name on print")
+            // ... (Padding for "QR Size")
+            // ... (Padding for "Paper Size in inch")
+            // ... (Padding for "Characters Per Line")
+            // ... (Padding for "LOGO Width")
+            // ... (Padding for "LOGO Height")
+            // ... (Padding for "Footer")
+            // ... (ListTile for "Font Size")
             Card(
               child: ListTile(
                 title: Text("Print QR Code"),
@@ -538,6 +787,16 @@ class _PrinterSetupPageState extends State<PrinterSetupPage>
               onChanged: (val) {
                 setState(() {
                   miniPrinter = val;
+                });
+                _autoSaveSettings(); // Auto-save when changed
+              },
+            ),
+            SwitchListTile(
+              title: Text("KOT Mini Printer"),
+              value: miniPrinterKOT,
+              onChanged: (val) {
+                setState(() {
+                  miniPrinterKOT = val;
                 });
                 _autoSaveSettings(); // Auto-save when changed
               },
@@ -665,6 +924,8 @@ class _PrinterSetupPageState extends State<PrinterSetupPage>
                   SizedBox(
                     width: 100.0, // Give the TextField a fixed width
                     child: TextField(
+                      // ✨ NEW: Set controller to display the loaded value
+                      controller: TextEditingController(text: _charsPerLine.toString()),
                       keyboardType: TextInputType.number,
                       textAlign: TextAlign.center, // Center the number
                       decoration: InputDecoration(
@@ -704,6 +965,8 @@ class _PrinterSetupPageState extends State<PrinterSetupPage>
                   SizedBox(
                     width: 100.0, // Give the TextField a fixed width
                     child: TextField(
+                      // ✨ NEW: Set controller to display the loaded value
+                      controller: TextEditingController(text: _logoWidth.toString()),
                       keyboardType: TextInputType.number,
                       textAlign: TextAlign.center, // Center the number
                       decoration: InputDecoration(
@@ -742,6 +1005,8 @@ class _PrinterSetupPageState extends State<PrinterSetupPage>
                   SizedBox(
                     width: 100.0, // Give the TextField a fixed width
                     child: TextField(
+                       // ✨ NEW: Set controller to display the loaded value
+                      controller: TextEditingController(text: _logoheight.toString()),
                       keyboardType: TextInputType.number,
                       textAlign: TextAlign.center, // Center the number
                       decoration: InputDecoration(
@@ -785,10 +1050,10 @@ class _PrinterSetupPageState extends State<PrinterSetupPage>
                         isDense: true,
                         contentPadding: EdgeInsets.all(12.0),
                       ),
-                      // onChanged: (val) {
-                      //   // No need to call setState unless something else depends on it visually
-                      //   _autoSaveSettings(); // You can still save value here if needed
-                      // },
+                      onChanged: (val) {
+                         // ✨ NEW: Auto-save on change for text field
+                         _autoSaveSettings();
+                      },
                     ),
                   ),
                 ],
@@ -815,18 +1080,32 @@ class _PrinterSetupPageState extends State<PrinterSetupPage>
                 },
               ),
             ),
-            
-            
+
+
             Divider(),
+            // 🛠️ MODIFIED: Test Buttons in a Row
             Row(
               children: [
                 Expanded(
                   child: ElevatedButton.icon(
-                    icon: Icon(Icons.usb),
-                    label: Text("Test Connection"),
+                    icon: Icon(Icons.receipt_long),
+                    label: Text("Test Bill Printer"),
                     onPressed: _connectPrinter,
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: _isBluetoothOn ? null : Colors.grey,
+                      backgroundColor: _isBluetoothOn ? Colors.green[600] : Colors.grey,
+                      foregroundColor: Colors.white
+                    ),
+                  ),
+                ),
+                SizedBox(width: 16),
+                Expanded(
+                  child: ElevatedButton.icon(
+                    icon: Icon(Icons.kitchen),
+                    label: Text("Test KOT Printer"),
+                    onPressed: _connectKOTPrinter, // ✨ NEW function call
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: _isBluetoothOn ? Colors.red[600] : Colors.grey,
+                      foregroundColor: Colors.white
                     ),
                   ),
                 ),
@@ -837,4 +1116,6 @@ class _PrinterSetupPageState extends State<PrinterSetupPage>
       ),
     );
   }
+
+
 }
