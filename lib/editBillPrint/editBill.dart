@@ -65,6 +65,7 @@ class _DetailPageState extends State<DetailPage> {
   String selectedStyle = "List Style Half Full";
   late Map<String, dynamic> transaction = {};
   List<Map<String, dynamic>> existingcart = [];
+  late bool industry;
   
   
 
@@ -237,6 +238,7 @@ class _DetailPageState extends State<DetailPage> {
     final prefs = await SharedPreferences.getInstance();
     setState(() {
       selectedStyle = prefs.getString('selectedStyle') ?? "List Style Half Full";
+      industry = prefs.getString('industry') == "Retail" ?? false;
     });
 
     print("selected style $selectedStyle");

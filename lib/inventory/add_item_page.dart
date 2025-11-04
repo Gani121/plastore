@@ -126,7 +126,7 @@ class _AddItemPageState extends State<AddItemPage> {
       //   _image = File(_imagePath!);
       // }
 
-      _imagePath = "/storage/emulated/0/Android/data/com.orbipay.test7/files/pictures/menu_images/${item.name}.jpeg";
+      _imagePath = "/storage/emulated/0/Android/data/com.orbipay.test6/files/pictures/menu_images/${item.name}.jpeg";
 
       print("_imagePath $_imagePath");
 

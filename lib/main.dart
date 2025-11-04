@@ -1135,11 +1135,11 @@ Future<void> _removeItemFromCart(Active_Table_view table, Map<String, dynamic> i
               ),
             ),
             // -- Add New Table Button --
-            ListTile(
-              leading: Icon(Icons.add_circle_outline, color: Colors.green.shade800, size: 28),
-              title: Text('Add New Table', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
-              onTap: _addNewTable,
-            ),
+            // ListTile(
+            //   leading: Icon(Icons.add_circle_outline, color: Colors.green.shade800, size: 28),
+            //   title: Text('Add New Table', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+            //   onTap: _addNewTable,
+            // ),
             Divider(),
 
             // -- List of Active Tables from ObjectBox --
@@ -1201,277 +1201,277 @@ Future<void> _removeItemFromCart(Active_Table_view table, Map<String, dynamic> i
                   ),
                 ),
 
-children: [
-  FutureBuilder<List<Map<String, dynamic>>>(
-    future: _loadOrdersFromPrefs(table.number),
-    builder: (context, snapshot) {
-      if (snapshot.connectionState == ConnectionState.waiting) {
-        return const Center(child: Padding(
-          padding: EdgeInsets.all(16.0),
-          child: CircularProgressIndicator(),
-        ));
-      }
-      if (snapshot.hasError) {
-        return Center(child: Text("Error loading items: ${snapshot.error}"));
-      }
-      final items = snapshot.data ?? [];
+                children: [
+                  FutureBuilder<List<Map<String, dynamic>>>(
+                    future: _loadOrdersFromPrefs(table.number),
+                    builder: (context, snapshot) {
+                      if (snapshot.connectionState == ConnectionState.waiting) {
+                        return const Center(child: Padding(
+                          padding: EdgeInsets.all(16.0),
+                          child: CircularProgressIndicator(),
+                        ));
+                      }
+                      if (snapshot.hasError) {
+                        return Center(child: Text("Error loading items: ${snapshot.error}"));
+                      }
+                      final items = snapshot.data ?? [];
 
-      if (items.isEmpty) {
-        return const Padding(
-          padding: EdgeInsets.all(16.0),
-          child: Text('No items added yet.', style: TextStyle(color: Colors.grey)),
-        );
-      } else {
-        return Column(
-          children: items.map<Widget>(
-            (item) {
-              final int qty = int.parse(item['qty'].toString());
-              final double price = double.parse(item['sellPrice'].toString());
-              final double total = qty * price;
+                      if (items.isEmpty) {
+                        return const Padding(
+                          padding: EdgeInsets.all(16.0),
+                          child: Text('No items added yet.', style: TextStyle(color: Colors.grey)),
+                        );
+                      } else {
+                        return Column(
+                          children: items.map<Widget>(
+                            (item) {
+                              final int qty = int.parse(item['qty'].toString());
+                              final double price = double.parse(item['sellPrice'].toString());
+                              final double total = qty * price;
 
-              return Padding(
-                padding: const EdgeInsets.symmetric(vertical: 1.0),
-                child: Row(
-                  children: [
-                    // Item name and basic info
-                    Expanded(
-                      flex: 3,
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            item['name'] ?? 'No Name',
-                            style: const TextStyle(fontWeight: FontWeight.w500),
-                            maxLines: 2,
-                            overflow: TextOverflow.fade,
-                          ),
-                          Text(
-                            '₹${price.toStringAsFixed(2)} each',
-                            style: TextStyle(
-                              fontSize: 12,
-                              color: Colors.grey[600],
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    
-                    // Quantity controls
-                    Expanded(
-                      flex: 2,
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          // Decrease button
-                          IconButton(
-                            icon: const Icon(Icons.remove, size: 15),
-                            onPressed: () async {
-                              if (qty > 1) {
-                                await _updateItemQuantity(table, item, qty - 1);
-                                // Refresh the FutureBuilder
-                                if (mounted) {
-                                  setState(() {});
-                                }
-                              } else {
-                                // Remove item if quantity becomes 0
-                                await _removeItemFromCart(table, item);
-                                if (mounted) {
-                                  setState(() {});
-                                }
-                              }
-                            },
-                            style: IconButton.styleFrom(
-                              padding: const EdgeInsets.all(0),
-                              backgroundColor: Colors.grey[200],
-                              minimumSize: const Size(30, 30), // Reduced minimum size
-                              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                            ),
-                          ),
-                          
-                          // Quantity display
-                          Padding(
-                            padding: const EdgeInsets.symmetric(horizontal: 0),
-                            child: Text(
-                              qty.toString(),
-                              style: const TextStyle(
-                                fontWeight: FontWeight.bold,
-                                fontSize: 16,
-                              ),
-                            ),
-                          ),
-                          
-                          // Increase button
-                          IconButton(
-                            icon: const Icon(Icons.add, size: 18),
-                            onPressed: () async {
-                              await _updateItemQuantity(table, item, qty + 1);
-                              if (mounted) {
-                                setState(() {});
-                              }
-                            },
-                            style: IconButton.styleFrom(
-                              padding: const EdgeInsets.all(1),
-                              backgroundColor: Colors.grey[200],
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    
-                    // Total price
-                    SizedBox(
-                      width: 30, // Fixed width
-                      child: Text(
-                        '₹${total.toStringAsFixed(0)}',
-                        style: const TextStyle(
-                          fontWeight: FontWeight.bold,
-                          fontSize: 12,
-                        ),
-                        textAlign: TextAlign.left,
-                      ),
-                    ),
-                  ],
-                ),
-              );
-            }
-          ).toList(),
-        );
-      }
-    },
-  ),
+                              return Padding(
+                                padding: const EdgeInsets.symmetric(vertical: 1.0),
+                                child: Row(
+                                  children: [
+                                    // Item name and basic info
+                                    Expanded(
+                                      flex: 3,
+                                      child: Column(
+                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                        children: [
+                                          Text(
+                                            item['name'] ?? 'No Name',
+                                            style: const TextStyle(fontWeight: FontWeight.w500),
+                                            maxLines: 2,
+                                            overflow: TextOverflow.fade,
+                                          ),
+                                          Text(
+                                            '₹${price.toStringAsFixed(2)} each',
+                                            style: TextStyle(
+                                              fontSize: 12,
+                                              color: Colors.grey[600],
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                    
+                                    // Quantity controls
+                                    Expanded(
+                                      flex: 2,
+                                      child: Row(
+                                        mainAxisAlignment: MainAxisAlignment.center,
+                                        children: [
+                                          // Decrease button
+                                          IconButton(
+                                            icon: const Icon(Icons.remove, size: 15),
+                                            onPressed: () async {
+                                              if (qty > 1) {
+                                                await _updateItemQuantity(table, item, qty - 1);
+                                                // Refresh the FutureBuilder
+                                                if (mounted) {
+                                                  setState(() {});
+                                                }
+                                              } else {
+                                                // Remove item if quantity becomes 0
+                                                await _removeItemFromCart(table, item);
+                                                if (mounted) {
+                                                  setState(() {});
+                                                }
+                                              }
+                                            },
+                                            style: IconButton.styleFrom(
+                                              padding: const EdgeInsets.all(0),
+                                              backgroundColor: Colors.grey[200],
+                                              minimumSize: const Size(30, 30), // Reduced minimum size
+                                              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                                            ),
+                                          ),
+                                          
+                                          // Quantity display
+                                          Padding(
+                                            padding: const EdgeInsets.symmetric(horizontal: 0),
+                                            child: Text(
+                                              qty.toString(),
+                                              style: const TextStyle(
+                                                fontWeight: FontWeight.bold,
+                                                fontSize: 16,
+                                              ),
+                                            ),
+                                          ),
+                                          
+                                          // Increase button
+                                          IconButton(
+                                            icon: const Icon(Icons.add, size: 18),
+                                            onPressed: () async {
+                                              await _updateItemQuantity(table, item, qty + 1);
+                                              if (mounted) {
+                                                setState(() {});
+                                              }
+                                            },
+                                            style: IconButton.styleFrom(
+                                              padding: const EdgeInsets.all(1),
+                                              backgroundColor: Colors.grey[200],
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                    
+                                    // Total price
+                                    SizedBox(
+                                      width: 30, // Fixed width
+                                      child: Text(
+                                        '₹${total.toStringAsFixed(0)}',
+                                        style: const TextStyle(
+                                          fontWeight: FontWeight.bold,
+                                          fontSize: 12,
+                                        ),
+                                        textAlign: TextAlign.left,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              );
+                            }
+                          ).toList(),
+                        );
+                      }
+                    },
+                  ),
   
-  const Divider(),
-  Padding(
-    padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 10.0),
-    child: Row(
-      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-      children: [
-        ElevatedButton(
-          onPressed: isPrinting ? null : () async {
-            setState(() {
-              isPrinting = true;
-            });
-            try {
-              final cart = await _loadOrdersFromPrefs(table.number);
-              if (cart.isNotEmpty) {
-                await printer.printCart(
-                  context: context,
-                  cart1: cart,
-                  total: 12,
-                  mode: "kot",
-                  payment_mode: table_payment_mode,
-                  kot: table.number,
-                );
-              }
-            } catch (e) {
-              debugPrint("Print error: $e");
-            } finally {
-              if (mounted) {
-                setState(() {
-                  isPrinting = false;
-                });
-              }
-            }
-          },
-          child: isPrinting
-              ? SizedBox(
-                  width: 20,
-                  height: 20,
-                  child: CircularProgressIndicator(
-                    strokeWidth: 2,
-                    valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
-                  ),
-                )
-              : Text('KOT'),
-        ),
-        
-        ElevatedButton.icon(
-          onPressed: isPrinting ? null : () async {
-            setState(() {
-              isPrinting = true;
-            });
-            try {
-              final cart = await _loadOrdersFromPrefs(table.number);
-              if (cart.isNotEmpty){
-                await printer.printCart(context: context, cart1: cart,
-                                total:(table.total).toInt(),
-                                mode:"onlyPrint",
-                                payment_mode:table_payment_mode,
-                                kot:table.number);
-              }
-            } catch (e) {
-              debugPrint("Print error: $e");
-            } finally {
-              if (mounted) {
-                setState(() {
-                  isPrinting = false;
-                });
-              }
-            }
-          },
-          icon: const Icon(Icons.print, size: 18),
-          label: isPrinting
-              ? SizedBox(
-                  width: 20,
-                  height: 20,
-                  child: CircularProgressIndicator(
-                    strokeWidth: 2,
-                    valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
-                  ),
-                )
-              :const Text('Print'),
-        ),
-        ElevatedButton.icon(
-          onPressed: isPrinting ? null : () async {
-            final cart = await _loadOrdersFromPrefs(table.number);
-            if (cart.isEmpty){
-              return;
-            }
-            setState(() {
-              isPrinting = true;
-            });
-            try{
-              await Navigator.push(context, MaterialPageRoute(builder: (context) => DetailPage(cart1:cart,mode:"edit",table:{'total':table.total.toInt(),
-                                      'mode':"onlySettle",
-                                      'kot': table.number})));
-              final prefs = await SharedPreferences.getInstance();
-              final key = "table${table.number}";
-              String? _cart1 = prefs.getString(key);
-              // debugPrint("table is settle : ${_cart1}");
-              if ((_cart1 ?? '').isEmpty) {
-                updateTableTotal(table, []);
-                // table_payment_mode = "Cash";
-                loadRecentTransactions(store); 
-              }else{
-                Navigator.of(context).pop(); // This will close the drawer or navigate back
-              }
-            } catch (e) {
-              debugPrint("Print error: $e");
-            } finally {
-              if (mounted) {
-                setState(() {
-                  isPrinting = false;
-                });
-              }
-            }
-          },
-          icon: const Icon(Icons.check_circle_outline, size: 18),
-          label: isPrinting
-                ? SizedBox(
-                    width: 20,
-                    height: 20,
-                    child: CircularProgressIndicator(
-                      strokeWidth: 2,
-                      valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                  const Divider(),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 10.0),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                      children: [
+                        ElevatedButton(
+                          onPressed: isPrinting ? null : () async {
+                            setState(() {
+                              isPrinting = true;
+                            });
+                            try {
+                              final cart = await _loadOrdersFromPrefs(table.number);
+                              if (cart.isNotEmpty) {
+                                await printer.printCart(
+                                  context: context,
+                                  cart1: cart,
+                                  total: 12,
+                                  mode: "kot",
+                                  payment_mode: table_payment_mode,
+                                  kot: table.number,
+                                );
+                              }
+                            } catch (e) {
+                              debugPrint("Print error: $e");
+                            } finally {
+                              if (mounted) {
+                                setState(() {
+                                  isPrinting = false;
+                                });
+                              }
+                            }
+                          },
+                          child: isPrinting
+                              ? SizedBox(
+                                  width: 20,
+                                  height: 20,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                    valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                                  ),
+                                )
+                              : Text('KOT'),
+                        ),
+                        
+                        ElevatedButton.icon(
+                          onPressed: isPrinting ? null : () async {
+                            setState(() {
+                              isPrinting = true;
+                            });
+                            try {
+                              final cart = await _loadOrdersFromPrefs(table.number);
+                              if (cart.isNotEmpty){
+                                await printer.printCart(context: context, cart1: cart,
+                                                total:(table.total).toInt(),
+                                                mode:"onlyPrint",
+                                                payment_mode:table_payment_mode,
+                                                kot:table.number);
+                              }
+                            } catch (e) {
+                              debugPrint("Print error: $e");
+                            } finally {
+                              if (mounted) {
+                                setState(() {
+                                  isPrinting = false;
+                                });
+                              }
+                            }
+                          },
+                          icon: const Icon(Icons.print, size: 18),
+                          label: isPrinting
+                              ? SizedBox(
+                                  width: 20,
+                                  height: 20,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                    valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                                  ),
+                                )
+                              :const Text('Print'),
+                        ),
+                        ElevatedButton.icon(
+                          onPressed: isPrinting ? null : () async {
+                            final cart = await _loadOrdersFromPrefs(table.number);
+                            if (cart.isEmpty){
+                              return;
+                            }
+                            setState(() {
+                              isPrinting = true;
+                            });
+                            try{
+                              await Navigator.push(context, MaterialPageRoute(builder: (context) => DetailPage(cart1:cart,mode:"edit",table:{'total':table.total.toInt(),
+                                                      'mode':"onlySettle",
+                                                      'kot': table.number})));
+                              final prefs = await SharedPreferences.getInstance();
+                              final key = "table${table.number}";
+                              String? _cart1 = prefs.getString(key);
+                              // debugPrint("table is settle : ${_cart1}");
+                              if ((_cart1 ?? '').isEmpty) {
+                                updateTableTotal(table, []);
+                                // table_payment_mode = "Cash";
+                                loadRecentTransactions(store); 
+                              }else{
+                                Navigator.of(context).pop(); // This will close the drawer or navigate back
+                              }
+                            } catch (e) {
+                              debugPrint("Print error: $e");
+                            } finally {
+                              if (mounted) {
+                                setState(() {
+                                  isPrinting = false;
+                                });
+                              }
+                            }
+                          },
+                          icon: const Icon(Icons.check_circle_outline, size: 18),
+                          label: isPrinting
+                                ? SizedBox(
+                                    width: 20,
+                                    height: 20,
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 2,
+                                      valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                                    ),
+                                  )
+                                : const Text('Settle'),
+                          style: ElevatedButton.styleFrom(backgroundColor: Colors.orange.shade700, foregroundColor: Colors.white),
+                        ),
+                      ],
                     ),
-                  )
-                : const Text('Settle'),
-          style: ElevatedButton.styleFrom(backgroundColor: Colors.orange.shade700, foregroundColor: Colors.white),
-        ),
-      ],
-    ),
-  ),
-],
+                  ),
+                ],
 
               ),
             ),
