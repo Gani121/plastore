@@ -56,7 +56,7 @@ class BillPrinter {
   static const String SERVICE_UUID1 = "0000ff00-0000-1000-8000-00805f9b34fb";
   static const String CHARACTERISTIC_UUID = "0000ff02-0000-1000-8000-00805f9b34fb";
   static const String SERVICE_UUID = "49535343-8841-43f4-a8d4-ecbe34729bb3";
-  List<int> bytes = [];
+  late List<int> bytes = [];
   final int printerWidth = 384;
 
 
@@ -70,8 +70,8 @@ class BillPrinter {
         int? kot,
         Map<String, dynamic>? transactionData,
       }) async {
-        try {
-          bytes.clear();
+        // try {
+          bytes = [];
           final stopwatch = Stopwatch()..start();
           final cart = cart1;
           final prefs = await SharedPreferences.getInstance();
@@ -84,7 +84,7 @@ class BillPrinter {
             bool isConnected = await _isConnected();
             debugPrint("check printer is connected ${isConnected} $transactionData");
             if (!isConnected) {
-              bytes.clear();
+              bytes = [];
               await _connectToPrinter(device);
               final store = Provider.of<ObjectBoxService>(context, listen: false).store;
               final box = store.box<Transaction>();
@@ -194,17 +194,17 @@ class BillPrinter {
               await _disconnect(); 
             }
           }
-        } catch (e) {
-          print("❌ Error while printing: $e");
-          Navigator.pop(context);
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text("Printer Is Not Connected, Please Restart the Printer"),
-              backgroundColor: Colors.red,
-              duration: Duration(seconds: 5),
-            ),
-          );
-        } 
+        // } catch (e) {
+        //   print("❌ Error while printing: $e");
+        //   Navigator.pop(context);
+        //   ScaffoldMessenger.of(context).showSnackBar(
+        //     SnackBar(
+        //       content: Text("Printer Is Not Connected, Please Restart the Printer"),
+        //       backgroundColor: Colors.red,
+        //       duration: Duration(seconds: 5),
+        //     ),
+        //   );
+        // } 
 
         return true;
       }
@@ -284,6 +284,7 @@ class BillPrinter {
 
 
     if( !miniPrinter){
+      debugPrint("⚠️ bytes.length --${bytes.length}---");
 
       for (bl.BluetoothService service in services) {
         for (bl.BluetoothCharacteristic characteristic in service.characteristics) {
@@ -304,7 +305,7 @@ class BillPrinter {
       }
       // Split data into chunks to avoid exceeding maximum length
       const int maxChunkSize = 230; // Use 200 to be safe (printer reported max 237)
-      // debugPrint("📦 Sending ${bytes.length} bytes in chunks of $maxChunkSize");
+      debugPrint("📦 Sending ${bytes.length} bytes in chunks of $maxChunkSize");
       
       for (int i = 0; i < bytes.length; i += maxChunkSize) {
         int end = (i + maxChunkSize < bytes.length) ? i + maxChunkSize : bytes.length;
@@ -589,6 +590,7 @@ class BillPrinter {
     bool printQr = prefs.getBool('printQR') ?? true;
     String _qrSize = prefs.getString('qrSize') ?? "5";
     int logoWidth = prefs.getInt('logoWidth') ?? 200;
+    int logoheight = prefs.getInt('logoheight') ?? 200;
     String footer =  prefs.getString('footerText')?? "** Thank You **";
     bool printName = prefs.getBool('printName') ?? true;
     String paperSize = prefs.getString('paperSize') ?? '2';
@@ -634,9 +636,10 @@ class BillPrinter {
       throw Exception("Printer not initialized");
     }
 
-    try {
       // Logo
+      debugPrint("⚠️ bytes.length --${bytes.length}---");
       await _setPrintQuality(quality);
+      debugPrint("⚠️ bytes.length --${bytes.length}---");
       if (marathi){
         Uint8List? imageBytes = await generateReceiptImage(
                                         cart1: cart,
@@ -667,7 +670,7 @@ class BillPrinter {
             
             // Convert to grayscale for better thermal printing
             final grayscale = img.grayscale(original);
-            bytes += _generator!.imageRaster(grayscale);
+            bytes += _generator!.image(grayscale);
             // bytes += _generator!.feed(2);
             // bytes += _generator!.cut();
           }
@@ -693,12 +696,15 @@ class BillPrinter {
             final resized = img.copyResize(original, width: logoWidth, maintainAspect: true);
             final grayscale = img.grayscale(resized);
             // final grayscale = img.monochrome(resized);
-            bytes += _generator!.imageRaster(grayscale);
+            debugPrint("⚠️ bytes.length --${bytes.length}---");
+            bytes += _generator!.image(grayscale);
+            debugPrint("⚠️ bytes.length --${bytes.length}---");
             // bytes += _generator!.feed(1);
           }
         } else {
           debugPrint("⚠️ No logo found in SharedPreferences");
         }
+        debugPrint("⚠️ bytes.length --${bytes.length}---");
         // bytes += _generator!.reverseFeed(2);
         if(printName){
           // debugPrint("⚠️ No logo found in SharedPreferences --$businessName---");
@@ -947,15 +953,12 @@ class BillPrinter {
             if (qrlogo != null){
               img.Image? original = img.decodeImage(qrlogo);
               if (original != null){
-                bytes += _generator!.imageRaster(original); 
+                bytes += _generator!.image(original); 
               }
             }
-
           } else {
             // await _printQrCode(businessName, total);
             final String encodedBusinessName = Uri.encodeComponent(businessName);
-
-            // Now use the encoded name in the qrData string
             String qrData = "upi://pay?pa=$upiId&pn=$encodedBusinessName&am=$total.00&cu=INR";
             bytes += _generator!.qrcode( qrData, size : getQRSize(int.tryParse(_qrSize) ?? 5) );        //.qrCode(qrData, size: QRSize.Size4);
             bytes += _generator!.feed(1);
@@ -977,7 +980,7 @@ class BillPrinter {
         bytes += _generator!.feed(2);
         // bytes += _generator!.cut();
 
-        // debugPrint("before clear total ${bytes.length} and cart $bytes");
+        debugPrint("⚠️ bytes.length --${bytes.length}---");
         // Send to printer
         // bytes += _generator!.beep();
         await _sendToPrinter();
@@ -989,10 +992,6 @@ class BillPrinter {
         // debugPrint("✅ Receipt sent to printer successfully");
       }
 
-    } catch (e) {
-      debugPrint("❌ Error printing receipt: $e");
-      rethrow;
-    }
   }
 
 
@@ -1059,7 +1058,7 @@ class BillPrinter {
             
             // Convert to grayscale for better thermal printing
             final grayscale = img.grayscale(original);
-            bytes += _generator!.imageRaster(grayscale);
+            bytes += _generator!.image(grayscale);
             // bytes += _generator!.feed(2);
             // bytes += _generator!.cut();
           }
@@ -1747,6 +1746,8 @@ Future<double> _drawLogo(ui.Canvas canvas, double y, double width) async {
   try {
     final prefs = await SharedPreferences.getInstance();
     int logoWidth = prefs.getInt('logoWidth') ?? 200;
+    int logoheight = prefs.getInt('logoheight') ?? 200;
+
     final imagePath = prefs.getString('imagePath');
     final _printlogo = prefs.getBool('printLogo') ?? true;
 
@@ -1874,18 +1875,18 @@ Future<double> _drawQrCode(
     try {
 
       QrPainter qrPainter;
-      double logoWidth = (150 == qrPixelSize) ? 40 : 40 - ( (80 / (qrPixelSize)) *10);
+      double logoWidth1 = (150 == qrPixelSize) ? 40 : 40 - ( (80 / (qrPixelSize)) *10);
       double logoHeight = (150 == qrPixelSize) ? 35 : 35 - ( (70 / (qrPixelSize)) *10);
 
       if (_printQRlogo) {
-        debugPrint("logoWidth: $logoWidth logoHeight :$logoHeight");
+        debugPrint("logoWidth: $logoWidth1 logoHeight :$logoHeight");
         qrPainter = QrPainter(
           data: qrData,
           version: QrVersions.auto,
           gapless: true,
           embeddedImage: await _loadLogoImage() , 
           embeddedImageStyle: QrEmbeddedImageStyle(
-            size: Size(logoWidth, logoHeight), // ✅ removed const
+            size: Size(logoWidth1, logoHeight), // ✅ removed const
           ),
         );
       } else {

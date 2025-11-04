@@ -35,6 +35,7 @@ class _PrinterSetupPageState extends State<PrinterSetupPage>
   double _fontSize = 1; // 1 = small, 2 = medium, 3 = large
   int _charsPerLine = 32; // default width
   int _logoWidth = 200; // default width
+  int _logoheight = 200; // default width
   String _qrSize = "5";
   String _paperSize = "2";
   final List<String> _qrSizes = ["1", "2", "3", "4", "5", "6", "7", "8"];
@@ -162,6 +163,7 @@ class _PrinterSetupPageState extends State<PrinterSetupPage>
       marathi = prefs.getBool('marathi') ?? false;
       _customerName = prefs.getBool('customerName') ?? false;
       _logoWidth =  prefs.getInt('logoWidth')?? 200;
+      _logoheight =  prefs.getInt('logoheight')?? 200;
        _footerController = TextEditingController(text: prefs.getString('footerText')?? "** thank you **");
     });
   }
@@ -180,6 +182,7 @@ class _PrinterSetupPageState extends State<PrinterSetupPage>
     await prefs.setBool('marathi', marathi);
     await prefs.setBool('customerName', _customerName);
     await prefs.setInt('logoWidth', _logoWidth);
+    await prefs.setInt('logoheight', _logoheight);
     await prefs.setString('paperSize', _paperSize);
     
 
@@ -207,6 +210,8 @@ class _PrinterSetupPageState extends State<PrinterSetupPage>
     await prefs.setBool('marathi', marathi);
     await prefs.setBool('customerName', _customerName);
     await prefs.setString('footerText', _footerController.text);
+    await prefs.setInt('logoWidth', _logoWidth);
+    await prefs.setInt('logoheight', _logoheight);
 
     ScaffoldMessenger.of(
       context,
@@ -710,6 +715,44 @@ class _PrinterSetupPageState extends State<PrinterSetupPage>
                       onChanged: (val) {
                         setState(() {
                           _logoWidth = int.tryParse(val) ?? 200;
+                        });
+                        _autoSaveSettings(); // Auto-save when changed
+                      },
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            Padding(
+              // Add padding to mimic the spacing of a ListTile
+              padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0), 
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.center, // Vertically center the text and field
+                children: [
+                  // The "name" or label
+                  Expanded(
+                    child: Text(
+                      "LOGO Height",
+                      style: TextStyle(fontSize: 16.0), // Optional: style to match title
+                    ),
+                  ),
+                  SizedBox(width: 16.0), // Add some spacing
+                  
+                  // The "selection type" or input field
+                  SizedBox(
+                    width: 100.0, // Give the TextField a fixed width
+                    child: TextField(
+                      keyboardType: TextInputType.number,
+                      textAlign: TextAlign.center, // Center the number
+                      decoration: InputDecoration(
+                        hintText: "e.g. 200 - 800",
+                        border: OutlineInputBorder(),
+                        isDense: true, // Makes the field more compact
+                        contentPadding: EdgeInsets.all(12.0), // Adjust internal padding
+                      ),
+                      onChanged: (val) {
+                        setState(() {
+                          _logoheight = int.tryParse(val) ?? 200;
                         });
                         _autoSaveSettings(); // Auto-save when changed
                       },
