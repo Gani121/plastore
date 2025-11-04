@@ -1841,6 +1841,17 @@ Future<ui.Image?> _loadLogoImage() async {
   }
 }
 
+  double getQrPixelSize(qrSize) {
+    switch (qrSize) {
+      case "1": return 115;
+      case "2": return 130;
+      case "3": return 150;
+      case "5": return 180;
+      case "7": return 200;
+      default: return 150;
+    }
+  }
+
 Future<double> _drawQrCode(
   ui.Canvas canvas,
   String businessName,
@@ -1860,18 +1871,21 @@ Future<double> _drawQrCode(
     // Now use the encoded name in the qrData string
     String qrData = "upi://pay?pa=$upiId&pn=$encodedBusinessName&am=$total.00&cu=INR";
     // -------------------------
-    QrPainter qrPainter;
-
     try {
 
+      QrPainter qrPainter;
+      double logoWidth = (150 == qrPixelSize) ? 40 : 40 - ( (80 / (qrPixelSize)) *10);
+      double logoHeight = (150 == qrPixelSize) ? 35 : 35 - ( (70 / (qrPixelSize)) *10);
+
       if (_printQRlogo) {
+        debugPrint("logoWidth: $logoWidth logoHeight :$logoHeight");
         qrPainter = QrPainter(
           data: qrData,
           version: QrVersions.auto,
           gapless: true,
           embeddedImage: await _loadLogoImage() , 
-          embeddedImageStyle: const QrEmbeddedImageStyle(
-            size: Size(40, 35), // Adjust size as needed
+          embeddedImageStyle: QrEmbeddedImageStyle(
+            size: Size(logoWidth, logoHeight), // ✅ removed const
           ),
         );
       } else {
@@ -1901,14 +1915,7 @@ Future<Uint8List?> generateQRImage({required int total,}) async {
   
   final prefs = await SharedPreferences.getInstance();
   
-  double getQrPixelSize(qrSize) {
-    switch (qrSize) {
-      case "3": return 150;
-      case "5": return 180;
-      case "7": return 200;
-      default: return 150;
-    }
-  }
+
   String businessName = prefs.getString('businessName') ?? 'Hotel Test';
   bool printQr = prefs.getBool('printQR') ?? false;
   String _qrSize = prefs.getString('qrSize') ?? "5";
@@ -1987,15 +1994,7 @@ Future<Uint8List?> generateReceiptImage({
   
   List<Map<String, dynamic>> cart = cart1.map((item) => Map<String, dynamic>.from(item)).toList();
   final prefs = await SharedPreferences.getInstance();
-  
-  double getQrPixelSize(qrSize) {
-    switch (qrSize) {
-      case "3": return 150;
-      case "5": return 180;
-      case "7": return 200;
-      default: return 150;
-    }
-  }
+
 
   // 🏪 Business info
   String businessName = prefs.getString('businessName') ?? 'Hotel Test';
@@ -2012,7 +2011,6 @@ Future<Uint8List?> generateReceiptImage({
   String footer =  prefs.getString('footerText') ?? "** Thank You **";
   String? upiId = prefs.getString('upi');
   bool customerName = prefs.getBool('customerName') ?? false;
-
   String paperSize = prefs.getString('paperSize') ?? '2';
   // Width in pixels. 58mm printers are ~384px. 80mm are ~576px.
     //   if (value == PaperSize.mm58.value) {
@@ -2031,7 +2029,6 @@ Future<Uint8List?> generateReceiptImage({
   double fItem = 21;//fontSizes[itemFontSize] ?? 18.0;
   double fTotal = 30;//fontSizes[2] ?? 24.0; // Total/Discount size is '2' in your code
   final String dateTime = DateFormat('dd-MMM-yyyy hh:mm a').format(DateTime.now());
-  
   
   // --- 3. Setup Canvas ---
   final ui.PictureRecorder recorder = ui.PictureRecorder();

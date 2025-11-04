@@ -27,6 +27,7 @@ class _PrinterSetupPageState extends State<PrinterSetupPage>
   // Printer settings
   bool _printQR = true;
   bool _printlogo = true;
+  bool _printQRlogo = true;
   bool _printName = true;
   bool miniPrinter = false;
   bool marathi = false;
@@ -151,6 +152,7 @@ class _PrinterSetupPageState extends State<PrinterSetupPage>
       _savedDeviceName = prefs.getString('savedDeviceName');
       _printQR = prefs.getBool('printQR') ?? true;
       _printlogo = prefs.getBool('printLogo') ?? true;
+      _printQRlogo = prefs.getBool('printQRlogo') ?? true;
       _printName = prefs.getBool('printName') ?? true;
       _fontSize = prefs.getDouble('fontSize') ?? 1;
       _charsPerLine = prefs.getInt('charsPerLine') ?? 32;
@@ -169,6 +171,7 @@ class _PrinterSetupPageState extends State<PrinterSetupPage>
     final prefs = await SharedPreferences.getInstance();
     await prefs.setBool('printQR', _printQR);
     await prefs.setBool('printLogo', _printlogo);
+    await prefs.setBool('printQRlogo', _printQRlogo);
     await prefs.setBool('printName', _printName);
     await prefs.setDouble('fontSize', _fontSize);
     await prefs.setInt('charsPerLine', _charsPerLine);
@@ -194,6 +197,7 @@ class _PrinterSetupPageState extends State<PrinterSetupPage>
     final prefs = await SharedPreferences.getInstance();
     await prefs.setBool('printQR', _printQR);
     await prefs.setBool('printLogo', _printlogo);
+    await prefs.setBool('printQRlogo', _printQRlogo);
     await prefs.setBool('printName', _printName);
     await prefs.setDouble('fontSize', _fontSize);
     await prefs.setInt('charsPerLine', _charsPerLine);
@@ -510,6 +514,17 @@ class _PrinterSetupPageState extends State<PrinterSetupPage>
                   ],
                 ),
               ),
+            ),
+
+            SwitchListTile(
+              title: Text("print logo in QR"),
+              value: _printQRlogo,
+              onChanged: (val) {
+                setState(() {
+                  _printQRlogo = val;
+                });
+                _autoSaveSettings(); // Auto-save when changed
+              },
             ),
 
             SwitchListTile(
