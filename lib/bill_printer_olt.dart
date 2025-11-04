@@ -393,7 +393,9 @@ class BillPrinter {
     debugPrint("after clear total $total and cart $cart");
 
   }
-Future<void> sendReceiptImageToPrinter({
+
+
+  Future<void> sendReceiptImageToPrinter({
   required BuildContext context,
   required List<Map<String, dynamic>> cart,
   required int total,

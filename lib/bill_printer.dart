@@ -27,6 +27,7 @@ import 'dart:math';
 import 'dart:typed_data';
 import './printer_pages/cat_protocol.dart';
 import 'package:flutter/rendering.dart';
+import 'package:flutter/services.dart';
 
 
 
@@ -591,6 +592,7 @@ class BillPrinter {
     String footer =  prefs.getString('footerText')?? "** Thank You **";
     bool printName = prefs.getBool('printName') ?? true;
     String paperSize = prefs.getString('paperSize') ?? '2';
+    bool _printQRlogo = prefs.getBool('printQRlogo') ?? true;
     
     int headerFontSizePref = prefs.getInt('headerFontSize') ?? 2;
     int itemFontSizePref = (prefs.getDouble('fontSize') ?? 1).toInt();
@@ -940,14 +942,25 @@ class BillPrinter {
 
         // QR Code
         if (printQr && upiId != null && upiId.isNotEmpty) {
-          // await _printQrCode(businessName, total);
-          final String encodedBusinessName = Uri.encodeComponent(businessName);
+          if(_printQRlogo){
+            final qrlogo = await generateQRImage(total:total);
+            if (qrlogo != null){
+              img.Image? original = img.decodeImage(qrlogo);
+              if (original != null){
+                bytes += _generator!.imageRaster(original); 
+              }
+            }
 
-          // Now use the encoded name in the qrData string
-          String qrData = "upi://pay?pa=$upiId&pn=$encodedBusinessName&am=$total.00&cu=INR";
-          bytes += _generator!.qrcode( qrData, size : getQRSize(int.tryParse(_qrSize) ?? 5) );        //.qrCode(qrData, size: QRSize.Size4);
-          bytes += _generator!.feed(1);
-        }
+          } else {
+            // await _printQrCode(businessName, total);
+            final String encodedBusinessName = Uri.encodeComponent(businessName);
+
+            // Now use the encoded name in the qrData string
+            String qrData = "upi://pay?pa=$upiId&pn=$encodedBusinessName&am=$total.00&cu=INR";
+            bytes += _generator!.qrcode( qrData, size : getQRSize(int.tryParse(_qrSize) ?? 5) );        //.qrCode(qrData, size: QRSize.Size4);
+            bytes += _generator!.feed(1);
+          }
+        } 
 
         // Thank you message
         bytes += _generator!.text(
@@ -1804,6 +1817,30 @@ Future<double> _drawLogo(ui.Canvas canvas, double y, double width) async {
   }
 }
 
+Future<ui.Image?> _loadLogoImage() async {
+  try {
+    const String upiLogoPath = 'assets/images/round_logo.png';
+    final ByteData data = await rootBundle.load(upiLogoPath);
+    final Uint8List bytes = data.buffer.asUint8List();
+    
+    // Decode using image package
+    final original = img.decodeImage(bytes);
+    if (original != null) {
+      final grayscale = img.grayscale(original);
+      
+      // Convert back to ui.Image
+      final Uint8List grayscaleBytes = Uint8List.fromList(img.encodePng(grayscale));
+      final ui.Codec codec = await ui.instantiateImageCodec(grayscaleBytes);
+      final ui.FrameInfo frame = await codec.getNextFrame();
+      return frame.image;
+    }
+    return null;
+  } catch (e) {
+    print('Failed to load logo: $e');
+    return null;
+  }
+}
+
 Future<double> _drawQrCode(
   ui.Canvas canvas,
   String businessName,
@@ -1817,50 +1854,115 @@ Future<double> _drawQrCode(
   // --- THIS IS THE FIX ---
     // Encode the business name to handle special characters
     final String encodedBusinessName = Uri.encodeComponent(businessName);
+    final prefs = await SharedPreferences.getInstance();
+    bool _printQRlogo = prefs.getBool('printQRlogo') ?? true;
 
     // Now use the encoded name in the qrData string
     String qrData = "upi://pay?pa=$upiId&pn=$encodedBusinessName&am=$total.00&cu=INR";
     // -------------------------
-    debugPrint("qrData $qrData");
+    QrPainter qrPainter;
 
-  try {
-    final qrPainter = QrPainter(
-      data: qrData,
-      version: QrVersions.auto,
-      gapless: true,
-      // The embeddedImage can be used to add a logo in the center of the QR code if desired
-      // embeddedImage: AssetImage('assets/your_upi_logo.png'),
-      // embeddedImageStyle: QrEmbeddedImageStyle(
-      //   size: Size(40, 40),
-      // ),
-    );
+    try {
 
-    // final qrPainter = QrImageView(
-    //     data: upiId!,
-    //     version: QrVersions.auto,
-    //     size: qrPixelSize, // Size of the QR code
-    //     gapless: true,
-    //     // The embeddedImage can be used to add a logo in the center of the QR code if desired
-    //     // embeddedImage: AssetImage('assets/your_upi_logo.png'),
-    //     // embeddedImageStyle: QrEmbeddedImageStyle(
-    //     //   size: Size(40, 40),
-    //     // ),
-    //   );
+      if (_printQRlogo) {
+        qrPainter = QrPainter(
+          data: qrData,
+          version: QrVersions.auto,
+          gapless: true,
+          embeddedImage: await _loadLogoImage() , 
+          embeddedImageStyle: const QrEmbeddedImageStyle(
+            size: Size(40, 35), // Adjust size as needed
+          ),
+        );
+      } else {
+        qrPainter = QrPainter(
+          data: qrData,
+          version: QrVersions.auto,
+          gapless: true,
+        );
+      }
 
     // Convert QrPainter to ui.Image
-    final qrImage = await qrPainter.toImage(qrPixelSize);
+    ui.Image qrImage = await qrPainter.toImage(qrPixelSize);
     // final qrImage = await qrPainter;
     
     // Center it
     final xOffset = (width - qrImage.width) / 2.0;
     canvas.drawImage(qrImage, ui.Offset(xOffset, y), Paint());
     
-    return qrImage.height.toDouble() + 10.0; // + padding
+    return qrImage.height.toDouble(); // + padding
   } catch (e) {
     debugPrint("Error drawing QR code: $e");
     return 0.0;
   }
 }
+
+Future<Uint8List?> generateQRImage({required int total,}) async {
+  
+  final prefs = await SharedPreferences.getInstance();
+  
+  double getQrPixelSize(qrSize) {
+    switch (qrSize) {
+      case "3": return 150;
+      case "5": return 180;
+      case "7": return 200;
+      default: return 150;
+    }
+  }
+  String businessName = prefs.getString('businessName') ?? 'Hotel Test';
+  bool printQr = prefs.getBool('printQR') ?? false;
+  String _qrSize = prefs.getString('qrSize') ?? "5";
+  double qrSize = getQrPixelSize(_qrSize);
+  String? upiId = prefs.getString('upi');
+  String paperSize = prefs.getString('paperSize') ?? '2';
+  final double receiptWidth = (paperSize == "2") ? 384.0 :(paperSize == "3") ? 512.0 : 576.0 ;
+
+  
+  
+  // --- 3. Setup Canvas ---
+  final ui.PictureRecorder recorder = ui.PictureRecorder();
+  // Start with a large canvas, we'll crop it later
+  final ui.Rect canvasRect = ui.Rect.fromLTWH(0, 0, receiptWidth, 20000); 
+  final ui.Canvas canvas = ui.Canvas(recorder, canvasRect);
+
+  // White background
+  canvas.drawRect(canvasRect, Paint()..color = Colors.white);
+  
+  double yOffset = 10.0; // Start with a 10px top margin
+
+  // --- 4. Draw Receipt (Translate bluetooth calls to canvas calls) ---
+  
+  try {
+
+    // QR Code
+    if (printQr && upiId != null && upiId.isNotEmpty) {
+      // **ADAPT THIS** to match your _printQrCode logic
+      yOffset += await _drawQrCode(canvas, businessName, total, qrSize, yOffset, receiptWidth, upiId);
+      yOffset += 10.0;
+    }
+    
+    
+    // Stop recording
+    final ui.Picture picture = recorder.endRecording();
+    
+    // Crop the image to the final height
+    final ui.Image finalImage = await picture.toImage(
+      receiptWidth.toInt(),
+      yOffset.toInt(), // Crop to the height we actually used
+    );
+    
+    // Encode to PNG
+    final ByteData? byteData = await finalImage.toByteData(format: ui.ImageByteFormat.png);
+    if (byteData == null) return null;
+    
+    return byteData.buffer.asUint8List();
+
+  } catch (e) {
+    debugPrint("Error generating receipt image: $e");
+    return null;
+  }
+}
+
 
 Future<Uint8List?> generateReceiptImage({
   required List<Map<String, dynamic>> cart1,
@@ -1970,11 +2072,11 @@ Future<Uint8List?> generateReceiptImage({
     //   yOffset += await _drawText(canvas, "", y: yOffset, width: receiptWidth, fontSize: fItem, align: TextAlign.center);
     // }
     
-    yOffset += await _drawText(canvas, "Time:- $dateTime", y: yOffset, width: receiptWidth, fontWeight: FontWeight.bold, fontSize: fItem, align: TextAlign.center);
+    yOffset += await _drawText(canvas, "Time:- $dateTime", y: yOffset, width: receiptWidth, fontWeight: FontWeight.bold, fontSize: fItem,);
 
     String billtable = (tableno != null) ?  "Bill No: $billNo / Table No-: $tableno" :  "Bill No: $billNo" ;
-    yOffset += 10; // New line
-    yOffset += await _drawText(canvas, billtable, y: yOffset, width: receiptWidth,fontWeight: FontWeight.bold, fontSize: fItem, align: TextAlign.center);
+    yOffset += 5; // New line
+    yOffset += await _drawText(canvas, billtable, y: yOffset, width: receiptWidth,fontWeight: FontWeight.bold, fontSize: fItem,);
     yOffset += 5;
 
 

@@ -26,6 +26,7 @@ class _PrinterSetupPageState extends State<PrinterSetupPage>
 
   // Printer settings
   bool _printQR = true;
+  bool _printQRlogo = true;
   bool miniPrinter = false;
   double _fontSize = 1; // 1 = small, 2 = medium, 3 = large
   int _charsPerLine = 32; // default width
@@ -139,6 +140,7 @@ class _PrinterSetupPageState extends State<PrinterSetupPage>
     setState(() {
       _savedDeviceName = prefs.getString('savedDeviceName');
       _printQR = prefs.getBool('printQR') ?? true;
+      _printQRlogo = prefs.getBool('printQRlogo') ?? true;
       _fontSize = prefs.getDouble('fontSize') ?? 1;
       _charsPerLine = prefs.getInt('charsPerLine') ?? 32;
       _qrSize = prefs.getString('qrSize') ?? "Medium";
@@ -150,6 +152,7 @@ class _PrinterSetupPageState extends State<PrinterSetupPage>
   Future<void> _autoSaveSettings() async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setBool('printQR', _printQR);
+    await prefs.setBool('printQRlogo', _printQRlogo);
     await prefs.setDouble('fontSize', _fontSize);
     await prefs.setInt('charsPerLine', _charsPerLine);
     await prefs.setString('qrSize', _qrSize);
@@ -168,6 +171,7 @@ class _PrinterSetupPageState extends State<PrinterSetupPage>
   Future<void> _saveSettings() async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setBool('printQR', _printQR);
+    await prefs.setBool('printQRlogo', _printQRlogo);
     await prefs.setDouble('fontSize', _fontSize);
     await prefs.setInt('charsPerLine', _charsPerLine);
     await prefs.setString('qrSize', _qrSize);
@@ -411,6 +415,16 @@ class _PrinterSetupPageState extends State<PrinterSetupPage>
                   ],
                 ),
               ),
+            ),
+            SwitchListTile(
+              title: Text("print logo in QR"),
+              value: _printQRlogo,
+              onChanged: (val) {
+                setState(() {
+                  _printQRlogo = val;
+                });
+                _autoSaveSettings(); // Auto-save when changed
+              },
             ),
 
             SwitchListTile(
