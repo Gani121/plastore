@@ -47,6 +47,7 @@ class _TableViewState extends State<TableView> {
       activeTables = _tablesList.getAll();
       activeTables.sort((a, b) => a.number.compareTo(b.number));
     });
+    debugPrint("✅ Table #${activeTables} total updated to:");
   }
 
   /// Loads the user's preferred order page style
@@ -243,6 +244,8 @@ void _addNewTable() {
       
   void updateTableTotal(Active_Table_view table, List<Map<String, dynamic>> cart) {
     double newTotal = 0.0;
+
+    debugPrint("item['sellPrice'], ${cart.runtimeType} ${cart}");
     
     // Loop through each item in the cart
     for (final item in cart) {
@@ -261,8 +264,9 @@ void _addNewTable() {
     
     // Save the updated table object to the database
     _tablesList.put(table); 
-    
+
     debugPrint("✅ Table #${table.number} total updated to: $newTotal from $cart");
+    setState(() { });
   }
 
   Future<Map<String, dynamic>> loadRecentTransactions(Active_Table_view table) async {
@@ -320,16 +324,22 @@ void _addNewTable() {
                           )));
         final prefs = await SharedPreferences.getInstance();
         String? _cart1 = prefs.getString(key);
-        debugPrint("table is settle : ${_cart1}  $carttt");
+        debugPrint("item['sellPrice'] ${_cart1} cartProvider.cart ${(_cart1).runtimeType}");
         if ((_cart1 ?? '').isEmpty) {
           updateTableTotal(table, []);
+          _loadTables();
         } else {
          final cartProvider = Provider.of<CartProvider>(context, listen: false);
+         debugPrint("item['sellPrice'] ${cartProvider.cart.isNotEmpty} cartProvider.cart ${(cartProvider.cart).runtimeType}");
           if (cartProvider.cart.isNotEmpty){
-          updateTableTotal(table, cartProvider.cart);
+            updateTableTotal(table, cartProvider.cart);
+            _loadTables();
           } else{
-            final cart = jsonDecode(_cart1?? "[]");
-            updateTableTotal(table, cart);
+            final cart = jsonDecode(_cart1 ?? "[]");
+            final cartData = List<Map<String, dynamic>>.from(cart); // Simpler conversion
+            debugPrint("item['sellPrice'] ${cartData} cartProvider.cart ${cartData.runtimeType}");
+            updateTableTotal(table, cartData);
+            _loadTables();
           }
         }
       } catch (e) {

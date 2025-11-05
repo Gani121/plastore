@@ -1495,8 +1495,8 @@ Future<void> _removeItemFromCart(Active_Table_view table, Map<String, dynamic> i
             if (!snapshot.hasData) {
               return Row(
                 children: [
-                  Icon(Icons.restaurant, size: 24, color: Colors.white),
-                  SizedBox(width: 8),
+                  // Icon(Icons.restaurant, size: 24, color: Colors.white),
+                  // SizedBox(width: 8),
                   Text('Loading...', style: TextStyle(color: Colors.white)),
                   Spacer(),
                 ],
@@ -1507,8 +1507,8 @@ Future<void> _removeItemFromCart(Active_Table_view table, Map<String, dynamic> i
             String businessName = prefs.getString('businessName') ?? 'My Business';
             return Row(
               children: [
-                Icon(Icons.restaurant, size: 24, color: Colors.white),
-                SizedBox(width: 8),
+                // Icon(Icons.restaurant, size: 24, color: Colors.white),
+                // SizedBox(width: 8),
                 Text(businessName, style: TextStyle(color: Colors.white)),
                 Spacer(),
               ],

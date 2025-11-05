@@ -1503,7 +1503,7 @@ class __BottomBarState extends State<_BottomBar> {
                                       final key = "table${widget.table!['kot']}";
                                       final stringcart = json.encode(widget.cart);
                                       await prefs.setString(key, stringcart);
-                                      debugPrint("table is settle : $key key ${stringcart}");
+                                      debugPrint("table is settle : $key key ${await prefs.getString(key)}");
                                       await printer.printCart(context: context,
                                                       cart1: widget.cart,
                                                       total:total.toInt(),

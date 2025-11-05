@@ -124,7 +124,7 @@ class CartProvider extends ChangeNotifier {
       }
     } catch (e) {
       if (kDebugMode) {
-        print('Error saving cart: $e');
+        debugPrint('\x1B[31m Error saving cart: $e \x1B[0m');
       }
     }
   }
@@ -240,27 +240,113 @@ class CartProvider extends ChangeNotifier {
     }
   }
 
-  // Load external cart data
-  void setCart(List<Map<String, dynamic>> cartData, {int? tableNo}) {
+  // // Load external cart data
+  // void setCart(dynamic cartData, {int? tableNo}) {
+  //   // final key = _getKey(tableNo);
+  //   // final prefs = await SharedPreferences.getInstance();
+
+  //   try {
+  //     // final String cartJson = jsonEncode(cartData);
+  //     // await prefs.setString(key, cartJson);
+
+  //     // Update local state
+  //     // _cart.clear();
+  //     debugPrint('\x1B[31m (cartData is List<Map<String, dynamic>>) ${(cartData is List<Map<String, dynamic>>)} \x1B[0m');
+  //     if(cartData is List<Map<String, dynamic>>){
+  //       _cart = List.from(cartData);
+  //     } else {
+  //       if(cartData is String){
+  //         final decodedList = jsonDecode(cartData) as List<dynamic>;
+  //         final existingCart = decodedList.map((item) => item as Map<String, dynamic>).toList();
+  //         _cart = List.from(existingCart);
+  //       }else {
+  //         _cart = List<Map<String, dynamic>>.from(cartData);
+  //       }
+  //     }
+
+  //     notifyListeners();
+
+  //     if (kDebugMode) {
+  //       debugPrint('External cart data loaded. Items: ${cartData.length}');
+  //     }
+  //   } catch (e) {
+  //     if (kDebugMode) {
+  //       debugPrint('Error loading external cart: $e');
+  //     }
+  //   }
+  // }
+
+
+  /// give string list map
+  void setCart(dynamic cartData, {int? tableNo}) {
     // final key = _getKey(tableNo);
     // final prefs = await SharedPreferences.getInstance();
 
     try {
-      // final String cartJson = jsonEncode(cartData);
-      // await prefs.setString(key, cartJson);
+      List<dynamic> sourceList;
 
-      // Update local state
-      // _cart.clear();
-      _cart = List.from(cartData);
+      // --- 1. Determine the source list ---
+
+      if (cartData == null) {
+        // Handle null input by setting an empty cart
+        sourceList = [];
+      } else if (cartData is String) {
+        // If it's a string, decode it
+        if (cartData.isEmpty) {
+          sourceList = [];
+        } else {
+          sourceList = jsonDecode(cartData) as List<dynamic>;
+        }
+      } else if (cartData is List) {
+        // If it's already a list (e.g., List<dynamic>), use it directly
+        sourceList = cartData;
+      } else if (cartData is List<Map<String, dynamic>>) {
+        sourceList = cartData;
+      } 
+      else {
+        // Handle unsupported types
+        throw FormatException('Unsupported cartData type: ${cartData.runtimeType}');
+      }
+
+      // --- 2. Safely convert the source list to List<Map<String, dynamic>> ---
+
+      final List<Map<String, dynamic>> newCart = sourceList
+          .map((item) {
+            // Ensure each item is a Map before converting
+            if (item is Map) {
+              // Map.from() is safer than 'as'.
+              // It correctly handles Map<dynamic, dynamic> from jsonDecode
+              // and creates a new Map<String, dynamic>.
+              return Map<String, dynamic>.from(item);
+            } else {
+              // Log a warning if an item in the list is not a map
+              if (kDebugMode) {
+                final message = 'Warning: Non-map item found in cart data: $item';
+                debugPrint('\x1B[31m $message \x1B[0m');
+              }
+              return null; // This item will be filtered out
+            }
+          })
+          .whereType<Map<String, dynamic>>() // Filter out any nulls
+          .toList();
+
+      // --- 3. Update state and notify ---
+
+      _cart = newCart; // Assign the newly created list
       notifyListeners();
 
       if (kDebugMode) {
-        print('External cart data loaded. Items: ${cartData.length}');
+        final message = 'External cart data loaded. Items: ${_cart.length}';
+        debugPrint('\x1B[31m $message \x1B[0m');
       }
     } catch (e) {
       if (kDebugMode) {
-        print('Error loading external cart: $e');
+        final message = 'Error loading external cart: $e. Input: "$cartData"';
+        debugPrint('\x1B[31m $message \x1B[0m');
       }
+      // Optionally, reset the cart to a safe state
+      // _cart = [];
+      // notifyListeners();
     }
   }
 
@@ -284,13 +370,13 @@ class CartProvider extends ChangeNotifier {
       }
     } catch (e) {
       if (kDebugMode) {
-        print('Error calculating total: $e');
+        debugPrint('Error calculating total: $e');
       }
       return 0;
     }
 
     if (kDebugMode) {
-      print('Cart total calculated: $total');
+      debugPrint('Cart total calculated: $total');
     }
     return total;
   }
@@ -338,7 +424,7 @@ class CartProvider extends ChangeNotifier {
       await prefs.setString(key, cartJson);
     } catch (e) {
       if (kDebugMode) {
-        print('Error saving cart to prefs: $e');
+        debugPrint('Error saving cart to prefs: $e');
       }
     }
   }
@@ -357,7 +443,7 @@ class CartProvider extends ChangeNotifier {
       }
     } catch (e) {
       if (kDebugMode) {
-        print('Error saving cart to prefs: $e');
+        debugPrint('Error saving cart to prefs: $e');
       }
     }
   }
