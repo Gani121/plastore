@@ -102,7 +102,10 @@ class _DetailPageState extends State<DetailPage> {
 
       // 1. First, load the cart so the subtotal is available
       if (widget.mode == "edit") {
+        cartProvider.cart.clear();
+        debugPrint("set cart to the provider to the in neworderpage ${cartProvider.cart.isEmpty} ${cartProvider.cart}");
         cartProvider.setCart(widget.cart1 ?? []);
+        debugPrint("set cart to the provider to the in neworderpage ${cartProvider.cart.isEmpty} ${cartProvider.cart}");
         // debugPrint("cartProvider.cart in editbill ${cartProvider.cart}");
         debugPrint("transaction in editbill ${widget.transaction}");
         if (widget.transaction != null && (widget.transaction ?? {}).isNotEmpty) {
@@ -291,11 +294,23 @@ class _DetailPageState extends State<DetailPage> {
 }
 
 
+void addtablecart(CartProvider cartProvider) async {
+    debugPrint("PrinterCart ${(cartProvider.cart).runtimeType} ${cartProvider.cart}");
+  final prefs = await SharedPreferences.getInstance();
+  final key = "table${widget.table!['kot']}";
+  final stringcart = json.encode(cartProvider.cart);
+  if(stringcart.isNotEmpty){
+    await prefs.setString(key, stringcart);
+    debugPrint("table is settle addtablecart : $key key ${await prefs.getString(key)}");
+  }
+}
+
   Widget _buildItemCards() {
     final cartProvider = Provider.of<CartProvider>(context);
     final cart = cartProvider.cart;
     debugPrint("cart items _buildItemCards $cart");
-
+    // addtablecart(cartProvider);
+    
     return Center(
       child: Container(
         width: 320,
@@ -410,18 +425,23 @@ class _DetailPageState extends State<DetailPage> {
                                 contentPadding: EdgeInsets.symmetric(vertical: 8),
                                 border: OutlineInputBorder(),
                               ),
-                              onChanged: (val) {
-                                final newPrice = int.tryParse(val) ?? price.toInt();
-                                if (newPrice > 0 && newPrice != price.toInt()) {
-                                  cartProvider.updatePricePortion(id, newPrice, portion);
-                                }
-                              },
-                              // onFieldSubmitted: (val) {
+                              // onChanged: (val) {
                               //   final newPrice = int.tryParse(val) ?? price.toInt();
                               //   if (newPrice > 0 && newPrice != price.toInt()) {
                               //     cartProvider.updatePricePortion(id, newPrice, portion);
                               //   }
                               // },
+                              onFieldSubmitted: (val) {
+                                final newPrice = int.tryParse(val) ?? price.toInt();
+                                if (newPrice > 0 && newPrice != price.toInt()) {
+                                  cartProvider.updatePricePortion(id, newPrice, portion);
+                                  addtablecart(cartProvider);
+                                } else if( newPrice < 1 || newPrice.toString().isEmpty){
+                                    cartProvider.removeFromCart(id, portion);
+                                    addtablecart(cartProvider);
+                                    setState(() { });
+                                  }
+                              },
                             ),
                           ),
 
@@ -438,6 +458,7 @@ class _DetailPageState extends State<DetailPage> {
                                           qty - 1,
                                           portion,
                                         );
+                                        addtablecart(cartProvider);
                                         setState(() { });
                                       }
                                     : null,
@@ -453,13 +474,19 @@ class _DetailPageState extends State<DetailPage> {
                                     contentPadding: EdgeInsets.symmetric(vertical: 8),
                                     border: OutlineInputBorder(),
                                   ),
-                                  onChanged: (val) {
-                                        final newQty = int.tryParse(val) ?? qty;
-                                        if (newQty > 0 && newQty != qty) {
-                                          cartProvider.updateQuantity(id, newQty, portion);
-                                          setState(() { });
-                                        }
-                                      },
+                                  onFieldSubmitted: (val) {
+                                      final newQty = int.tryParse(val ?? qty) ?? qty;
+                                      if (newQty > 0 && newQty != qty) {
+                                        cartProvider.updateQuantity(id, newQty, portion);
+                                        addtablecart(cartProvider);
+                                        setState(() { });
+                                      } else if( newQty < 1 || newQty.toString().isEmpty){
+                                        cartProvider.removeFromCart(id, portion);
+                                        addtablecart(cartProvider);
+                                        setState(() { });
+                                      }
+                                      
+                                    },
                                       // onSubmitted: (val) {
                                       //   final newQty = int.tryParse(val) ?? qty;
                                       //   if (newQty > 0 && newQty != qty) {
@@ -502,6 +529,7 @@ class _DetailPageState extends State<DetailPage> {
                                     qty + 1,
                                     portion,
                                   );
+                                  addtablecart(cartProvider);
                                   setState(() { });
                                 },
                               ),
@@ -992,8 +1020,18 @@ DateTime getBusinessDate({int cutoffHour = 4}) {
                             // Handle the returned cart
                             if (result != null && result is List<Map<String, dynamic>>) {
                               // cartProvider.clearCart();
-                              cartProvider.setCart(result);
+                              // cartProvider.setCart(result);
                               _calculateSubtotal();
+                              if (widget.table != null){
+                                debugPrint("PrinterCart ${(cartProvider.cart).runtimeType} ${cartProvider.cart}");
+                                final prefs = await SharedPreferences.getInstance();
+                                final key = "table${widget.table!['kot']}";
+                                final stringcart = json.encode(cartProvider.cart);
+                                if(stringcart.isNotEmpty){
+                                  await prefs.setString(key, stringcart);
+                                  debugPrint("table is settle back from neworderpage: $key key ${await prefs.getString(key)}");
+                                }
+                              }
                             }
                           }
                         },
@@ -1440,8 +1478,10 @@ class __BottomBarState extends State<_BottomBar> {
                                             final prefs = await SharedPreferences.getInstance();
                                             final key = "table${widget.table!['kot']}";
                                             final stringcart = json.encode(widget.cart);
-                                            await prefs.setString(key, stringcart);
-                                            debugPrint("table is settle : $key key ${stringcart}");
+                                            if(stringcart.isNotEmpty){
+                                              await prefs.setString(key, stringcart);
+                                              debugPrint("table is settle kot: $key key ${await prefs.getString(key)}");
+                                            }
                                             Navigator.of(context).pop(context);
                                         });
                                       } else{
@@ -1450,7 +1490,7 @@ class __BottomBarState extends State<_BottomBar> {
                                           context: context,
                                           cart1: newItemsForKot,
                                           total: total.toInt(),
-                                          mode: "print",
+                                          mode: "kot",
                                           transactionData : widget.transaction,
                                           payment_mode: (widget.mode == 'edit') ? 'no_${widget.transaction['id']}' : 'KOT',
                                         );
@@ -1502,8 +1542,10 @@ class __BottomBarState extends State<_BottomBar> {
                                       debugPrint("PrinterCart ${widget.table}");
                                       final key = "table${widget.table!['kot']}";
                                       final stringcart = json.encode(widget.cart);
-                                      await prefs.setString(key, stringcart);
-                                      debugPrint("table is settle : $key key ${await prefs.getString(key)}");
+                                      if(stringcart.isNotEmpty){
+                                        await prefs.setString(key, stringcart);
+                                        debugPrint("table is settle print : $key key ${await prefs.getString(key)}");
+                                      }
                                       await printer.printCart(context: context,
                                                       cart1: widget.cart,
                                                       total:total.toInt(),
@@ -1644,15 +1686,16 @@ class __BottomBarState extends State<_BottomBar> {
                                       _isPrinting = true;
                                     });
 
-
                                     try {
                                     if(widget.table != null && widget.table!['kot'] > 0){
                                         debugPrint("PrinterCart ${widget.table}");
                                         final prefs = await SharedPreferences.getInstance();
                                         final key = "table${widget.table!['kot']}";
                                         final stringcart = json.encode(widget.cart);
-                                        await prefs.setString(key, stringcart);
-                                        debugPrint("table is settle : $key key ${stringcart}");
+                                        if(stringcart.isNotEmpty){
+                                          await prefs.setString(key, stringcart);
+                                          debugPrint("table is settle add : $key key ${await prefs.getString(key)}");
+                                        }
                                         Navigator.of(context).pop(context);
                                       }
                                       

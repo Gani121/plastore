@@ -315,7 +315,9 @@ class _NewOrderPageState extends State<NewOrderPage> with AutomaticKeepAliveClie
 
   void _loadCartData() {
     final cartProvider = Provider.of<CartProvider>(context, listen: false);
+    debugPrint("set cart to the provider to the in neworderpage ${cartProvider.cart.isEmpty} ${cartProvider.cart}");
     if (cartProvider.cart.isEmpty){
+      debugPrint("set cart to the provider to the in neworderpage ${cartProvider.cart.isEmpty} ${cartProvider.cart}");
       cartProvider.setCart(widget.cart1 ?? []);
     }
   }

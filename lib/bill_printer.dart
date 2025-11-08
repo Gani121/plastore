@@ -138,6 +138,8 @@ class BillPrinter {
                   }
                   
                   final key = "table${kot}";
+                  final message = 'clear table cart data $key';
+                  debugPrint('\x1B[31m $message \x1B[0m');
                   prefs.remove(key);
                   debugPrint("saveTransactionToObjectBox with id - $id  table $key ");
                   sendTransactionToServer(box, id);
@@ -284,10 +286,8 @@ class BillPrinter {
     
     // Discover services
     List<bl.BluetoothService> services = await _connectedDevice!.discoverServices();
-    // Find the printer service and characteristic
     bl.BluetoothCharacteristic? printerCharacteristic;
     
-
     debugPrint("Error: Failed to decode PNG image. $miniPrinter && ${!miniPrinterKOT} || ($miniPrinterKOT && $KOT_Print  ${( (miniPrinter && !KOT_Print) || (miniPrinterKOT && KOT_Print))}");
     if( (miniPrinter && !KOT_Print) || (miniPrinterKOT && KOT_Print)){
       
@@ -369,7 +369,7 @@ class BillPrinter {
         try {
           // Try writeWithoutResponse first (faster for thermal printers)
           await printerCharacteristic.write(chunk, withoutResponse: true);
-          // debugPrint("✅ Chunk ${(i ~/ maxChunkSize) + 1} sent successfully");
+          debugPrint("✅ Chunk ${(i ~/ maxChunkSize) + 1} sent successfully");
           
           // Small delay between chunks to prevent overwhelming the printer
           await Future.delayed(Duration(milliseconds: 5));
@@ -384,12 +384,13 @@ class BillPrinter {
             debugPrint("❌ Failed to send chunk ${(i ~/ maxChunkSize) + 1} with response: $e2");
             throw Exception("Failed to send data to printer");
           }
-        }
+        } 
+        // finally{
+        //   bytes = [];
+        // }
       }
-
-
     }
-
+    bytes = [];
     debugPrint("🎉 All data sent successfully to printer!");
   }
 
@@ -651,6 +652,9 @@ class BillPrinter {
       await _setPrintQuality(quality);
       debugPrint("⚠️ bytes.length --${bytes.length}---");
       if (marathi){
+
+        await sendLogotoPrinter(isImg:true);
+
         Uint8List? imageBytes = await generateReceiptImage(
                                         cart1: cart,
                                         total: total,
@@ -683,41 +687,35 @@ class BillPrinter {
             bytes += _generator!.image(grayscale);
             // bytes += _generator!.feed(2);
             // bytes += _generator!.cut();
+             
           }
-
           await _sendToPrinter(imageBytes:imageBytes);
-
-          debugPrint("before clear total $total and cart $cart");
-          // cart.clear();
-          await _disconnect(); 
-          return;
+          bytes = [];
         }
+
+        await sendQRtoPrinter(total);
+
+        Uint8List? imageBytes1 = await footerImage();
+        if (imageBytes1 != null) {
+          bytes = [];
+          img.Image? original = img.decodeImage(imageBytes1);
+          final grayscale = img.grayscale(original!);
+          bytes += _generator!.image(grayscale);
+          await _sendToPrinter(imageBytes:imageBytes1);
+          bytes = [];
+        }
+
+        debugPrint("before clear total $total and cart $cart");
+        // cart.clear();
+        await _disconnect(); 
+        return;
+
       } else{
 
-        final prefs = await SharedPreferences.getInstance();
-        final imagePath = prefs.getString('imagePath');
-        final _printlogo = prefs.getBool('printLogo') ?? true;
-        if (imagePath != null && File(imagePath).existsSync() && _printlogo ) {
-          final file = File(imagePath);
-          final imageBytes = await file.readAsBytes();
-          img.Image? original = img.decodeImage(imageBytes);
-          if (original != null) {
-            // Resize to fit printer width // Convert to grayscale for better thermal printing
-            final resized = img.copyResize(original, width: logoWidth, maintainAspect: true);
-            final grayscale = img.grayscale(resized);
-            // final grayscale = img.monochrome(resized);
-            debugPrint("⚠️ bytes.length --${bytes.length}---");
-            bytes += _generator!.image(grayscale);
-            debugPrint("⚠️ bytes.length --${bytes.length}---");
-            // bytes += _generator!.feed(1);
-          }
-        } else {
-          debugPrint("⚠️ No logo found in SharedPreferences");
-        }
-        debugPrint("⚠️ bytes.length --${bytes.length}---");
-        // bytes += _generator!.reverseFeed(2);
+        await sendLogotoPrinter();
+
+
         if(printName){
-          // debugPrint("⚠️ No logo found in SharedPreferences --$businessName---");
           // Business header
           bytes += _generator!.text(
             businessName,
@@ -1024,6 +1022,133 @@ class BillPrinter {
 
 
 
+  Future<void> sendLogotoPrinter({bool isImg = false}) async {
+    final prefs = await SharedPreferences.getInstance();
+    final imagePath = prefs.getString('imagePath');
+    final _printlogo = prefs.getBool('printLogo') ?? true;
+    int logoWidth = prefs.getInt('logoWidth') ?? 200;
+    if (imagePath != null && File(imagePath).existsSync() && _printlogo ) {
+
+      try {
+        final file = File(imagePath);
+
+        if (!await file.exists()) {
+          debugPrint("❌ Logo file not found at: $imagePath");
+          return;
+        }
+
+        final imageBytes = await file.readAsBytes();
+        final img.Image? original = img.decodeImage(imageBytes);
+
+        if (original == null) {
+          debugPrint("❌ Failed to decode image at: $imagePath");
+          return;
+        }
+
+        final resized = img.copyResize(original, width: logoWidth, maintainAspect: true,);
+        final grayscale = img.grayscale(resized);
+        final Uint8List resizedBytes = img.encodePng(grayscale);
+        
+
+        if (_generator == null) {
+          debugPrint("❌ _generator is not initialized.");
+          return;
+        }
+
+        // bytes ??= <int>[]; // Initialize if null
+        bytes += _generator!.image(grayscale);
+        // bytes += _generator!.feed(1);
+
+        // debugPrint("🖨️ Sending logo to printer...");
+        await _sendToPrinter(imageBytes:resizedBytes);
+
+        bytes = [];
+        await Future.delayed(Duration(seconds: 1));
+
+
+        debugPrint("✅ Logo printed successfully.");
+      } catch (e, stack) {
+        debugPrint("❌ Error printing logo: $e");
+        debugPrint("Stack trace: $stack");
+      }
+    }
+  }
+
+Future<void> sendQRtoPrinter(int total) async {
+  try {
+    bytes = [];
+    await Future.delayed(Duration(seconds: 1));
+    final prefs = await SharedPreferences.getInstance();
+
+    // Retrieve stored preferences
+    String paperSize = prefs.getString('paperSize') ?? '2';
+    final double receiptWidth = (paperSize == "2")
+        ? 384.0
+        : (paperSize == "3")
+            ? 512.0
+            : 576.0;
+
+    String? upiId = prefs.getString('upi');
+    String qrSizePref = prefs.getString('qrSize') ?? "5";
+    double qrPixelSize = getQrPixelSize(qrSizePref);
+    String businessName = prefs.getString('businessName') ?? 'Hotel Test';
+    bool printQRLogo = prefs.getBool('printQRlogo') ?? true;
+    bool printQr = prefs.getBool('printQR') ?? false;
+    if (printQr && upiId != null && upiId.isNotEmpty) {
+
+      // Encode business name and form QR UPI data
+      final encodedBusinessName = Uri.encodeComponent(businessName);
+      final qrData = "upi://pay?pa=$upiId&pn=$encodedBusinessName&am=$total.00&cu=INR";
+
+      // Build QR code painter
+      final double logoWidth = (150 == qrPixelSize) ? 40 : 40 - ((80 / qrPixelSize) * 10);
+      final double logoHeight = (150 == qrPixelSize) ? 35 : 35 - ((70 / qrPixelSize) * 10);
+
+      final qrPainter = QrPainter(
+        data: qrData,
+        version: QrVersions.auto,
+        gapless: true,
+        embeddedImage: printQRLogo ? await _loadLogoImage() : null,
+        embeddedImageStyle: printQRLogo
+            ? QrEmbeddedImageStyle(size: Size(logoWidth, logoHeight))
+            : null,
+      );
+
+      // Convert QrPainter (ui.Image) → PNG bytes → img.Image
+      final ui.Image qrUiImage = await qrPainter.toImage(qrPixelSize);
+      final byteData = await qrUiImage.toByteData(format: ui.ImageByteFormat.png);
+      final Uint8List pngBytes = byteData!.buffer.asUint8List();
+      final img.Image? qrImage = img.decodeImage(pngBytes);
+      qrUiImage.dispose(); // free GPU memory
+
+      if (qrImage == null) {
+        debugPrint("❌ Failed to decode QR image");
+        return;
+      }
+
+      if (_generator == null) {
+        debugPrint("❌ _generator not initialized");
+        return;
+      }
+
+      // Prepare printer bytes
+      // bytes ??= <int>[];
+      bytes += _generator!.image(qrImage);
+      // bytes += _generator!.feed(1);
+
+      // Send to printer
+      await _sendToPrinter(imageBytes: pngBytes);
+
+      bytes = [];
+      await Future.delayed(const Duration(seconds: 1));
+
+      debugPrint("✅ QR printed successfully.");
+    }
+  } catch (e, stack) {
+    debugPrint("❌ Error printing QR: $e");
+    debugPrint("Stack trace: $stack");
+  }
+}
 
 
 
@@ -2055,15 +2180,15 @@ Future<Uint8List?> generateReceiptImage({
   // White background
   canvas.drawRect(canvasRect, Paint()..color = Colors.white);
   
-  double yOffset = 10.0; // Start with a 10px top margin
+  double yOffset = 0.0; // Start with a 10px top margin
 
   // --- 4. Draw Receipt (Translate bluetooth calls to canvas calls) ---
   
   try {
     // Logo
     // **ADAPT THIS** to match your _printLogo logic
-    yOffset += await _drawLogo(canvas, yOffset, receiptWidth);
-    yOffset += 5; // New line
+    // yOffset += await _drawLogo(canvas, yOffset, receiptWidth);
+    yOffset += 1; // New line
 
     // Business Info
     if (printName){
@@ -2153,18 +2278,18 @@ Future<Uint8List?> generateReceiptImage({
     
     yOffset += 10; // New line
     yOffset += await _drawLeftRight(canvas, "Total:", "Rs.$total", y: yOffset, width: receiptWidth, fontSize: fTotal, leftFontWeight: FontWeight.bold, rightFontWeight: FontWeight.bold);
-    yOffset += 15; // New line
+    yOffset += 3; // New line
 
     // QR Code
-    if (printQr && upiId != null && upiId.isNotEmpty) {
-      // **ADAPT THIS** to match your _printQrCode logic
-      yOffset += await _drawQrCode(canvas, businessName, total, qrSize, yOffset, receiptWidth, upiId);
-      yOffset += 10;
-    }
+    // if (printQr && upiId != null && upiId.isNotEmpty) {
+    //   // **ADAPT THIS** to match your _printQrCode logic
+    //   yOffset += await _drawQrCode(canvas, businessName, total, qrSize, yOffset, receiptWidth, upiId);
+    //   yOffset += 10;
+    // }
     
     // Footer
-    yOffset += await _drawText(canvas, footer, y: yOffset, width: receiptWidth, fontSize: fItem, align: TextAlign.center);
-    yOffset += 70; // Extra padding at the bottom
+    // yOffset += await _drawText(canvas, footer, y: yOffset, width: receiptWidth, fontSize: fItem, align: TextAlign.center);
+    // yOffset += 70; // Extra padding at the bottom
     
     // --- 5. Finalize and Encode Image ---
     
@@ -2188,6 +2313,53 @@ Future<Uint8List?> generateReceiptImage({
     return null;
   }
 }
+
+Future<Uint8List?> footerImage() async {
+  
+  final prefs = await SharedPreferences.getInstance();
+  String footer =  prefs.getString('footerText') ?? "** Thank You **";
+  String paperSize = prefs.getString('paperSize') ?? '2';
+  final double receiptWidth = (paperSize == "2") ? 384.0 :(paperSize == "3") ? 512.0 : 576.0 ;
+
+  double fItem = 21;//fontSizes[itemFontSize] ?? 18.0;
+  
+  // --- 3. Setup Canvas ---
+  final ui.PictureRecorder recorder = ui.PictureRecorder();
+  // Start with a large canvas, we'll crop it later
+  final ui.Rect canvasRect = ui.Rect.fromLTWH(0, 0, receiptWidth, 20000); 
+  final ui.Canvas canvas = ui.Canvas(recorder, canvasRect);
+
+  // White background
+  canvas.drawRect(canvasRect, Paint()..color = Colors.white);
+  double yOffset = 0.0; // Start with a 10px top margin
+  
+  try {
+    // Footer
+    yOffset += await _drawText(canvas, footer, y: yOffset, width: receiptWidth, fontSize: fItem, align: TextAlign.center);
+    yOffset += 70; // Extra padding at the bottom
+    
+    // Stop recording
+    final ui.Picture picture = recorder.endRecording();
+    
+    // Crop the image to the final height
+    final ui.Image finalImage = await picture.toImage(
+      receiptWidth.toInt(),
+      yOffset.toInt(), // Crop to the height we actually used
+    );
+    
+    // Encode to PNG
+    final ByteData? byteData = await finalImage.toByteData(format: ui.ImageByteFormat.png);
+    if (byteData == null) return null;
+    
+    return byteData.buffer.asUint8List();
+
+  } catch (e) {
+    debugPrint("Error generating receipt image: $e");
+    return null;
+  }
+}
+
+
 
 Future<Uint8List?> generateKOTImage({
   required List<Map<String, dynamic>> cart1,
