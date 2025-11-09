@@ -1,0 +1,14 @@
+{
+  "@@locale": "mr",
+  "addMoreItems": "अधिक आयटम जोडा",
+  "billItems": "बिल आयटम",
+  "customerName": "ग्राहक/पुरवठादाराचे नाव",
+  "total": "एकूण:",
+  "inventory": "सूची",
+  "dashbord": "डॅशबोर्ड",
+  "setting": "सेटिंग्ज",
+  "profile": "प्रोफाइल",
+  "sales_report": "विक्री अहवाल",
+  "logout": "लॉग आउट",
+  "language": "भाषा"
+}

@@ -16,10 +16,10 @@ publish_to: 'none' # Remove this line if you wish to publish to pub.dev
 # https://developer.apple.com/library/archive/documentation/General/Reference/InfoPlistKeyReference/Articles/CoreFoundationKeys.html
 # In Windows, build-name is used as the major, minor, and patch parts
 # of the product and file versions while build-number is used as the build suffix.
-version: 1.0.0
+version: 1.0.0+1
 
 environment:
-  sdk: ^3.8.1
+  sdk: '>=3.8.1 <4.0.0'
 
 # Dependencies specify other packages that your package needs in order to work.
 # To automatically upgrade your package dependencies to the latest versions
@@ -30,7 +30,7 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
-  intl: ^0.18.1
+  intl: 0.20.2
   blue_thermal_printer: ^1.1.5
   dotted_border: ^2.0.0
   shared_preferences: ^2.2.2
@@ -72,8 +72,9 @@ dependencies:
   printing: ^5.11.1
   android_intent_plus: ^6.0.0
   esc_pos_utils_plus: ^2.0.1
-  objectbox_generator: ^4.3.1
-  build_runner: ^2.7.1
+
+  flutter_localizations:
+    sdk: flutter
 
 
 
@@ -95,7 +96,7 @@ flutter_native_splash:
     color: "#ffffff"
 
 
-flutter_icons:
+flutter_launcher_icons:
   android: true
   ios: false   # <- disable iOS icons
   image_path: "assets/icon/logo.png"
@@ -105,7 +106,8 @@ dev_dependencies:
     sdk: flutter
   flutter_lints: ^5.0.0
   flutter_launcher_icons: ^0.14.4
-  android_intent_plus: ^6.0.0
+  objectbox_generator: ^4.3.1
+  build_runner: ^2.7.1
 
 
 # For information on the generic Dart part of this file, see the
@@ -125,6 +127,7 @@ flutter:
   # included with your application, so that you can use the icons in
   # the material Icons class.
   uses-material-design: true
+  generate: true
 
   # To add assets to your application, add an assets section, like this:
   # assets:
