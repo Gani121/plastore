@@ -1,0 +1,14 @@
+{
+  "@@locale": "hi",
+  "addMoreItems": "और आइटम जोड़ें",
+  "billItems": "बिल आइटम",
+  "customerName": "ग्राहक/आपूर्तिकर्ता का नाम",
+  "total": "कुल:",
+  "inventory": "सूची",
+  "dashbord": "डैशबोर्ड",
+  "setting": "सेटिंग्स",
+  "profile": "प्रोफ़ाइल",
+  "sales_report": "बिक्री रिपोर्ट",
+  "logout": "लॉग आउट",
+  "language": "भाषा"
+}

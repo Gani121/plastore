@@ -5,9 +5,7 @@ import 'package:flutter/material.dart';
 import '../objectbox.g.dart';
 import '../billnogenerator/BillCounter.dart';
 import 'dart:io';
-import 'package:path_provider/path_provider.dart';
 import 'package:intl/intl.dart';
-import 'package:test1/editBillPrint/CheckoutPage.dart';
 import '../cartprovier/cart_provider.dart';
 import 'package:provider/provider.dart';
 import '../cartprovier/ObjectBoxService.dart';
@@ -16,13 +14,14 @@ import '../NewOrderPage.dart';
 import 'package:test1/MenuItemPage.dart' as gk;
 import 'package:url_launcher/url_launcher.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
+import 'package:test1/l10n/app_localizations.dart';
 
 class DetailPage extends StatefulWidget {
   final List<Map<String, dynamic>>? cart1;
-  late String? mode;
-  late Map<String, dynamic>? transaction;
-  late Map<String, dynamic>? table;
-  late int? hideadd;
+  final String? mode;
+  final Map<String, dynamic>? transaction;
+  final Map<String, dynamic>? table;
+  final int? hideadd;
 
   DetailPage({this.cart1,this.mode,this.transaction,this.table,this.hideadd,super.key,});
 
@@ -305,8 +304,8 @@ void addtablecart(CartProvider cartProvider) async {
   }
 }
 
-  Widget _buildItemCards() {
-    final cartProvider = Provider.of<CartProvider>(context);
+  Widget _buildItemCards(CartProvider cartProvider) {
+    // final cartProvider = Provider.of<CartProvider>(context);
     final cart = cartProvider.cart;
     debugPrint("cart items _buildItemCards $cart");
     // addtablecart(cartProvider);
@@ -597,7 +596,7 @@ void addtablecart(CartProvider cartProvider) async {
     // No need for setState if you're using Provider's notifyListeners
   }
 
-  Widget _buildAdjustmentInputs() {
+  Widget _buildAdjustmentInputs(CartProvider cartProvider) {
     return Column(
       children: [
         _buildTextField(
@@ -876,7 +875,7 @@ DateTime getBusinessDate({int cutoffHour = 4}) {
 
   @override
   Widget build(BuildContext context) {
-    final cartProvider = Provider.of<CartProvider>(context, listen: false);
+    final cartProvider = Provider.of<CartProvider>(context,);
 
     return Scaffold(
       appBar: AppBar(
@@ -978,8 +977,8 @@ DateTime getBusinessDate({int cutoffHour = 4}) {
                         style: ElevatedButton.styleFrom(
                           backgroundColor: const Color.fromARGB(255, 0, 164, 5),
                         ),
-                        child: const Text(
-                          "ADD MORE ITEMS",
+                        child: Text(
+                          AppLocalizations.of(context)!.addMoreItems,
                           style: TextStyle(
                             color: Colors.white,
                             fontWeight: FontWeight.bold, // Add this line
@@ -1047,9 +1046,9 @@ DateTime getBusinessDate({int cutoffHour = 4}) {
                       ),
                     ),
                   const SizedBox(height: 10),
-                  _buildItemCards(),
+                  _buildItemCards(cartProvider),
                   const SizedBox(height: 20),
-                  _buildAdjustmentInputs(),
+                  _buildAdjustmentInputs(cartProvider),
                 ],
               ),
             ),
@@ -1738,44 +1737,44 @@ class __BottomBarState extends State<_BottomBar> {
     );
   }
 
-  Widget _buildPaymentButton(String text, {bool selected = false}) {
-    // Use the state variable to determine selection
-    final isSelected = _selectedPayment == text || selected;
+  // Widget _buildPaymentButton(String text, {bool selected = false}) {
+  //   // Use the state variable to determine selection
+  //   final isSelected = _selectedPayment == text || selected;
     
-    return SizedBox(
-      width: 100,
-      height: 30,
-      child: ElevatedButton(
-        style: ElevatedButton.styleFrom(
-          backgroundColor: isSelected ? Colors.blue.shade100 : Colors.white,
-          foregroundColor: Colors.black,
-          elevation: 0,
-          side: const BorderSide(color: Colors.grey),
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-        ),
-        onPressed: () {
-          setState(() {
-            _selectedPayment = text;
-          });
-        },
-        child: Text(text, style: const TextStyle(fontSize: 12)),
-      ),
-    );
-  }
+  //   return SizedBox(
+  //     width: 100,
+  //     height: 30,
+  //     child: ElevatedButton(
+  //       style: ElevatedButton.styleFrom(
+  //         backgroundColor: isSelected ? Colors.blue.shade100 : Colors.white,
+  //         foregroundColor: Colors.black,
+  //         elevation: 0,
+  //         side: const BorderSide(color: Colors.grey),
+  //         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+  //       ),
+  //       onPressed: () {
+  //         setState(() {
+  //           _selectedPayment = text;
+  //         });
+  //       },
+  //       child: Text(text, style: const TextStyle(fontSize: 12)),
+  //     ),
+  //   );
+  // }
 
-  Widget _buildActionButton(String text) {
-    return ElevatedButton(
-      style: ElevatedButton.styleFrom(
-        backgroundColor: Colors.white,
-        foregroundColor: Colors.black,
-        side: const BorderSide(color: Colors.grey),
-        padding: const EdgeInsets.symmetric(vertical: 14),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-      ),
-      onPressed: () {},
-      child: Text(text),
-    );
-  }
+  // Widget _buildActionButton(String text) {
+  //   return ElevatedButton(
+  //     style: ElevatedButton.styleFrom(
+  //       backgroundColor: Colors.white,
+  //       foregroundColor: Colors.black,
+  //       side: const BorderSide(color: Colors.grey),
+  //       padding: const EdgeInsets.symmetric(vertical: 14),
+  //       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+  //     ),
+  //     onPressed: () {},
+  //     child: Text(text),
+  //   );
+  // }
 
 }
 

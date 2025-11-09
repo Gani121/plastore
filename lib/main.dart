@@ -35,6 +35,9 @@ import './MenuItemPage.dart';
 import 'package:connectivity_plus/connectivity_plus.dart';
 import './table_selection/tabledata.dart';
 import 'table_selection/table_view.dart';
+import 'package:flutter_localizations/flutter_localizations.dart';
+import 'package:test1/l10n/app_localizations.dart';
+import 'package:test1/cartprovier/locale_provider.dart';
 
 final printer = BillPrinter();
 String selectedStyle = "";
@@ -58,6 +61,7 @@ void main() async {
     MultiProvider(
       providers: [
         Provider<ObjectBoxService>.value(value: objectBoxService),
+        ChangeNotifierProvider(create: (_) => LocaleProvider()),
         ChangeNotifierProvider(create: (_) => CartProvider()),
         ChangeNotifierProvider(create: (_) => ThemeProvider()),
         ChangeNotifierProvider(create: (_) => AppState()),
@@ -72,11 +76,27 @@ class MyApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
-      title: 'Orbipay',
-      theme: ThemeData(primarySwatch: Colors.red),
-      home: const LoginPage(), // 👈 show splash first
-      debugShowCheckedModeBanner: false,
+    // 1. Wrap your MaterialApp in a Consumer for LocaleProvider
+    return Consumer<LocaleProvider>(
+      builder: (context, localeProvider, child) {
+        // 'localeProvider' (lowercase 'l') is now the
+        // ACTUAL INSTANCE of your provider.
+
+        return MaterialApp(
+          title: 'Orbipay',
+          
+          // 2. Now you can access the 'locale' property from the instance
+          locale: localeProvider.locale, 
+          
+          // These lines are correct
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
+          
+          theme: ThemeData(primarySwatch: Colors.red),
+          home: const LoginPage(), 
+          debugShowCheckedModeBanner: false,
+        );
+      },
     );
   }
 }
@@ -1038,15 +1058,78 @@ Future<void> _removeItemFromCart(Active_Table_view table, Map<String, dynamic> i
                   ),
                 ),
 
+                // ⬇️ PASTE THIS NEW WIDGET HERE ⬇️
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(16.0, 8.0, 16.0, 0),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      // Title for the dropdown
+                      Text(
+                        AppLocalizations.of(context)!.language, // "Language"
+                        style: const TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                      
+                      // The dropdown itself, wrapped in a Consumer
+                      Consumer<LocaleProvider>(
+                        builder: (context, localeProvider, child) {
+                          
+                          // Determine the currently selected language
+                          String currentLangCode;
+                          if (localeProvider.locale != null) {
+                            // Use the language saved in the provider
+                            currentLangCode = localeProvider.locale!.languageCode;
+                          } else {
+                            // Otherwise, use the one Flutter detected
+                            currentLangCode = AppLocalizations.of(context)!.localeName;
+                          }
+
+                          return DropdownButton<String>(
+                            value: currentLangCode,
+                            underline: Container(), // Removes the default underline
+                            icon: Icon(Icons.language, color: themeProvider.primaryColor),
+                            onChanged: (String? newValue) {
+                              if (newValue != null) {
+                                // Tell the provider to set the new language
+                                localeProvider.setLocale(Locale(newValue));
+                              }
+                            },
+                            items: const [
+                              // These MUST match your .arb file names
+                              DropdownMenuItem(
+                                value: 'en',
+                                child: Text('English'),
+                              ),
+                              DropdownMenuItem(
+                                value: 'mr',
+                                child: Text('मराठी'),
+                              ),
+                              DropdownMenuItem(
+                                value: 'hi',
+                                child: Text('हिंदी'),
+                              ),
+                            ],
+                          );
+                        },
+                      ),
+                    ],
+                  ),
+                ),
+                const Divider(), // Adds a line to separate it from menu items
+                // ⬆️ END OF NEW WIDGET ⬆️
+
                 // Menu Items
                 ListTile(
                   leading: Icon(Icons.dashboard),
-                  title: Text('Dashboard'),
+                  title: Text(AppLocalizations.of(context)!.dashbord,),
                   onTap: () {},
                 ),
                 ListTile(
                   leading: Icon(Icons.inventory),
-                  title: Text('Inventory'),
+                  title: Text(AppLocalizations.of(context)!.inventory),
                   onTap: () {
                     Navigator.push(
                       context,
@@ -1056,7 +1139,7 @@ Future<void> _removeItemFromCart(Active_Table_view table, Map<String, dynamic> i
                 ),
                 ListTile(
                   leading: Icon(Icons.settings),
-                  title: Text('Settings'),
+                  title: Text(AppLocalizations.of(context)!.setting),
                   onTap: () {
                     Navigator.push(
                       context,
@@ -1066,7 +1149,7 @@ Future<void> _removeItemFromCart(Active_Table_view table, Map<String, dynamic> i
                 ),
                 ListTile(
                   leading: Icon(Icons.person),
-                  title: Text('Profile'),
+                  title: Text(AppLocalizations.of(context)!.profile),
                   onTap: () {
                     Navigator.push(
                       context,
@@ -1076,7 +1159,7 @@ Future<void> _removeItemFromCart(Active_Table_view table, Map<String, dynamic> i
                 ),
                 ListTile(
                   leading: Icon(Icons.person),
-                  title: Text('Sales Report'),
+                  title: Text(AppLocalizations.of(context)!.sales_report),
                   onTap: () {
                     Navigator.push(
                       context,
@@ -1088,7 +1171,7 @@ Future<void> _removeItemFromCart(Active_Table_view table, Map<String, dynamic> i
                 ),
                 ListTile(
                   leading: Icon(Icons.logout),
-                  title: Text('Logout'),
+                  title: Text(AppLocalizations.of(context)!.logout),
                   onTap: () {
                     showDialog(
                       context: context,

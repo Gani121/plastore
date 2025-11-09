@@ -1,0 +1,14 @@
+{
+  "@@locale": "en",
+  "addMoreItems": "ADD MORE ITEMS",
+  "billItems": "BILL ITEMS",
+  "customerName": "Customer/Supplier Name",
+  "total": "Total:",
+  "inventory": "Inventory",
+  "dashbord":"Dashbord",
+  "setting" : "Setting",
+  "profile":"Profile",
+  "sales_report": "Sales Report",
+  "logout":"Logout",
+  "language": "Language"
+}
