@@ -57,12 +57,14 @@ void main() async {
   final objectBoxService = ObjectBoxService.instance;
   await objectBoxService.init();
   HttpOverrides.global = MyHttpOverrides();
+  final cartProvider = CartProvider();
+  // await cartProvider.loadCart(); //
   runApp(
     MultiProvider(
       providers: [
         Provider<ObjectBoxService>.value(value: objectBoxService),
         ChangeNotifierProvider(create: (_) => LocaleProvider()),
-        ChangeNotifierProvider(create: (_) => CartProvider()),
+        ChangeNotifierProvider.value(value: cartProvider), // ✅ Reuse same instance
         ChangeNotifierProvider(create: (_) => ThemeProvider()),
         ChangeNotifierProvider(create: (_) => AppState()),
       ],

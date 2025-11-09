@@ -31,6 +31,19 @@ class CartProvider extends ChangeNotifier {
     }
   }
 
+  Future<void> loadCartIfEmpty(String cart) async {
+    if (_cart.isEmpty) {
+      final prefs = await SharedPreferences.getInstance();
+      final data = prefs.getString(cart);
+      if (data != null && data.isNotEmpty) {
+        _cart.clear();
+        _cart = List<Map<String, dynamic>>.from(jsonDecode(data));
+        debugPrint("✅ Restored cart with ${_cart.length} items");
+        notifyListeners();
+      }
+    }
+  }
+
   void addItem(Map<String, dynamic> item) {
     _cart.add(item);
     _selectedItemIds.add(item['id']);

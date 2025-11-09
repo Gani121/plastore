@@ -308,6 +308,7 @@ void addtablecart(CartProvider cartProvider) async {
     // final cartProvider = Provider.of<CartProvider>(context);
     final cart = cartProvider.cart;
     debugPrint("cart items _buildItemCards $cart");
+    
     // addtablecart(cartProvider);
     
     return Center(
@@ -875,7 +876,10 @@ DateTime getBusinessDate({int cutoffHour = 4}) {
 
   @override
   Widget build(BuildContext context) {
-    final cartProvider = Provider.of<CartProvider>(context,);
+    final cartProvider = context.watch<CartProvider>();
+    if(cartProvider.cart.isEmpty && widget.table != null){
+      cartProvider.loadCartIfEmpty("table${widget.table!['kot']}");
+    }
 
     return Scaffold(
       appBar: AppBar(
