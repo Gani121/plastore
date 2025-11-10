@@ -506,6 +506,13 @@ class _NewOrderPageState extends State<NewOrderPage> with AutomaticKeepAliveClie
     String imagePath = "$baseDir${item['name']}.jpeg";
     File imageFile = File(imagePath);
     bool hasImage = imageFile.existsSync();
+        // Check if the file exists
+    if (!hasImage) {
+      String baseDir = "/storage/emulated/0/Android/data/com.orbipay.test6/files/pictures/menu_images/";
+      imagePath = "$baseDir${item['name']}.jpg";
+      File imageFile = File(imagePath);
+      hasImage = imageFile.existsSync();
+    }
     
     //if available, otherwise fallback to f_price, otherwise 0
     double fPrice;
@@ -923,10 +930,17 @@ class _NewOrderPageState extends State<NewOrderPage> with AutomaticKeepAliveClie
   }
 
   Widget buildItemCardWithImage(Map<String, dynamic> item,selectedStyle) {
-    String baseDir = "/storage/emulated/0/Android/data/com.orbipay.test6/files/pictures/menu_images/";
+        String baseDir = "/storage/emulated/0/Android/data/com.orbipay.test6/files/pictures/menu_images/";
     String imagePath = "$baseDir${item['name']}.jpeg";
     File imageFile = File(imagePath);
     bool hasImage = imageFile.existsSync();
+        // Check if the file exists
+    if (!hasImage) {
+      String baseDir = "/storage/emulated/0/Android/data/com.orbipay.test6/files/pictures/menu_images/";
+      imagePath = "$baseDir${item['name']}.jpg";
+      File imageFile = File(imagePath);
+      hasImage = imageFile.existsSync();
+    }
     double price;
     // debugPrint(" $billingType == REGULAR  buildItemCardWithImage_half_full");
     switch (billingType) {
@@ -1399,9 +1413,17 @@ class _NewOrderPageState extends State<NewOrderPage> with AutomaticKeepAliveClie
 
   Widget _buildListItem(Map<String, dynamic> item,String? price) {
       // Local image path
+          String baseDir = "/storage/emulated/0/Android/data/com.orbipay.test6/files/pictures/menu_images/";
+    String imagePath = "$baseDir${item['name']}.jpeg";
+    File imageFile = File(imagePath);
+    bool hasImage = imageFile.existsSync();
+        // Check if the file exists
+    if (!hasImage) {
       String baseDir = "/storage/emulated/0/Android/data/com.orbipay.test6/files/pictures/menu_images/";
-      String imagePath = "$baseDir${item['name']}.jpeg";
+      imagePath = "$baseDir${item['name']}.jpg";
       File imageFile = File(imagePath);
+      hasImage = imageFile.existsSync();
+    }
 
       // Dynamic font sizes based on image size
       double nameFontSize = imageHeight / 6; // ~35% of image height
@@ -2063,11 +2085,20 @@ class ListViewHalfFull extends StatefulWidget {
 class _ListViewHalfFullState extends State<ListViewHalfFull> {
 
   Widget _buildListItem_half_full(Map<String, dynamic> item,) {
-    final imageHeight = widget.imageHeight;
     String baseDir = "/storage/emulated/0/Android/data/com.orbipay.test6/files/pictures/menu_images/";
     String imagePath = "$baseDir${item['name']}.jpeg";
+    File imageFile = File(imagePath);
+    bool hasImage = imageFile.existsSync();
+        // Check if the file exists
+    if (!hasImage) {
+      String baseDir = "/storage/emulated/0/Android/data/com.orbipay.test6/files/pictures/menu_images/";
+      imagePath = "$baseDir${item['name']}.jpg";
+      File imageFile = File(imagePath);
+      hasImage = imageFile.existsSync();
+    }
 
-final billingType = widget.billingType;
+    final imageHeight = widget.imageHeight;
+    final billingType = widget.billingType;
     // reuse your existing build logic for _buildItemListCard_half_full here
     
     double fPrice;

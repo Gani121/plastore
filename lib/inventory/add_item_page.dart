@@ -127,6 +127,14 @@ class _AddItemPageState extends State<AddItemPage> {
       // }
 
       _imagePath = "/storage/emulated/0/Android/data/com.orbipay.test6/files/pictures/menu_images/${item.name}.jpeg";
+      File imageFile = File(_imagePath ?? "");
+      bool hasImage = imageFile.existsSync();
+          // Check if the file exists
+      if (!hasImage) {
+        _imagePath = "/storage/emulated/0/Android/data/com.orbipay.test6/files/pictures/menu_images/${item.name}.jpg";
+        File imageFile = File(_imagePath ?? "");
+        hasImage = imageFile.existsSync();
+      }
 
       print("_imagePath $_imagePath");
 
@@ -282,7 +290,7 @@ class _AddItemPageState extends State<AddItemPage> {
 
       // Use safe item name
       //String safeName = itemName.replaceAll(RegExp(r'[^\w\s-]'), '_');
-      String fileName = "$itemName.jpeg";
+      String fileName = "$itemName.jpg";
 
       final savedPath = "${saveDir.path}/$fileName";
 

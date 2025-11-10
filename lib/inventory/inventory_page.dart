@@ -208,10 +208,21 @@ class _InventoryPageState extends State<InventoryPage> {
               itemBuilder: (context, index) {
                 final item = _filteredItems[index];
                 String safeName = item.name;
-                String fileName = "${safeName}.jpeg";
 
-                String imagePath =
-                    "/storage/emulated/0/Android/data/com.orbipay.test6/files/pictures/menu_images/$fileName";
+
+                String fileName = "${safeName}.jpeg";
+                String imagePath = "/storage/emulated/0/Android/data/com.orbipay.test6/files/pictures/menu_images/$fileName";
+                File imageFile = File(imagePath);
+                bool hasImage = imageFile.existsSync();
+                    // Check if the file exists
+                if (!hasImage) {
+                  String fileName = "${safeName}.jpg";
+                  imagePath = "/storage/emulated/0/Android/data/com.orbipay.test6/files/pictures/menu_images/$fileName";
+                  File imageFile = File(imagePath);
+                  hasImage = imageFile.existsSync();
+                }
+                
+
                 return GestureDetector(
                   onTap: () {
                     // Clear search and reset state before navigating
