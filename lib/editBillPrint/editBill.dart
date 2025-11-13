@@ -15,6 +15,8 @@ import 'package:test1/MenuItemPage.dart' as gk;
 import 'package:url_launcher/url_launcher.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:test1/l10n/app_localizations.dart';
+import '../udhari/AddCustomerPage.dart';
+import '../udhari/udharicustomer.dart';
 
 class DetailPage extends StatefulWidget {
   final List<Map<String, dynamic>>? cart1;
@@ -34,6 +36,7 @@ class _DetailPageState extends State<DetailPage> {
   late Box<BillCounter> billCounterBox;
   late int billNo = 0;
   late final TextEditingController _customerNameController = TextEditingController();
+  late final TextEditingController _customerAdreessController = TextEditingController();
   late final TextEditingController _discountPercentController = TextEditingController();
   late final TextEditingController _discountAmountController = TextEditingController();
   late final TextEditingController _serviceChargeAmountController = TextEditingController();
@@ -49,6 +52,7 @@ class _DetailPageState extends State<DetailPage> {
   double _serviceChargeAmountController1 = 0;
   double _serviceChargePercentController1 = 0;
   String _mobileNo1 = '';
+  String adreess1 = '';
 
   late ValueNotifier<double> subtotalNotifier = ValueNotifier<double>(0);
   late ValueNotifier<double> discountNotifier = ValueNotifier<double>(0);
@@ -125,6 +129,9 @@ class _DetailPageState extends State<DetailPage> {
           final customerName = transaction['customerName'] ?? '';
           fetchData(_customerNameController, customerName);
 
+          final customeradreess = transaction['reserved'] ?? '';
+          fetchData(_customerAdreessController, customeradreess);
+
           final mobileNo = transaction['mobileNo'] ?? '';
           fetchData(_mobileNoController, mobileNo);
 
@@ -149,6 +156,7 @@ class _DetailPageState extends State<DetailPage> {
   @override
   void dispose() {
     _customerNameController.dispose();
+    _customerAdreessController.dispose();
     _discountPercentController.dispose();
     _discountAmountController.dispose();
     _serviceChargeAmountController.dispose();
@@ -917,14 +925,106 @@ DateTime getBusinessDate({int cutoffHour = 4}) {
                   Column(
                     children: [
 
+
+
+                      Padding(
+                        padding: const EdgeInsets.only(bottom: 12),
+                        child: Autocomplete<udhariCustomer>(
+                          // 1. The Logic: How to find suggestions
+                          optionsBuilder: (TextEditingValue textEditingValue) {
+                            if (textEditingValue.text.isEmpty) {
+                              return const Iterable<udhariCustomer>.empty();
+                            }
+
+                            // Get the box
+                            final store = Provider.of<ObjectBoxService>(context, listen: false).store;
+                            final box = store.box<udhariCustomer>();
+
+                            // Query: Find names containing the text (Case Insensitive)
+                            final query = box.query(
+                              udhariCustomer_.name.contains(textEditingValue.text, caseSensitive: false)
+                            ).build();
+                            
+                            final results = query.find();
+                            query.close();
+                            
+                            return results;
+                          },
+
+                          // 2. How to display the selected object as text
+                          displayStringForOption: (udhariCustomer option) => option.name,
+
+                          // 3. What happens when the user TAPS a suggestion
+                          onSelected: (udhariCustomer selection) {
+                            debugPrint('You selected: ${selection.name}');
+                            
+                            // Update your transaction map and state
+                            transaction['customerName'] = selection.name;
+                            transaction['mobileNo'] = selection.phone; // Auto-fill phone if available
+                            transaction['reserved'] = selection.adreess; // Auto-fill address if available
+                            
+                            setState(() {
+                              _name111 = selection.name;
+                              _mobileNo1 = selection.phone; // Update local state variables too
+                              adreess1 = selection.adreess ?? "";
+                              
+                              // If you have controllers for phone/address, update them here too!
+                              _mobileNoController.text = selection.phone;
+                              _customerAdreessController.text = selection.adreess ?? '';
+                            });
+                          },
+
+                          // 4. The UI: Ensure it looks exactly like your old TextFormField
+                          fieldViewBuilder: (context, fieldTextEditingController, fieldFocusNode, onFieldSubmitted) {
+                            // Note: We use fieldTextEditingController provided by Autocomplete
+                            // instead of your _customerNameController.
+                            
+                            // Sync initial value if needed (e.g. when editing an old bill)
+                            if (_customerNameController.text.isNotEmpty && fieldTextEditingController.text.isEmpty) {
+                              fieldTextEditingController.text = _customerNameController.text;
+                            }
+
+                            return TextFormField(
+                              controller: fieldTextEditingController,
+                              focusNode: fieldFocusNode,
+                              keyboardType: TextInputType.text,
+                              decoration: const InputDecoration(
+                                labelText: 'Customer/Supplier Name',
+                                border: OutlineInputBorder(),
+                                suffixIcon: Icon(Icons.search), // Optional: indicates it is searchable
+                              ),
+                              onChanged: (value) {
+                                // This runs when typing (not selecting)
+                                transaction['customerName'] = value;
+                                // Update your external controller if you still use it elsewhere
+                                _customerNameController.text = value; 
+                                setState(() {
+                                  _name111 = value;
+                                });
+                              },
+                            );
+                          },
+                        ),
+                      ),
+
                       
+                      // _buildTextField_text(
+                      //   label: 'Customer/Supplier Name',
+                      //   controller: _customerNameController,
+                      //   onChanged: (value) {
+                      //     transaction['customerName'] =  value;
+                      //     setState(() {
+                      //       _name111 = value;
+                      //     });
+                      //   },
+                      // ),
                       _buildTextField_text(
-                        label: 'Customer/Supplier Name',
-                        controller: _customerNameController,
+                        label: 'Customer/Supplier Adreess',
+                        controller: _customerAdreessController,
                         onChanged: (value) {
-                          transaction['customerName'] =  value;
+                          transaction['reserved'] =  value;
                           setState(() {
-                            _name111 = value;
+                            adreess1 = value;
                           });
                         },
                       ),
@@ -933,7 +1033,7 @@ DateTime getBusinessDate({int cutoffHour = 4}) {
                           crossAxisAlignment: CrossAxisAlignment.center,
                           children: [
                             // Use Expanded to allow the TextField to take up available space
-                     Expanded(
+                            Expanded(
                               child: _buildTextField(
                                 label: "Customer/Supplier Mobile No",
                                 controller: _mobileNoController,
@@ -1075,6 +1175,7 @@ DateTime getBusinessDate({int cutoffHour = 4}) {
                 serviceChargePercent: _serviceChargePercentController1,
                 name: _name111,        // Use .text
                 mobileNo: _mobileNo1, // Use .text
+                adreess:adreess1,
                 billno: billNo,
                 cartProvider:cartProvider,
                 existingcart:existingcart,
@@ -1269,6 +1370,7 @@ class _BottomBar extends StatefulWidget {
   final double? serviceChargePercent;
   final String? mobileNo;
   final String? name;
+  final String? adreess;
   final int? billno;
   final CartProvider? cartProvider;
   final List<Map<String, dynamic>> existingcart;
@@ -1287,6 +1389,7 @@ class _BottomBar extends StatefulWidget {
     this.serviceChargePercent,
     this.mobileNo,
     this.name,
+    this.adreess,
     this.billno,
     this.cartProvider,
     required this.existingcart,
@@ -1300,6 +1403,7 @@ class __BottomBarState extends State<_BottomBar> {
   String? _selectedPayment; // Add state variable for payment selection
   bool _isPrinting = false; 
   bool _isChecked = true;   
+  
   
 
   Future<String?> _showPaymentMethodDialog(BuildContext context) async {
@@ -1353,8 +1457,7 @@ class __BottomBarState extends State<_BottomBar> {
     );
   }
 
-  /// Compares an old cart list with a new one and returns a list of
-  /// brand new items or items with an increased quantity.
+
   List<Map<String, dynamic>> getNewKotItems({
     required List<Map<String, dynamic>> oldCart,
     required List<Map<String, dynamic>> newCart,
@@ -1410,8 +1513,92 @@ class __BottomBarState extends State<_BottomBar> {
   }
 
 
+
+
+
+  udhariCustomer _findOrCreateCustomer(Box<udhariCustomer> customerBox, String name, String phone,String adreess) {
+    debugPrint("currentCustomer $name ");
+
+    final query = customerBox.query(udhariCustomer_.name.equals(name.trim())).build();
+    udhariCustomer? existingCustomer = query.findFirst();
+    query.close(); // Always close your queries
+
+    if (existingCustomer != null) {
+      // Customer was found, return them
+      debugPrint("currentCustomer Found existing customer: ${existingCustomer.name}");
+      return existingCustomer;
+    } else {
+      // Customer not found, create a new one
+      debugPrint("currentCustomer Creating new customer: $name");
+      final newCustomer = udhariCustomer(
+        name: name.trim(),
+        phone: phone.isNotEmpty ? phone.trim() : '',
+        adreess: adreess.isNotEmpty ? adreess.trim() : '',
+      );
+      
+      // Save the new customer to the box and return them
+      customerBox.put(newCustomer);
+      return newCustomer;
+    }
+  }
+
+
+
+
+  void saveEntry(String name, String phone,String adreess, String amountController, String descriptionController) {
+    
+    // Get the ObjectBox service and the customer box
+    final objectbox = Provider.of<ObjectBoxService>(context, listen: false);
+    final customerBox = objectbox.store.box<udhariCustomer>();
+
+    // This is the logic you wanted:
+    // "i want to check the name is exist in the udhariCustomer if not create else assign to currentCustomer"
+    final udhariCustomer currentCustomer = _findOrCreateCustomer(customerBox, name, phone, adreess);
+    debugPrint("currentCustomer $currentCustomer");
+
+    // Now the rest of your code will work, because 'currentCustomer' is set!
+    final amount = double.parse(amountController); // You may want to use double.tryParse for safety
+    final description = descriptionController.trim();
+
+    final newTransaction = TransactionUdhari.create(
+      amount: amount,
+      type: TransactionType.gave,
+      date: DateTime.now(),
+      description: description.isEmpty ? '' : description,
+    );
+
+
+    debugPrint("currentCustomer $newTransaction");
+
+    // Link the transaction to the customer
+    newTransaction.customer.target = currentCustomer;
+
+    // Save the transaction
+    objectbox.store.box<TransactionUdhari>().put(newTransaction);
+    
+    // Save the customer to update their list of transactions
+    // (This is from your original code and is correct for updating the relation)
+    currentCustomer.transactions.add(newTransaction);
+    objectbox.store.box<udhariCustomer>().put(currentCustomer);
+
+    debugPrint("currentCustomer Transaction saved for customer: ${currentCustomer.name}");
+
+    // Send SMS right after saving
+    // _sendTransactionSms(currentCustomer, newTransaction);
+  }
+
+
+
+
+
+
+
+
+
   @override
   Widget build(BuildContext context) {
+    // debugPrint("!_isChecked && (widget.mobileNo ?? "").isEmpty && (widget.name ?? "").isEmpty ${!_isChecked} && ${(widget.mobileNo ?? "").isEmpty} && ${(widget.name ?? "").isEmpty}");
+    final bool _forudhari = (!_isChecked && (widget.mobileNo ?? "").isEmpty && (widget.name ?? "").isEmpty);
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
       decoration: BoxDecoration(
@@ -1445,6 +1632,22 @@ class __BottomBarState extends State<_BottomBar> {
                             },
                           ),
                           Text("Received: ₹${total.toStringAsFixed(2)}"),
+                          if (_forudhari)
+                            Padding(
+                              padding: const EdgeInsets.only(top: 2.0, left: 4.0),
+                              child: Wrap(
+                                children: [
+                                  Text(
+                                    "Name and Mobile no is required",
+                                    style: const TextStyle(
+                                      color: Colors.red,
+                                      fontSize: 10,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
                         ],
                       ),
                       Padding(
@@ -1608,6 +1811,16 @@ class __BottomBarState extends State<_BottomBar> {
                                   setState(() {
                                     _isPrinting = true;
                                   });
+                                  if(_forudhari){
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                            SnackBar(
+                                              content: Text("Customer Name and Mobile No is Required"),
+                                              // backgroundColor: Colors.red,
+                                              duration: Duration(seconds: 1),
+                                            ),
+                                          );
+                                          return;
+                                  }
 
                                   try {
                                     String? paymentMode;
@@ -1648,6 +1861,10 @@ class __BottomBarState extends State<_BottomBar> {
                                     } else {
                                       debugPrint("Payment selection canceled OR cart is empty");
                                     }
+
+                                    String descriptionController = "Bill No- ${widget.billno} on date- ${DateTime.now()}";
+                                    debugPrint("currentCustomer $descriptionController");
+                                    saveEntry(widget.name ?? "" , widget.mobileNo ?? "" ,widget.adreess ?? "", total.toStringAsFixed(0), descriptionController);
                                     
                                   } finally {
                                     if (mounted) { 

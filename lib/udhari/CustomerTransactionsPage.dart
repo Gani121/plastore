@@ -1,12 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:shared_preferences/shared_preferences.dart'; // NEW
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:telephony_sms/telephony_sms.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../cartprovier/ObjectBoxService.dart';
 import 'udharicustomer.dart';
 import '../objectbox.g.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
+import 'package:intl/intl.dart'; // Added for Date formatting
 
 class CustomerTransactionsPage extends StatefulWidget {
   final udhariCustomer customer;
@@ -19,159 +20,114 @@ class CustomerTransactionsPage extends StatefulWidget {
 
 class _CustomerTransactionsPageState extends State<CustomerTransactionsPage> {
   late Stream<udhariCustomer?> _customerStream;
-  bool _isSmsEnabled = false; // NEW: State for the SMS toggle
+  bool _isSmsEnabled = false;
   final _telephonySMS = TelephonySMS();
-
+  
+  // Controllers moved inside the dialog function to avoid state conflicts during edits
+  
   @override
   void initState() {
     super.initState();
-    _loadSmsPreference(); // NEW: Load the setting on page start
+    _loadSmsPreference();
     final objectbox = Provider.of<ObjectBoxService>(context, listen: false);
 
     _customerStream = objectbox.store
         .box<udhariCustomer>()
-        .query(udhariCustomer_.id.equals(widget.customer.id)) // MODIFIED: Query by unique ID for reliability
+        .query(udhariCustomer_.id.equals(widget.customer.id))
         .watch(triggerImmediately: true)
         .map((query) => query.findFirst());
   }
 
-  // NEW: Method to load the SMS preference from SharedPreferences
   Future<void> _loadSmsPreference() async {
     final prefs = await SharedPreferences.getInstance();
-    // We use a unique key for each customer
     setState(() {
       _isSmsEnabled = prefs.getBool('sms_enabled_${widget.customer.id}') ?? false;
     });
   }
 
-  // NEW: Method to save the SMS preference
   Future<void> _saveSmsPreference(bool value) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setBool('sms_enabled_${widget.customer.id}', value);
-    var smspar = _telephonySMS.requestPermission();
-    debugPrint("_telephonySMS.requestPermission(); $smspar ");
+    _telephonySMS.requestPermission();
   }
 
-  // NEW: Method to send SMS
   void _sendTransactionSms(udhariCustomer customer, TransactionUdhari newTransaction) async {
-    if (!_isSmsEnabled) {
-      // Don't send if SMS is disabled or phone number is missing
-      return;
-    }
+    if (!_isSmsEnabled) return;
 
-    // 1. Calculate the total balance
     double totalBalance = 0;
     for (var txn in customer.transactions) {
       if (txn.type == TransactionType.gave) {
-        totalBalance -= txn.amount; // You gave money, so balance decreases
+        totalBalance -= txn.amount;
       } else {
-        totalBalance += txn.amount; // You got money, so balance increases
+        totalBalance += txn.amount;
       }
     }
 
-    // 2. Format the message
     final typeString = newTransaction.type == TransactionType.gave ? "Got" : "Gave";
     final balanceText = totalBalance >= 0 
         ? "You will get ${totalBalance.round()}" 
         : "You have to give ${(-totalBalance).round()}";
     
     final message = "Hi ${customer.name} you $typeString Amount ${newTransaction.amount.round()} and Total $balanceText";
-    // final message = "Hi ${customer.name},Amount:₹${newTransaction.amount.toStringAsFixed(2)} total balance is: $balanceText.";
 
-    // 3. Send the SMS
     try {
-      debugPrint("SMS Send Result:");
-      // await _telephonySMS.requestPermission();  ((customer.phone).toString().replaceAll('+91', "")).replaceAll(" ", "")
       final pho_nu = "+91${extractLast10Digits((customer.phone).toString())}";
-      
-      debugPrint("number to send sms -$pho_nu- ${message.length}");
       await _telephonySMS.sendSMS(phone: pho_nu, message: message);
-      debugPrint("SMS Send Result:");
     } catch (error) {
       debugPrint("Error sending SMS: $error");
-      // Optionally show a small error message to the user
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Failed to send SMS.'), 
-        duration: Duration(seconds: 2),
-        backgroundColor: Colors.red,
-        ),
-      );
     }
   }
 
   String extractLast10Digits(String phone) {
-    // Remove all non-numeric characters
     String digitsOnly = phone.replaceAll(RegExp(r'[^0-9]'), '');
-
-    // If more than 10 digits, take the last 10
     if (digitsOnly.length > 10) {
       return digitsOnly.substring(digitsOnly.length - 10);
     }
-
-    // Otherwise, return as is
     return digitsOnly;
   }
 
  Future<void>  _launchWhatsApp(udhariCustomer customer) async {
-    // 1. Calculate the total balance
     double totalBalance = 0;
     for (var txn in customer.transactions) {
       if (txn.type == TransactionType.gave) {
-        totalBalance -= txn.amount; // You gave money, so balance decreases
+        totalBalance -= txn.amount;
       } else {
-        totalBalance += txn.amount; // You got money, so balance increases
+        totalBalance += txn.amount;
       }
     }
 
-    // 2. Format the message
     final balanceText = totalBalance >= 0
         ? "${totalBalance.round()}"
         : "${(-totalBalance).round()}";
     
-    final message = "Dear ${customer.name}, your outstanding balance is $balanceText. We kindly request you to settle this amount at your earliest convenience. For any questions, feel free to contact us.";
-    // final message = "Hi ${customer.name},Amount:₹${newTransaction.amount.toStringAsFixed(2)} total balance is: $balanceText.";
+    final message = "Dear ${customer.name}, your outstanding balance is $balanceText. We kindly request you to settle this amount at your earliest convenience.";
 
-    // Do NOT include the '+' or any spaces/hyphens.
-    // final phoneNumber = ((customer.phone).toString().replaceAll('+91', "")).replaceAll(" ", "");
-    String mobileNumber = await extractLast10Digits((customer.phone).toString());
+    String mobileNumber = extractLast10Digits((customer.phone).toString());
    
-     // --- EDITED: LOGIC TO ADD COUNTRY CODE ---
-    // This logic prepares the number for the WhatsApp URL.
-    // It assumes the target is an Indian mobile number.
     if (mobileNumber.startsWith('+')) {
-        mobileNumber = mobileNumber.substring(1); // Remove '+'
+        mobileNumber = mobileNumber.substring(1);
     }
 
     if (mobileNumber.length == 10) {
-        // Standard 10-digit number, prepend India's country code
         mobileNumber = '91$mobileNumber';
     } else if (mobileNumber.length == 11 && mobileNumber.startsWith('0')) {
-        // Number starts with a 0, replace it with the country code
         mobileNumber = '91${mobileNumber.substring(1)}';
     }
-    debugPrint("number to send sms -$mobileNumber- ${message.length}");
-
-    // Encode the message to be URL-safe
+    
     final encodedMessage = Uri.encodeComponent(message);
-
-    // Create the WhatsApp URL
     final whatsappUrl = Uri.parse("https://wa.me/$mobileNumber?text=$encodedMessage");
 
     try {
-      // Launch the URL
       await launchUrl(
         whatsappUrl,
-        mode: LaunchMode.externalApplication, // Opens in WhatsApp, not an in-app browser
+        mode: LaunchMode.externalApplication,
       );
     } catch (e) {
-      // Handle any errors, e.g., WhatsApp not installed
       debugPrint("Error launching WhatsApp: $e");
     }
   }
 
-// Add this function for sending the reminder via SMS
 Future<void> _sendReminderSms(udhariCustomer customer) async {
-  // 1. Calculate the total balance (same logic as WhatsApp)
   double totalBalance = 0;
   customer.transactions.forEach((txn) {
     if (txn.type == TransactionType.gave) {
@@ -181,16 +137,13 @@ Future<void> _sendReminderSms(udhariCustomer customer) async {
     }
   });
 
-  // 2. Format the message
   final balanceText = totalBalance >= 0
       ? "${totalBalance.round()}"
       : "${(-totalBalance).round()}";
   
-  final message = "Dear ${customer.name}, your outstanding balance is $balanceText. We kindly request you to settle this amount at your earliest convenience. For any questions, feel free to contact us.";
+  final message = "Dear ${customer.name}, your outstanding balance is $balanceText. Please settle ASAP.";
 
-  // 3. Create the SMS URI and launch it
-  final phoneNumber =  "+91${extractLast10Digits((customer.phone).toString())}"; // Clean up phone number
- 
+  final phoneNumber =  "+91${extractLast10Digits((customer.phone).toString())}";
 
   final Uri smsUri = Uri(
     scheme: 'sms',
@@ -208,8 +161,8 @@ Future<void> _sendReminderSms(udhariCustomer customer) async {
     debugPrint("Error launching SMS: $e");
   }
 }
-// Add this function inside your _CustomerTransactionsPageState class
-void _showReminderOptions(BuildContext context, udhariCustomer customer) {
+
+  void _showReminderOptions(BuildContext context, udhariCustomer customer) {
   showModalBottomSheet(
     context: context,
     builder: (BuildContext bc) {
@@ -218,24 +171,19 @@ void _showReminderOptions(BuildContext context, udhariCustomer customer) {
           child: Wrap(
             children: <Widget>[
               ListTile(
-                
-                leading: FaIcon(
-                    FontAwesomeIcons.whatsapp,
-                    color: Colors.green,
-                    size: 30.0,
-                  ),
+                leading: FaIcon(FontAwesomeIcons.whatsapp, color: Colors.green, size: 30.0),
                 title: Text('WhatsApp'),
                 onTap: () {
-                  Navigator.pop(context); // Close the bottom sheet
-                  _launchWhatsApp(customer); // Call your existing WhatsApp function
+                  Navigator.pop(context);
+                  _launchWhatsApp(customer);
                 },
               ),
               ListTile(
                 leading: Icon(Icons.sms, color: Colors.orange),
                 title: Text('SMS'),
                 onTap: () {
-                  Navigator.pop(context); // Close the bottom sheet
-                  _sendReminderSms(customer); // Call the new SMS function (see below)
+                  Navigator.pop(context);
+                  _sendReminderSms(customer);
                 },
               ),
             ],
@@ -245,12 +193,11 @@ void _showReminderOptions(BuildContext context, udhariCustomer customer) {
     },
   );
 }
-  // NEW: Dialog to manage the SMS setting
+
   void _showSmsSettingsDialog() {
     showDialog(
       context: context,
       builder: (context) {
-        // Use a StatefulBuilder so only the dialog UI updates on toggle
         return StatefulBuilder(
           builder: (context, setDialogState) {
             return AlertDialog(
@@ -265,7 +212,6 @@ void _showReminderOptions(BuildContext context, udhariCustomer customer) {
                       setDialogState(() {
                         _isSmsEnabled = newValue;
                       });
-                      // Also update the main page state and save the preference
                       setState(() {});
                       _saveSmsPreference(newValue);
                     },
@@ -285,22 +231,88 @@ void _showReminderOptions(BuildContext context, udhariCustomer customer) {
     );
   }
 
-// Function to launch the phone call
 Future<void> _makePhoneCall(udhariCustomer customer) async {
-
   final phoneNumber = ((customer.phone).toString().replaceAll('+91', "")).replaceAll(" ", "");
-  final Uri launchUri = Uri(
-    scheme: 'tel',
-    path: phoneNumber,
-  );
+  final Uri launchUri = Uri(scheme: 'tel', path: phoneNumber);
   if (await canLaunchUrl(launchUri)) {
     await launchUrl(launchUri);
-  } else {
-    // Handle the error here
-    debugPrint("Could not launch the phone call.");
   }
 }
 
+// ==========================================
+// NEW: Logic to Delete a Transaction
+// ==========================================
+// Update this function signature to accept 'udhariCustomer'
+void _deleteTransaction(int transactionId, udhariCustomer customer) {
+  final objectbox = Provider.of<ObjectBoxService>(context, listen: false);
+  
+  // 1. Remove the transaction from the DB
+  objectbox.store.box<TransactionUdhari>().remove(transactionId);
+  
+  // 2. CRITICAL FIX: "Touch" the customer to trigger the StreamBuilder to refresh
+  // We don't change data, we just save the customer again to force an update event.
+  objectbox.store.box<udhariCustomer>().put(customer);
+  
+  ScaffoldMessenger.of(context).showSnackBar(
+    const SnackBar(content: Text("Entry deleted successfully")),
+  );
+}
+
+// ==========================================
+// NEW: Options Bottom Sheet (Edit/Delete)
+// ==========================================
+void _showOptionsBottomSheet(BuildContext context, TransactionUdhari transaction, udhariCustomer customer) {
+  showModalBottomSheet(
+    context: context,
+    builder: (context) {
+      return SafeArea(
+        child: Wrap(
+          children: [
+            ListTile(
+              leading: const Icon(Icons.edit, color: Colors.blue),
+              title: const Text('Edit Entry'),
+              onTap: () {
+                Navigator.pop(context); // Close sheet
+                // Open Dialog in Edit Mode
+                _showTransactionDialog(
+                  context, 
+                  customer, 
+                  type: transaction.type, 
+                  transactionToEdit: transaction
+                );
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.delete, color: Colors.red),
+              title: const Text('Delete Entry'),
+              onTap: () {
+                Navigator.pop(context); // Close sheet
+                // Show confirmation dialog
+                 showDialog(
+                  context: context,
+                  builder: (ctx) => AlertDialog(
+                    title: const Text("Delete Entry?"),
+                    content: const Text("Are you sure you want to delete this transaction? This cannot be undone."),
+                    actions: [
+                      TextButton(onPressed: () => Navigator.pop(ctx), child: const Text("Cancel")),
+                      TextButton(
+                        onPressed: () {
+                          Navigator.pop(ctx);
+                          _deleteTransaction(transaction.id, customer);
+                        },
+                        child: const Text("Delete", style: TextStyle(color: Colors.red)),
+                      ),
+                    ],
+                  ),
+                );
+              },
+            ),
+          ],
+        ),
+      );
+    },
+  );
+}
 
 
   @override
@@ -328,16 +340,10 @@ Future<void> _makePhoneCall(udhariCustomer customer) async {
           appBar: AppBar(
             title: Text(currentCustomer.name),
             actions: [
-              // NEW: SMS settings button
               IconButton(
                 icon: Icon(Icons.message_outlined ),
-                // icon: Icon(
-                //   _isSmsEnabled ? Icons.sms : Icons.sms_failed_outlined,
-                //   color: _isSmsEnabled ? Colors.blue : null,
-                // ),
                 tooltip: "Send Reminder",
                 onPressed: () {
-                  // Call the function to show the popup
                   _showReminderOptions(context, currentCustomer);
                 },
               ),
@@ -345,16 +351,13 @@ Future<void> _makePhoneCall(udhariCustomer customer) async {
                 icon: Icon(
                   Icons.notifications_active_outlined,color: _isSmsEnabled ? Colors.blue : null,
                 ),
-                
                 tooltip: "SMS Settings",
                 onPressed: _showSmsSettingsDialog,
               ),
-              
               IconButton(icon: const Icon(Icons.call),
                         onPressed: () {_makePhoneCall(currentCustomer);}, 
               ),
             ],
-            
           ),
           body: Column(
             children: [
@@ -380,6 +383,12 @@ Future<void> _makePhoneCall(udhariCustomer customer) async {
                           return Card(
                             margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                             child: ListTile(
+                              // ==========================================
+                              // MODIFIED: Added onTap to show Options
+                              // ==========================================
+                              onTap: () {
+                                _showOptionsBottomSheet(context, transaction, currentCustomer);
+                              },
                               title: Text(
                                 '₹${transaction.amount.toStringAsFixed(2)}',
                                 style: TextStyle(
@@ -387,8 +396,6 @@ Future<void> _makePhoneCall(udhariCustomer customer) async {
                                   color: isGave ? Colors.red : Colors.green,
                                 ),
                               ),
-
-                              // 📅 Show date + 📝 description (if present)
                               subtitle: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
@@ -410,13 +417,20 @@ Future<void> _makePhoneCall(udhariCustomer customer) async {
                                     ),
                                 ],
                               ),
-
-                              trailing: Text(
-                                isGave ? 'You Gave' : 'You Got',
-                                style: TextStyle(
-                                  fontWeight: FontWeight.bold,
-                                  color: isGave ? Colors.red.shade300 : Colors.green.shade300,
-                                ),
+                              trailing: Column(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                crossAxisAlignment: CrossAxisAlignment.end,
+                                children: [
+                                  Text(
+                                    isGave ? 'You Gave' : 'You Got',
+                                    style: TextStyle(
+                                      fontWeight: FontWeight.bold,
+                                      color: isGave ? Colors.red.shade300 : Colors.green.shade300,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 4),
+                                  const Icon(Icons.more_horiz, size: 16, color: Colors.grey), // Hint that more options exist
+                                ],
                               ),
                             ),
                           );
@@ -433,112 +447,143 @@ Future<void> _makePhoneCall(udhariCustomer customer) async {
     );
   }
 
-  // MODIFIED: Added call to _sendTransactionSms
-  void _showAddTransactionDialog(BuildContext context,
-      udhariCustomer currentCustomer, TransactionType type) {
+  // ==========================================
+  // MODIFIED: Unified Dialog for ADD and EDIT
+  // ==========================================
+  void _showTransactionDialog(BuildContext context, udhariCustomer currentCustomer, {required TransactionType type, TransactionUdhari? transactionToEdit}) {
+    final formKey = GlobalKey<FormState>();
+
+    // ✅ FIX 1: Get the ObjectBoxService HERE, before the dialog opens.
+    // This prevents the "deactivated widget" error because we capture the service
+    // while the context is definitely stable.
+    final objectbox = Provider.of<ObjectBoxService>(context, listen: false);
+
+    // Create controllers inside the function
     final amountController = TextEditingController();
     final descriptionController = TextEditingController();
 
-    final formKey = GlobalKey<FormState>();
+    // If Editing, Pre-fill data
+    if (transactionToEdit != null) {
+      amountController.text = transactionToEdit.amount.toString();
+      descriptionController.text = transactionToEdit.description;
+    }
 
-  showDialog(
-    context: context,
-    builder: (dialogContext) {
-      return AlertDialog(
-        title: Text(
-          type == TransactionType.gave
-              ? "Add Entry: You Gave"
-              : "Add Entry: You Got",
-        ),
-        content: Form(
-          key: formKey,
-          child: SingleChildScrollView(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                // 💰 Amount Field
-                TextFormField(
-                  controller: amountController,
-                  keyboardType:
-                      const TextInputType.numberWithOptions(decimal: true),
-                  decoration: const InputDecoration(
-                    labelText: 'Enter Amount (₹)',
-                    border: OutlineInputBorder(),
+    showDialog(
+      context: context,
+      builder: (dialogContext) {
+        return AlertDialog(
+          title: Text(
+            transactionToEdit != null
+                ? "Edit Entry" // Title change for Edit
+                : (type == TransactionType.gave ? "Add Entry: You Gave" : "Add Entry: You Got"),
+          ),
+          content: Form(
+            key: formKey,
+            child: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  TextFormField(
+                    controller: amountController,
+                    keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                    decoration: const InputDecoration(
+                      labelText: 'Enter Amount (₹)',
+                      border: OutlineInputBorder(),
+                    ),
+                    validator: (value) {
+                      if (value == null || value.isEmpty || double.tryParse(value) == null) {
+                        return 'Please enter a valid amount';
+                      }
+                      return null;
+                    },
                   ),
-                  validator: (value) {
-                    if (value == null ||
-                        value.isEmpty ||
-                        double.tryParse(value) == null) {
-                      return 'Please enter a valid amount';
-                    }
-                    return null;
-                  },
-                ),
-                const SizedBox(height: 12),
-
-                // 📝 Description Field
-                TextFormField(
-                  controller: descriptionController,
-                  maxLines: 2,
-                  decoration: const InputDecoration(
-                    labelText: 'Description (optional)',
-                    hintText: 'E.g. Paid for groceries, advance, etc.',
-                    border: OutlineInputBorder(),
+                  const SizedBox(height: 12),
+                  TextFormField(
+                    controller: descriptionController,
+                    maxLines: 2,
+                    decoration: const InputDecoration(
+                      labelText: 'Description (optional)',
+                      hintText: 'E.g. Paid for groceries, advance, etc.',
+                      border: OutlineInputBorder(),
+                    ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
           ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(dialogContext),
-            child: const Text("Cancel"),
-          ),
-          ElevatedButton(
-            onPressed: () async {
-              if (formKey.currentState!.validate()) {
-                final amount = double.parse(amountController.text);
-                final description = descriptionController.text.trim();
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext),
+              child: const Text("Cancel"),
+            ),
+            ElevatedButton(
+              onPressed: () async {
+                if (formKey.currentState!.validate()) {
+                  final amount = double.parse(amountController.text);
+                  final description = descriptionController.text.trim();
 
-                final objectbox =
-                    Provider.of<ObjectBoxService>(context, listen: false);
+                  // ✅ FIX 2: We use the 'objectbox' variable we captured at the top.
+                  // We do NOT call Provider.of(context) here.
 
-                final newTransaction = TransactionUdhari.create(
-                  amount: amount,
-                  type: type,
-                  date: DateTime.now(),
-                  description: description.isEmpty ? '' : description,
-                );
+                  if (transactionToEdit != null) {
+                    // ============================
+                    // LOGIC FOR EDITING
+                    // ============================
+                    transactionToEdit.amount = amount;
+                    transactionToEdit.description = description.isEmpty ? '' : description;
 
-                newTransaction.customer.target = currentCustomer;
+                    // Update in DB
+                    objectbox.store.box<TransactionUdhari>().put(transactionToEdit);
 
-                objectbox.store.box<TransactionUdhari>().put(newTransaction);
-                currentCustomer.transactions.add(newTransaction);
-                objectbox.store.box<udhariCustomer>().put(currentCustomer);
+                    // Force refresh current customer relations
+                    currentCustomer.transactions.add(transactionToEdit);
+                    objectbox.store.box<udhariCustomer>().put(currentCustomer);
 
-                // Send SMS right after saving
-                _sendTransactionSms(currentCustomer, newTransaction);
+                    // ✅ FIX 3: Check if context is mounted before showing SnackBar
+                    // because the parent widget might be rebuilding.
+                    if (context.mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(content: Text('Transaction updated!')),
+                      );
+                    }
+                  } else {
+                    // ============================
+                    // LOGIC FOR ADDING (Existing)
+                    // ============================
+                    final newTransaction = TransactionUdhari.create(
+                      amount: amount,
+                      type: type,
+                      date: DateTime.now(),
+                      description: description.isEmpty ? '' : description,
+                    );
 
-                Navigator.pop(dialogContext);
+                    newTransaction.customer.target = currentCustomer;
 
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content: Text('Transaction added successfully!'),
-                    duration: Duration(seconds: 2),
-                  ),
-                );
-              }
-            },
-            child: const Text("Save"),
-          ),
-        ],
-      );
-    },
-  );
+                    objectbox.store.box<TransactionUdhari>().put(newTransaction);
+                    currentCustomer.transactions.add(newTransaction);
+                    objectbox.store.box<udhariCustomer>().put(currentCustomer);
+
+                    // Note: _sendTransactionSms is part of the class, so we can call it.
+                    // However, if this is inside a State class, make sure the method is available.
+                     _sendTransactionSms(currentCustomer, newTransaction);
+
+                    if (context.mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(content: Text('Transaction added successfully!')),
+                      );
+                    }
+                  }
+
+                  Navigator.pop(dialogContext);
+                }
+              },
+              child: Text(transactionToEdit != null ? "Update" : "Save"),
+            ),
+          ],
+        );
+      },
+    );
   }
-
-
 
   Widget _buildActionButtons(
       BuildContext context, udhariCustomer currentCustomer) {
@@ -558,8 +603,9 @@ Future<void> _makePhoneCall(udhariCustomer customer) async {
         children: [
           Expanded(
             child: ElevatedButton(
-              onPressed: () => _showAddTransactionDialog(
-                  context, currentCustomer, TransactionType.gave),
+              // Call generic dialog with Type
+              onPressed: () => _showTransactionDialog(
+                  context, currentCustomer, type: TransactionType.gave),
               style: ElevatedButton.styleFrom(
                 backgroundColor: Colors.red.shade400,
                 foregroundColor: Colors.white,
@@ -571,8 +617,9 @@ Future<void> _makePhoneCall(udhariCustomer customer) async {
           const SizedBox(width: 12),
           Expanded(
             child: ElevatedButton(
-              onPressed: () => _showAddTransactionDialog(
-                  context, currentCustomer, TransactionType.got),
+              // Call generic dialog with Type
+              onPressed: () => _showTransactionDialog(
+                  context, currentCustomer, type: TransactionType.got),
               style: ElevatedButton.styleFrom(
                 backgroundColor: Colors.green.shade500,
                 foregroundColor: Colors.white,
@@ -585,9 +632,4 @@ Future<void> _makePhoneCall(udhariCustomer customer) async {
       ),
     );
   }
-
-
-
-
-
 }

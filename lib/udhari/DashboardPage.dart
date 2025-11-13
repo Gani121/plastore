@@ -108,7 +108,12 @@ class _DashboardPageState extends State<DashboardPage> {
                       ),
                       child: ListTile(
                         leading: CircleAvatar(
-                          child: Text(customer.name.substring(0, 1)),
+                          child: Text(
+                            (customer.name.isNotEmpty) 
+                                ? customer.name.substring(0, 1).toUpperCase() 
+                                : "?", // Show '?' if name is empty
+                            style: const TextStyle(fontWeight: FontWeight.bold),
+                          ),
                         ),
                         title: Text(customer.name, style: const TextStyle(fontWeight: FontWeight.bold)),
                         trailing: Text(

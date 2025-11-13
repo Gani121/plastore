@@ -14,12 +14,14 @@ class AddCustomerPage extends StatefulWidget {
 class _AddCustomerPageState extends State<AddCustomerPage> {
   final _nameController = TextEditingController();
   final _phoneController = TextEditingController();
+  final _adreessController = TextEditingController();
   final _formKey = GlobalKey<FormState>();
 
   @override
   void dispose() {
     _nameController.dispose();
     _phoneController.dispose();
+    _adreessController.dispose();
     super.dispose();
   }
   
@@ -36,6 +38,7 @@ class _AddCustomerPageState extends State<AddCustomerPage> {
         setState(() {
           _nameController.text = contact.displayName;
           _phoneController.text = phoneNumber;
+          // _adreessController.text = "";
         });
       }
     } else {
@@ -47,11 +50,13 @@ class _AddCustomerPageState extends State<AddCustomerPage> {
   }
 
 
+
   void _saveCustomer() {
     if (_formKey.currentState!.validate()) {
       final newCustomer = udhariCustomer(
         name: _nameController.text,
         phone: _phoneController.text.isNotEmpty ? _phoneController.text : '',
+        adreess: _adreessController.text.isNotEmpty ? _adreessController.text : '',
       );
 
       final store = Provider.of<ObjectBoxService>(context, listen: false).store;
@@ -90,7 +95,7 @@ class _AddCustomerPageState extends State<AddCustomerPage> {
               TextFormField(
                 controller: _nameController,
                 decoration: const InputDecoration(
-                  labelText: 'Customer Name',
+                  labelText: 'Customer Name*',
                   border: OutlineInputBorder(),
                   prefixIcon: Icon(Icons.person),
                 ),
@@ -105,11 +110,20 @@ class _AddCustomerPageState extends State<AddCustomerPage> {
               TextFormField(
                 controller: _phoneController,
                 decoration: const InputDecoration(
-                  labelText: 'Phone Number (Optional)',
+                  labelText: 'Phone Number*',
                   border: OutlineInputBorder(),
                   prefixIcon: Icon(Icons.phone),
                 ),
                 keyboardType: TextInputType.phone,
+              ),
+               const SizedBox(height: 16),
+              TextFormField(
+                controller: _adreessController,
+                decoration: const InputDecoration(
+                  labelText: 'Phone Adreess (Optional)',
+                  border: OutlineInputBorder(),
+                  prefixIcon: Icon(Icons.location_on),
+                ),
               ),
               const SizedBox(height: 24),
 

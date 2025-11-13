@@ -32,34 +32,34 @@ dependencies:
     sdk: flutter
   intl: 0.20.2
   blue_thermal_printer: ^1.1.5
-  dotted_border: ^2.0.0
+  dotted_border: ^3.1.0
   shared_preferences: ^2.2.2
   image_picker: ^1.1.0
   path_provider: ^2.1.1
   cupertino_icons: ^1.0.8
-  objectbox: ^4.3.0
-  objectbox_flutter_libs: ^4.3.0
+  objectbox: ^5.0.2
+  objectbox_flutter_libs: ^5.0.2
   provider: ^6.1.1
   string_similarity: ^2.0.0
-  fl_chart: ^0.64.0
-  csv: ^5.0.2
+  fl_chart: ^1.1.1
+  csv: ^6.0.0
   file_picker: ^10.2.1
   qr_flutter: ^4.1.0
   http: ^1.2.0
-  firebase_core: ^2.15.1
-  firebase_messaging: ^14.7.1
-  flutter_callkit_incoming: ^2.5.8
+  firebase_core: ^4.2.1
+  firebase_messaging: ^16.0.4
+  flutter_callkit_incoming: ^3.0.0
   lottie: ^3.1.0
   video_player: ^2.9.2
   auto_size_text: ^3.0.0
   sqflite: ^2.3.3 # Use the latest version
   path: ^1.9.0   # Use the latest version
   connectivity_plus: ^7.0.0
-  permission_handler: ^11.3.1 # To request storage permissions
+  permission_handler: ^12.0.1 # To request storage permissions
   open_file: ^3.3.1
   dio: ^5.4.0
-  archive: ^3.5.1
-  flutter_blue_plus: ^1.31.18
+  archive: ^4.0.7
+  flutter_blue_plus: ^2.0.2
   tabler_icons_flutter: ^2.11.0
   flutter_secure_storage: ^9.2.4
   share_plus: ^12.0.0
@@ -104,9 +104,9 @@ flutter_launcher_icons:
 dev_dependencies:
   flutter_test:
     sdk: flutter
-  flutter_lints: ^5.0.0
+  flutter_lints: ^6.0.0
   flutter_launcher_icons: ^0.14.4
-  objectbox_generator: ^4.3.1
+  objectbox_generator: ^5.0.2
   build_runner: ^2.7.1
 
 

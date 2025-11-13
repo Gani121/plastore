@@ -41,6 +41,12 @@ class MenuItem {
   String? H_portion;
   String? F_portion;
   int? selectedprice;
+  String? reserved_field = '';
+  String? reserved_field1 = '';
+  String? reserved_field2 = '';
+  String? reserved_field3 = '';
+  String? reserved_field4 = '';
+  String? reserved_field5 = '';
 
   MenuItem({
     this.id = 0,
@@ -77,6 +83,12 @@ class MenuItem {
     this.F_portion,
     this.selectedprice,
     this.favorites = false,
+    this.reserved_field,
+    this.reserved_field1,
+    this.reserved_field2,
+    this.reserved_field3,
+    this.reserved_field4,
+    this.reserved_field5,
   });
 
   // CopyWith method for immutable updates

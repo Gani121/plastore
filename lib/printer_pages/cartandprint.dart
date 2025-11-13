@@ -213,7 +213,8 @@ Future<void> _captureAndPrint() async {
 
     _printStatus = "Connecting to ${device.platformName}...";
     setState(() {});
-    await device.connect(timeout: const Duration(seconds: 15));
+    // ✅ NEW
+    await device.connect(license: License.free, timeout: const Duration(seconds: 15));
     
     final services = await device.discoverServices();
     final service = services.firstWhere((s) => s.uuid == CAT_PRINT_SRV);

@@ -16,7 +16,7 @@ import './cartprovier/cartProvider.dart';
 
 final printer = BillPrinter();
 int imageHeight = 92;
-double boxHeight = 0.40;
+double boxHeight = 0.35;
 double boxText = 16;
 bool isHoldEnabled = false;
 List<String> categories = [];
@@ -102,7 +102,7 @@ class _CartItemRowState extends State<CartItemRow> {
                   overflow: TextOverflow.ellipsis,
                 ),
                 Text(
-                  "₹${widget.price}",
+                  "${(widget.price).toStringAsFixed(0)}", //₹
                   style: TextStyle(color: Colors.grey[600], fontSize: 12),
                 ),
               ],
@@ -634,7 +634,7 @@ class _NewOrderPageState extends State<NewOrderPage> with AutomaticKeepAliveClie
                         children: [
                           // Half Label
                           Text(
-                            'HALF  ₹${hPrice.toStringAsFixed(0)}',
+                            'HALF ${hPrice.toStringAsFixed(0)}', //₹
                             style: TextStyle(
                               fontSize: boxText * 0.5,
                               fontWeight: FontWeight.bold,
@@ -663,8 +663,8 @@ class _NewOrderPageState extends State<NewOrderPage> with AutomaticKeepAliveClie
                                       });
                                     },
                                     child: Container(
-                                      width: 28,
-                                      height: 28,
+                                      width: 25,
+                                      height: 25,
                                       decoration: BoxDecoration(
                                         color:  item['h_qty'] > 0 ? Colors.red : Colors.grey.shade400,
                                         shape: BoxShape.circle,
@@ -686,7 +686,7 @@ class _NewOrderPageState extends State<NewOrderPage> with AutomaticKeepAliveClie
                                   Container(
                                     width: 24,
                                     height: 24,
-                                    margin: EdgeInsets.symmetric(horizontal: 4),
+                                    margin: EdgeInsets.symmetric(horizontal: 1),
                                     decoration: BoxDecoration(
                                       color: item['h_qty'] > 0 ? Colors.blue : Colors.grey.shade400,
                                       shape: BoxShape.circle,
@@ -714,8 +714,8 @@ class _NewOrderPageState extends State<NewOrderPage> with AutomaticKeepAliveClie
                                       // debugPrint("added item is ${item}");
                                     },
                                     child: Container(
-                                      width: 28,
-                                      height: 28,
+                                      width: 25,
+                                      height: 25,
                                       decoration: BoxDecoration(
                                         color: item['h_qty'] > 0 ? Colors.green : Colors.grey.shade400,
                                         shape: BoxShape.circle,
@@ -759,7 +759,7 @@ class _NewOrderPageState extends State<NewOrderPage> with AutomaticKeepAliveClie
                       children: [
                         // Full Label
                         Text(
-                          'FULL  ₹${fPrice.toStringAsFixed(0)}',
+                          'FULL ${fPrice.toStringAsFixed(0)}', //₹
                           style: TextStyle(
                             fontSize: boxText * 0.5,
                             fontWeight: FontWeight.bold,
@@ -788,8 +788,8 @@ class _NewOrderPageState extends State<NewOrderPage> with AutomaticKeepAliveClie
                                     });
                                   },
                                   child: Container(
-                                    width: 28,
-                                    height: 28,
+                                    width: 25,
+                                    height: 25,
                                     decoration: BoxDecoration(
                                       color: item['qty'] > 0 ? Colors.red : Colors.grey.shade400,
                                       shape: BoxShape.circle,
@@ -811,7 +811,7 @@ class _NewOrderPageState extends State<NewOrderPage> with AutomaticKeepAliveClie
                                 Container(
                                   width: 24,
                                   height: 24,
-                                  margin: EdgeInsets.symmetric(horizontal: 4),
+                                  margin: EdgeInsets.symmetric(horizontal: 1),
                                   decoration: BoxDecoration(
                                     color: item['qty'] > 0 ? Colors.blue : Colors.grey.shade400,
                                     shape: BoxShape.circle,
@@ -838,8 +838,8 @@ class _NewOrderPageState extends State<NewOrderPage> with AutomaticKeepAliveClie
                                     });
                                   },
                                   child: Container(
-                                    width: 28,
-                                    height: 28,
+                                    width: 25,
+                                    height: 25,
                                     decoration: BoxDecoration(
                                       color: item['qty'] > 0 ? Colors.green : Colors.grey.shade400,
                                       shape: BoxShape.circle,
@@ -1133,7 +1133,7 @@ class _NewOrderPageState extends State<NewOrderPage> with AutomaticKeepAliveClie
     //   priceText = '₹${item['h_price']} / ₹${item['f_price']}';
     // } else {
       // Show single price
-      priceText = '₹${item['f_price'] ?? 0}';
+      priceText = '${(item['f_price'] ?? 0)}'; //₹
     // }
     
     return Container(
@@ -1353,7 +1353,7 @@ class _NewOrderPageState extends State<NewOrderPage> with AutomaticKeepAliveClie
               borderRadius: BorderRadius.circular(4),
             ),
             padding: EdgeInsets.all(isList ? 6 : 2),
-            child: isList ? _buildListItem(item, price.toString()) : _buildListItem(item, price.toString()),
+            child: isList ? _buildListItem(item, price.toStringAsFixed(0)) : _buildListItem(item, price.toStringAsFixed(0)),
           ),
 
           if (item['selected'] == true)
@@ -1524,36 +1524,40 @@ class _NewOrderPageState extends State<NewOrderPage> with AutomaticKeepAliveClie
 
 
 
-  Widget _buildPriceTag(Map<String, dynamic> item,String? price1, {double fontSize = 14}) {
-    double price = double.tryParse(price1?.toString() ?? '0.0') ?? 0.0;
-    return FutureBuilder<String?>(
-      future: _getBillingType(),
-      builder: (context, snapshot) {
-        if (!snapshot.hasData) {
-          return SizedBox(); // Loading state
-        }
+Widget _buildPriceTag(Map<String, dynamic> item, String? price1, {double fontSize = 14}) {
+  double price = double.tryParse(price1?.toString() ?? '0.0') ?? 0.0;
+  return FutureBuilder<String?>(
+    future: _getBillingType(),
+    builder: (context, snapshot) {
+      if (!snapshot.hasData) {
+        return const SizedBox(); 
+      }
 
-
-        return DottedBorder(
+      return DottedBorder(
+        // 1. Move styling into the 'options' parameter
+        options: RectDottedBorderOptions(
           color: Colors.black54,
           strokeWidth: 1,
           dashPattern: [4, 2],
-          radius: Radius.circular(4),
-          child: Container(
-            padding: EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-            child: Text(
-              "₹ $price",
-              style: TextStyle(
-                fontSize: fontSize,
-                fontWeight: FontWeight.bold,
-                color: Colors.black87,
-              ),
+          // radius: Radius.circular(4),
+          // Note: 'dashPattern' and 'radius' might not be supported 
+          // exactly the same way in this package's options.
+        ),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 1, vertical: 1),
+          child: Text(
+            "${price.toStringAsFixed(0)}",
+            style: TextStyle(
+              fontSize: fontSize,
+              fontWeight: FontWeight.bold,
+              color: Colors.black87,
             ),
           ),
-        );
-      },
-    );
-  }
+        ),
+      );
+    },
+  );
+}
 
   Future<String?> _getBillingType() async {
     // final prefs = await SharedPreferences.getInstance();
@@ -2203,7 +2207,7 @@ class _ListViewHalfFullState extends State<ListViewHalfFull> {
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
                         Text(
-                          'HALF ₹${hPrice.toStringAsFixed(0)}',
+                          'HALF ${hPrice.toStringAsFixed(0)}', //₹
                           style: TextStyle(
                             fontSize: priceFontSize * 0.8,
                             fontWeight: FontWeight.bold,
@@ -2227,7 +2231,7 @@ class _ListViewHalfFullState extends State<ListViewHalfFull> {
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
                     Text(
-                      'FULL ₹${fPrice.toStringAsFixed(0)}',
+                      'FULL ${fPrice.toStringAsFixed(0)}', //₹
                       style: TextStyle(
                         fontSize: priceFontSize * 0.8,
                         fontWeight: FontWeight.bold,

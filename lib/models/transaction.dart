@@ -20,6 +20,12 @@ class Transaction {
   String? customerName;
   String? mobileNo;
   String? reserved;
+  String? reserved_field = '';
+  String? reserved_field1 = '';
+  String? reserved_field2 = '';
+  String? reserved_field3 = '';
+  String? reserved_field4 = '';
+  String? reserved_field5 = '';
 
   //run this if changes are done
   //flutter pub run build_runner build --delete-conflicting-outputs
@@ -38,6 +44,12 @@ class Transaction {
     this.customerName,
     this.mobileNo,
     this.reserved,
+    this.reserved_field,
+    this.reserved_field1,
+    this.reserved_field2,
+    this.reserved_field3,
+    this.reserved_field4,
+    this.reserved_field5,
   });
 
   @override

@@ -1702,7 +1702,7 @@ Future<void> _removeItemFromCart(Active_Table_view table, Map<String, dynamic> i
                             mainAxisAlignment: MainAxisAlignment.spaceBetween,
                             children: [
                               Text(
-                                'Time: ${tx['time'] ?? "-"}',
+                                ' ${tx['time'] != null ? DateFormat('dd/MM HH:mm:ss').format(DateTime.parse(tx['time'])) : "-"}',
                                 style: const TextStyle(
                                   fontSize: 12,
                                   color: Colors.black,

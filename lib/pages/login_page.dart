@@ -199,7 +199,7 @@ class _LoginPageState extends State<LoginPage> {
 
       // Use the archive package to extract
       final inputStream = InputFileStream(zipPath);
-      final archive = ZipDecoder().decodeBuffer(inputStream);
+      final archive = ZipDecoder().decodeStream(inputStream);
       extractArchiveToDisk(archive, destinationDir.path);
 
       debugPrint("✅ ZIP extracted successfully to ${destinationDir.path}");

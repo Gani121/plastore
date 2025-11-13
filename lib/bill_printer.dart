@@ -124,7 +124,7 @@ class BillPrinter {
                     );
                     // int gotId = int.parse(ttid.toString());
                     sendTransactionToServer(box, ttid);
-                  }else {
+                  } else {
                     id  = await saveTransactionToObjectBox(
                       context: context,
                       cart: cart,
@@ -220,9 +220,9 @@ class BillPrinter {
     try {
       // Connect to the device
       try{
-        await device.connect();
+        await device.connect(license: bl.License.free);
       }catch (e) {
-        await device.connect(timeout: Duration(seconds: 10));
+        await device.connect(license: bl.License.free,timeout: Duration(seconds: 10));
       }
       
       // Discover services
@@ -714,7 +714,6 @@ class BillPrinter {
 
         await sendLogotoPrinter();
 
-
         if(printName){
           // Business header
           bytes += _generator!.text(
@@ -793,7 +792,6 @@ class BillPrinter {
         );
 
 
-
         if (customerName ) {
           debugPrint("⚠️ check printer is connected tota --$transactionData---");
           bytes += _generator!.hr();
@@ -817,12 +815,24 @@ class BillPrinter {
             ),
           );
 
+
           bytes += _generator!.text(
             "Mobile NO: ${transactionData?['mobileNo'] ?? " "}",
             styles: PosStyles(
               // align: PosAlign.center,
               fontType: PosFontType.fontA,
               height: PosTextSize.size1, // Set height to minimum
+            ),
+          );
+          
+          bytes += _generator!.text(
+            "Adreess: ${transactionData?['reserved'] ?? " "}",
+            styles: PosStyles(
+              // align: PosAlign.center,
+              bold: true,
+              fontType: PosFontType.fontA,
+              height: PosTextSize.size1, // Set height to minimum
+              width: PosTextSize.size1,
             ),
           );
 
@@ -1063,7 +1073,7 @@ class BillPrinter {
         await _sendToPrinter(imageBytes:resizedBytes);
 
         bytes = [];
-        await Future.delayed(Duration(seconds: 1));
+        await Future.delayed(Duration(milliseconds: 500));
 
 
         debugPrint("✅ Logo printed successfully.");
@@ -1077,7 +1087,7 @@ class BillPrinter {
 Future<void> sendQRtoPrinter(int total) async {
   try {
     bytes = [];
-    await Future.delayed(Duration(seconds: 1));
+    await Future.delayed(Duration(milliseconds: 500));
     final prefs = await SharedPreferences.getInstance();
 
     // Retrieve stored preferences
@@ -1140,7 +1150,7 @@ Future<void> sendQRtoPrinter(int total) async {
       await _sendToPrinter(imageBytes: pngBytes);
 
       bytes = [];
-      await Future.delayed(const Duration(seconds: 1));
+      await Future.delayed(const Duration(milliseconds: 500));
 
       debugPrint("✅ QR printed successfully.");
     }
@@ -1456,7 +1466,8 @@ Future<void> sendQRtoPrinter(int total) async {
       discountPercent: transactionData?['discountpercent'] ?? 0.0, // 0.0
       billNo:  transactionData?['billNo'] ?? 0,
       customerName: transactionData?['customerName'] ?? '', // '28282'
-      mobileNo: transactionData?['mobileNo'] ?? '' // '386838'
+      mobileNo: transactionData?['mobileNo'] ?? '', // '386838'
+      reserved: transactionData?['reserved'] ?? '',
     );
     debugPrint("Transaction Data to be sent: $tx");
     if(status != 'print1')
@@ -1535,6 +1546,7 @@ Future<void> sendQRtoPrinter(int total) async {
       existingTx.discount = transactionData?['discount'] ?? 0.0; // 10.0
       existingTx.customerName = transactionData?['customerName'] ?? ''; // '28282'
       existingTx.mobileNo = transactionData?['mobileNo'] ?? ''; // '386838'
+      existingTx.reserved = transactionData?['reserved'] ?? '';
 
       // 4. Put the modified object back into the box
       box.put(existingTx);
@@ -2218,7 +2230,7 @@ Future<Uint8List?> generateReceiptImage({
     yOffset += 5;
 
 
-    if (customerName ) {
+    if (customerName && tableno == null) {
       debugPrint("⚠️ check printer is connected tota --$transactionData---");
       yOffset += await _drawDashedLine(canvas, yOffset, receiptWidth, fItem);
       yOffset += 10; // New line
@@ -2228,7 +2240,9 @@ Future<Uint8List?> generateReceiptImage({
       yOffset += await _drawText(canvas, "Name: ${transactionData?['customerName'] ?? " "}", y: yOffset, width: receiptWidth,fontWeight: FontWeight.bold, fontSize : fItem * 1.3, );
       yOffset += 2;
       yOffset += await _drawText(canvas, "Mobile NO: ${transactionData?['mobileNo'] ?? " "}", y: yOffset, width: receiptWidth,fontWeight: FontWeight.bold, fontSize: fItem ,);
-      yOffset += 5; // New line
+      yOffset += 2; // New line
+      yOffset += await _drawText(canvas, "Adreess: ${transactionData?['reserved'] ?? " "}", y: yOffset, width: receiptWidth,fontWeight: FontWeight.bold, fontSize : fItem, );
+      yOffset += 4;
         // Line
       yOffset += await _drawDashedLine(canvas, yOffset, receiptWidth, fItem);
       yOffset += 5; // New line

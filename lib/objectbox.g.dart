@@ -26,7 +26,7 @@ final _entities = <obx_int.ModelEntity>[
   obx_int.ModelEntity(
     id: const obx_int.IdUid(1, 1946107522687558548),
     name: 'BillCounter',
-    lastPropertyId: const obx_int.IdUid(2, 3493723725555546193),
+    lastPropertyId: const obx_int.IdUid(14, 6334187345324838075),
     flags: 0,
     properties: <obx_int.ModelProperty>[
       obx_int.ModelProperty(
@@ -41,6 +41,42 @@ final _entities = <obx_int.ModelEntity>[
         type: 6,
         flags: 0,
       ),
+      obx_int.ModelProperty(
+        id: const obx_int.IdUid(9, 3652927155827169365),
+        name: 'reserved_field',
+        type: 9,
+        flags: 0,
+      ),
+      obx_int.ModelProperty(
+        id: const obx_int.IdUid(10, 890619093528312970),
+        name: 'reserved_field1',
+        type: 9,
+        flags: 0,
+      ),
+      obx_int.ModelProperty(
+        id: const obx_int.IdUid(11, 6055694307514867168),
+        name: 'reserved_field2',
+        type: 9,
+        flags: 0,
+      ),
+      obx_int.ModelProperty(
+        id: const obx_int.IdUid(12, 4818164239551662687),
+        name: 'reserved_field3',
+        type: 9,
+        flags: 0,
+      ),
+      obx_int.ModelProperty(
+        id: const obx_int.IdUid(13, 3171097577670058620),
+        name: 'reserved_field4',
+        type: 9,
+        flags: 0,
+      ),
+      obx_int.ModelProperty(
+        id: const obx_int.IdUid(14, 6334187345324838075),
+        name: 'reserved_field5',
+        type: 9,
+        flags: 0,
+      ),
     ],
     relations: <obx_int.ModelRelation>[],
     backlinks: <obx_int.ModelBacklink>[],
@@ -48,7 +84,7 @@ final _entities = <obx_int.ModelEntity>[
   obx_int.ModelEntity(
     id: const obx_int.IdUid(2, 8114204961835078834),
     name: 'MenuItem',
-    lastPropertyId: const obx_int.IdUid(35, 7387153495941634258),
+    lastPropertyId: const obx_int.IdUid(47, 8025367918054177096),
     flags: 0,
     properties: <obx_int.ModelProperty>[
       obx_int.ModelProperty(
@@ -255,6 +291,42 @@ final _entities = <obx_int.ModelEntity>[
         type: 9,
         flags: 0,
       ),
+      obx_int.ModelProperty(
+        id: const obx_int.IdUid(42, 3904168566259483046),
+        name: 'reserved_field',
+        type: 9,
+        flags: 0,
+      ),
+      obx_int.ModelProperty(
+        id: const obx_int.IdUid(43, 5545264522990096364),
+        name: 'reserved_field1',
+        type: 9,
+        flags: 0,
+      ),
+      obx_int.ModelProperty(
+        id: const obx_int.IdUid(44, 1193250971417611750),
+        name: 'reserved_field2',
+        type: 9,
+        flags: 0,
+      ),
+      obx_int.ModelProperty(
+        id: const obx_int.IdUid(45, 8058901824592232407),
+        name: 'reserved_field3',
+        type: 9,
+        flags: 0,
+      ),
+      obx_int.ModelProperty(
+        id: const obx_int.IdUid(46, 9047182738703218607),
+        name: 'reserved_field4',
+        type: 9,
+        flags: 0,
+      ),
+      obx_int.ModelProperty(
+        id: const obx_int.IdUid(47, 8025367918054177096),
+        name: 'reserved_field5',
+        type: 9,
+        flags: 0,
+      ),
     ],
     relations: <obx_int.ModelRelation>[],
     backlinks: <obx_int.ModelBacklink>[],
@@ -262,7 +334,7 @@ final _entities = <obx_int.ModelEntity>[
   obx_int.ModelEntity(
     id: const obx_int.IdUid(3, 4469350567211994079),
     name: 'Transaction',
-    lastPropertyId: const obx_int.IdUid(16, 8294844815105658188),
+    lastPropertyId: const obx_int.IdUid(28, 45478420937704277),
     flags: 0,
     properties: <obx_int.ModelProperty>[
       obx_int.ModelProperty(
@@ -355,6 +427,42 @@ final _entities = <obx_int.ModelEntity>[
         type: 9,
         flags: 0,
       ),
+      obx_int.ModelProperty(
+        id: const obx_int.IdUid(23, 1811143835199410385),
+        name: 'reserved_field',
+        type: 9,
+        flags: 0,
+      ),
+      obx_int.ModelProperty(
+        id: const obx_int.IdUid(24, 2181348677092506159),
+        name: 'reserved_field1',
+        type: 9,
+        flags: 0,
+      ),
+      obx_int.ModelProperty(
+        id: const obx_int.IdUid(25, 3411401464753810407),
+        name: 'reserved_field2',
+        type: 9,
+        flags: 0,
+      ),
+      obx_int.ModelProperty(
+        id: const obx_int.IdUid(26, 5331955767904873158),
+        name: 'reserved_field3',
+        type: 9,
+        flags: 0,
+      ),
+      obx_int.ModelProperty(
+        id: const obx_int.IdUid(27, 2650762349556302124),
+        name: 'reserved_field4',
+        type: 9,
+        flags: 0,
+      ),
+      obx_int.ModelProperty(
+        id: const obx_int.IdUid(28, 45478420937704277),
+        name: 'reserved_field5',
+        type: 9,
+        flags: 0,
+      ),
     ],
     relations: <obx_int.ModelRelation>[],
     backlinks: <obx_int.ModelBacklink>[],
@@ -362,7 +470,7 @@ final _entities = <obx_int.ModelEntity>[
   obx_int.ModelEntity(
     id: const obx_int.IdUid(7, 8243572385061020594),
     name: 'udhariCustomer',
-    lastPropertyId: const obx_int.IdUid(3, 6661380246559368639),
+    lastPropertyId: const obx_int.IdUid(12, 6332134424552111661),
     flags: 0,
     properties: <obx_int.ModelProperty>[
       obx_int.ModelProperty(
@@ -383,6 +491,36 @@ final _entities = <obx_int.ModelEntity>[
         type: 9,
         flags: 0,
       ),
+      obx_int.ModelProperty(
+        id: const obx_int.IdUid(4, 3488280849196140420),
+        name: 'adreess',
+        type: 9,
+        flags: 0,
+      ),
+      obx_int.ModelProperty(
+        id: const obx_int.IdUid(9, 3282334087181252157),
+        name: 'reserved_field',
+        type: 9,
+        flags: 0,
+      ),
+      obx_int.ModelProperty(
+        id: const obx_int.IdUid(10, 3842315091163120335),
+        name: 'reserved_field1',
+        type: 9,
+        flags: 0,
+      ),
+      obx_int.ModelProperty(
+        id: const obx_int.IdUid(11, 7509998229175443065),
+        name: 'reserved_field2',
+        type: 9,
+        flags: 0,
+      ),
+      obx_int.ModelProperty(
+        id: const obx_int.IdUid(12, 6332134424552111661),
+        name: 'reserved_field3',
+        type: 9,
+        flags: 0,
+      ),
     ],
     relations: <obx_int.ModelRelation>[],
     backlinks: <obx_int.ModelBacklink>[
@@ -396,7 +534,7 @@ final _entities = <obx_int.ModelEntity>[
   obx_int.ModelEntity(
     id: const obx_int.IdUid(8, 1884757268945243640),
     name: 'TransactionUdhari',
-    lastPropertyId: const obx_int.IdUid(6, 5882108357253340408),
+    lastPropertyId: const obx_int.IdUid(14, 5803474790427682343),
     flags: 0,
     properties: <obx_int.ModelProperty>[
       obx_int.ModelProperty(
@@ -429,12 +567,37 @@ final _entities = <obx_int.ModelEntity>[
         type: 11,
         flags: 520,
         indexId: const obx_int.IdUid(2, 6843802771522843606),
+        relationField: 'customer',
         relationTarget: 'udhariCustomer',
       ),
       obx_int.ModelProperty(
         id: const obx_int.IdUid(6, 5882108357253340408),
         name: 'typeIndex',
         type: 2,
+        flags: 0,
+      ),
+      obx_int.ModelProperty(
+        id: const obx_int.IdUid(11, 6171959339297063102),
+        name: 'reserved_field',
+        type: 9,
+        flags: 0,
+      ),
+      obx_int.ModelProperty(
+        id: const obx_int.IdUid(12, 3552762795509009251),
+        name: 'reserved_field1',
+        type: 9,
+        flags: 0,
+      ),
+      obx_int.ModelProperty(
+        id: const obx_int.IdUid(13, 7071786404374621386),
+        name: 'reserved_field2',
+        type: 9,
+        flags: 0,
+      ),
+      obx_int.ModelProperty(
+        id: const obx_int.IdUid(14, 5803474790427682343),
+        name: 'reserved_field3',
+        type: 9,
         flags: 0,
       ),
     ],
@@ -444,7 +607,7 @@ final _entities = <obx_int.ModelEntity>[
   obx_int.ModelEntity(
     id: const obx_int.IdUid(9, 803850883550001508),
     name: 'CartItem',
-    lastPropertyId: const obx_int.IdUid(6, 1002619936605644404),
+    lastPropertyId: const obx_int.IdUid(18, 2326055945279238616),
     flags: 0,
     properties: <obx_int.ModelProperty>[
       obx_int.ModelProperty(
@@ -477,7 +640,44 @@ final _entities = <obx_int.ModelEntity>[
         type: 11,
         flags: 520,
         indexId: const obx_int.IdUid(6, 5111844153902982217),
+        relationField: 'menuItem',
         relationTarget: 'Active_Table_view',
+      ),
+      obx_int.ModelProperty(
+        id: const obx_int.IdUid(13, 5169526850648646553),
+        name: 'reserved_field',
+        type: 9,
+        flags: 0,
+      ),
+      obx_int.ModelProperty(
+        id: const obx_int.IdUid(14, 1020264955036171900),
+        name: 'reserved_field1',
+        type: 9,
+        flags: 0,
+      ),
+      obx_int.ModelProperty(
+        id: const obx_int.IdUid(15, 6574452078128849705),
+        name: 'reserved_field2',
+        type: 9,
+        flags: 0,
+      ),
+      obx_int.ModelProperty(
+        id: const obx_int.IdUid(16, 6876608894670006487),
+        name: 'reserved_field3',
+        type: 9,
+        flags: 0,
+      ),
+      obx_int.ModelProperty(
+        id: const obx_int.IdUid(17, 8155627079094188584),
+        name: 'reserved_field4',
+        type: 9,
+        flags: 0,
+      ),
+      obx_int.ModelProperty(
+        id: const obx_int.IdUid(18, 2326055945279238616),
+        name: 'reserved_field5',
+        type: 9,
+        flags: 0,
       ),
     ],
     relations: <obx_int.ModelRelation>[],
@@ -486,7 +686,7 @@ final _entities = <obx_int.ModelEntity>[
   obx_int.ModelEntity(
     id: const obx_int.IdUid(10, 7003873532803288360),
     name: 'OrderItem',
-    lastPropertyId: const obx_int.IdUid(6, 7488097895585267064),
+    lastPropertyId: const obx_int.IdUid(18, 3444315800088588529),
     flags: 0,
     properties: <obx_int.ModelProperty>[
       obx_int.ModelProperty(
@@ -513,12 +713,49 @@ final _entities = <obx_int.ModelEntity>[
         type: 11,
         flags: 520,
         indexId: const obx_int.IdUid(4, 689252794369788013),
+        relationField: 'table',
         relationTarget: 'Active_Table_view',
       ),
       obx_int.ModelProperty(
         id: const obx_int.IdUid(6, 7488097895585267064),
         name: 'quantity',
         type: 6,
+        flags: 0,
+      ),
+      obx_int.ModelProperty(
+        id: const obx_int.IdUid(13, 424290092089091347),
+        name: 'reserved_field',
+        type: 9,
+        flags: 0,
+      ),
+      obx_int.ModelProperty(
+        id: const obx_int.IdUid(14, 1018494323053729231),
+        name: 'reserved_field1',
+        type: 9,
+        flags: 0,
+      ),
+      obx_int.ModelProperty(
+        id: const obx_int.IdUid(15, 4896221720363075571),
+        name: 'reserved_field2',
+        type: 9,
+        flags: 0,
+      ),
+      obx_int.ModelProperty(
+        id: const obx_int.IdUid(16, 3836507280902470351),
+        name: 'reserved_field3',
+        type: 9,
+        flags: 0,
+      ),
+      obx_int.ModelProperty(
+        id: const obx_int.IdUid(17, 475226244958169496),
+        name: 'reserved_field4',
+        type: 9,
+        flags: 0,
+      ),
+      obx_int.ModelProperty(
+        id: const obx_int.IdUid(18, 3444315800088588529),
+        name: 'reserved_field5',
+        type: 9,
         flags: 0,
       ),
     ],
@@ -528,7 +765,7 @@ final _entities = <obx_int.ModelEntity>[
   obx_int.ModelEntity(
     id: const obx_int.IdUid(12, 6667384983004949850),
     name: 'Active_Table_view',
-    lastPropertyId: const obx_int.IdUid(4, 8847254960704675750),
+    lastPropertyId: const obx_int.IdUid(16, 3125477720319417828),
     flags: 0,
     properties: <obx_int.ModelProperty>[
       obx_int.ModelProperty(
@@ -553,6 +790,42 @@ final _entities = <obx_int.ModelEntity>[
       obx_int.ModelProperty(
         id: const obx_int.IdUid(4, 8847254960704675750),
         name: 'paymentMethod',
+        type: 9,
+        flags: 0,
+      ),
+      obx_int.ModelProperty(
+        id: const obx_int.IdUid(11, 5915319727339157987),
+        name: 'reserved_field',
+        type: 9,
+        flags: 0,
+      ),
+      obx_int.ModelProperty(
+        id: const obx_int.IdUid(12, 3189806009134391283),
+        name: 'reserved_field1',
+        type: 9,
+        flags: 0,
+      ),
+      obx_int.ModelProperty(
+        id: const obx_int.IdUid(13, 4981511791043725531),
+        name: 'reserved_field2',
+        type: 9,
+        flags: 0,
+      ),
+      obx_int.ModelProperty(
+        id: const obx_int.IdUid(14, 2058993428695702654),
+        name: 'reserved_field3',
+        type: 9,
+        flags: 0,
+      ),
+      obx_int.ModelProperty(
+        id: const obx_int.IdUid(15, 7832259321494686768),
+        name: 'reserved_field4',
+        type: 9,
+        flags: 0,
+      ),
+      obx_int.ModelProperty(
+        id: const obx_int.IdUid(16, 3125477720319417828),
+        name: 'reserved_field5',
         type: 9,
         flags: 0,
       ),
@@ -637,6 +910,50 @@ obx_int.ModelDefinition getObjectBoxModel() {
       3435686221136522241,
       3552243637992397625,
       6139848359760028549,
+      440371670897365644,
+      2723741359949647042,
+      9022478703125113524,
+      8508181141172326837,
+      1728092481944742833,
+      3250621795413944011,
+      3345508732266614869,
+      5077552047619262580,
+      331195739380969709,
+      1218191536249054997,
+      7451862050169094102,
+      3776492164374303478,
+      333550421043987280,
+      5376628577688000972,
+      5631026064100859632,
+      4562630642493802880,
+      5771921125160875364,
+      7399758215384875929,
+      6953192275576639148,
+      7394778357632798547,
+      3843019129049879716,
+      888500646566986864,
+      5211137398883652487,
+      8340799443803579650,
+      1668797096378767991,
+      6016334683333246844,
+      1842858285247900859,
+      5722165817705302782,
+      9032767571641523738,
+      553389984490629193,
+      479115336456823566,
+      6571728558552766296,
+      8169574257252559520,
+      7051356569234112686,
+      406034958368150728,
+      2911151615343145257,
+      5929159573409088983,
+      8637785427299406276,
+      6720286854143728436,
+      1117714632674622873,
+      1268417130193601446,
+      1091485719071189523,
+      1568387045619338153,
+      84744643200870017,
     ],
     retiredRelationUids: const [],
     modelVersion: 5,
@@ -654,9 +971,33 @@ obx_int.ModelDefinition getObjectBoxModel() {
         object.id = id;
       },
       objectToFB: (BillCounter object, fb.Builder fbb) {
-        fbb.startTable(3);
+        final reserved_fieldOffset = object.reserved_field == null
+            ? null
+            : fbb.writeString(object.reserved_field!);
+        final reserved_field1Offset = object.reserved_field1 == null
+            ? null
+            : fbb.writeString(object.reserved_field1!);
+        final reserved_field2Offset = object.reserved_field2 == null
+            ? null
+            : fbb.writeString(object.reserved_field2!);
+        final reserved_field3Offset = object.reserved_field3 == null
+            ? null
+            : fbb.writeString(object.reserved_field3!);
+        final reserved_field4Offset = object.reserved_field4 == null
+            ? null
+            : fbb.writeString(object.reserved_field4!);
+        final reserved_field5Offset = object.reserved_field5 == null
+            ? null
+            : fbb.writeString(object.reserved_field5!);
+        fbb.startTable(15);
         fbb.addInt64(0, object.id);
         fbb.addInt64(1, object.lastBillNo);
+        fbb.addOffset(8, reserved_fieldOffset);
+        fbb.addOffset(9, reserved_field1Offset);
+        fbb.addOffset(10, reserved_field2Offset);
+        fbb.addOffset(11, reserved_field3Offset);
+        fbb.addOffset(12, reserved_field4Offset);
+        fbb.addOffset(13, reserved_field5Offset);
         fbb.finish(fbb.endTable());
         return object.id;
       },
@@ -669,8 +1010,33 @@ obx_int.ModelDefinition getObjectBoxModel() {
           6,
           0,
         );
-        final object = BillCounter(lastBillNo: lastBillNoParam)
-          ..id = const fb.Int64Reader().vTableGet(buffer, rootOffset, 4, 0);
+        final reserved_fieldParam = const fb.StringReader(
+          asciiOptimization: true,
+        ).vTableGetNullable(buffer, rootOffset, 20);
+        final reserved_field1Param = const fb.StringReader(
+          asciiOptimization: true,
+        ).vTableGetNullable(buffer, rootOffset, 22);
+        final reserved_field2Param = const fb.StringReader(
+          asciiOptimization: true,
+        ).vTableGetNullable(buffer, rootOffset, 24);
+        final reserved_field3Param = const fb.StringReader(
+          asciiOptimization: true,
+        ).vTableGetNullable(buffer, rootOffset, 26);
+        final reserved_field4Param = const fb.StringReader(
+          asciiOptimization: true,
+        ).vTableGetNullable(buffer, rootOffset, 28);
+        final reserved_field5Param = const fb.StringReader(
+          asciiOptimization: true,
+        ).vTableGetNullable(buffer, rootOffset, 30);
+        final object = BillCounter(
+          lastBillNo: lastBillNoParam,
+          reserved_field: reserved_fieldParam,
+          reserved_field1: reserved_field1Param,
+          reserved_field2: reserved_field2Param,
+          reserved_field3: reserved_field3Param,
+          reserved_field4: reserved_field4Param,
+          reserved_field5: reserved_field5Param,
+        )..id = const fb.Int64Reader().vTableGet(buffer, rootOffset, 4, 0);
 
         return object;
       },
@@ -746,7 +1112,25 @@ obx_int.ModelDefinition getObjectBoxModel() {
         final onlineSellPriceHalfOffset = object.onlineSellPriceHalf == null
             ? null
             : fbb.writeString(object.onlineSellPriceHalf!);
-        fbb.startTable(36);
+        final reserved_fieldOffset = object.reserved_field == null
+            ? null
+            : fbb.writeString(object.reserved_field!);
+        final reserved_field1Offset = object.reserved_field1 == null
+            ? null
+            : fbb.writeString(object.reserved_field1!);
+        final reserved_field2Offset = object.reserved_field2 == null
+            ? null
+            : fbb.writeString(object.reserved_field2!);
+        final reserved_field3Offset = object.reserved_field3 == null
+            ? null
+            : fbb.writeString(object.reserved_field3!);
+        final reserved_field4Offset = object.reserved_field4 == null
+            ? null
+            : fbb.writeString(object.reserved_field4!);
+        final reserved_field5Offset = object.reserved_field5 == null
+            ? null
+            : fbb.writeString(object.reserved_field5!);
+        fbb.startTable(48);
         fbb.addInt64(0, object.id);
         fbb.addOffset(1, nameOffset);
         fbb.addOffset(2, sellPriceOffset);
@@ -781,6 +1165,12 @@ obx_int.ModelDefinition getObjectBoxModel() {
         fbb.addOffset(32, nonAcSellPriceHalfOffset);
         fbb.addOffset(33, onlineDeliveryPriceHalfOffset);
         fbb.addOffset(34, onlineSellPriceHalfOffset);
+        fbb.addOffset(41, reserved_fieldOffset);
+        fbb.addOffset(42, reserved_field1Offset);
+        fbb.addOffset(43, reserved_field2Offset);
+        fbb.addOffset(44, reserved_field3Offset);
+        fbb.addOffset(45, reserved_field4Offset);
+        fbb.addOffset(46, reserved_field5Offset);
         fbb.finish(fbb.endTable());
         return object.id;
       },
@@ -916,6 +1306,24 @@ obx_int.ModelDefinition getObjectBoxModel() {
           54,
           false,
         );
+        final reserved_fieldParam = const fb.StringReader(
+          asciiOptimization: true,
+        ).vTableGetNullable(buffer, rootOffset, 86);
+        final reserved_field1Param = const fb.StringReader(
+          asciiOptimization: true,
+        ).vTableGetNullable(buffer, rootOffset, 88);
+        final reserved_field2Param = const fb.StringReader(
+          asciiOptimization: true,
+        ).vTableGetNullable(buffer, rootOffset, 90);
+        final reserved_field3Param = const fb.StringReader(
+          asciiOptimization: true,
+        ).vTableGetNullable(buffer, rootOffset, 92);
+        final reserved_field4Param = const fb.StringReader(
+          asciiOptimization: true,
+        ).vTableGetNullable(buffer, rootOffset, 94);
+        final reserved_field5Param = const fb.StringReader(
+          asciiOptimization: true,
+        ).vTableGetNullable(buffer, rootOffset, 96);
         final object = MenuItem(
           id: idParam,
           name: nameParam,
@@ -951,6 +1359,12 @@ obx_int.ModelDefinition getObjectBoxModel() {
           F_portion: F_portionParam,
           selectedprice: selectedpriceParam,
           favorites: favoritesParam,
+          reserved_field: reserved_fieldParam,
+          reserved_field1: reserved_field1Param,
+          reserved_field2: reserved_field2Param,
+          reserved_field3: reserved_field3Param,
+          reserved_field4: reserved_field4Param,
+          reserved_field5: reserved_field5Param,
         );
 
         return object;
@@ -977,7 +1391,25 @@ obx_int.ModelDefinition getObjectBoxModel() {
         final reservedOffset = object.reserved == null
             ? null
             : fbb.writeString(object.reserved!);
-        fbb.startTable(17);
+        final reserved_fieldOffset = object.reserved_field == null
+            ? null
+            : fbb.writeString(object.reserved_field!);
+        final reserved_field1Offset = object.reserved_field1 == null
+            ? null
+            : fbb.writeString(object.reserved_field1!);
+        final reserved_field2Offset = object.reserved_field2 == null
+            ? null
+            : fbb.writeString(object.reserved_field2!);
+        final reserved_field3Offset = object.reserved_field3 == null
+            ? null
+            : fbb.writeString(object.reserved_field3!);
+        final reserved_field4Offset = object.reserved_field4 == null
+            ? null
+            : fbb.writeString(object.reserved_field4!);
+        final reserved_field5Offset = object.reserved_field5 == null
+            ? null
+            : fbb.writeString(object.reserved_field5!);
+        fbb.startTable(29);
         fbb.addInt64(0, object.id);
         fbb.addInt64(1, object.time.millisecondsSinceEpoch);
         fbb.addInt64(2, object.tableNo);
@@ -993,6 +1425,12 @@ obx_int.ModelDefinition getObjectBoxModel() {
         fbb.addOffset(13, customerNameOffset);
         fbb.addOffset(14, mobileNoOffset);
         fbb.addOffset(15, reservedOffset);
+        fbb.addOffset(22, reserved_fieldOffset);
+        fbb.addOffset(23, reserved_field1Offset);
+        fbb.addOffset(24, reserved_field2Offset);
+        fbb.addOffset(25, reserved_field3Offset);
+        fbb.addOffset(26, reserved_field4Offset);
+        fbb.addOffset(27, reserved_field5Offset);
         fbb.finish(fbb.endTable());
         return object.id;
       },
@@ -1057,6 +1495,24 @@ obx_int.ModelDefinition getObjectBoxModel() {
         final reservedParam = const fb.StringReader(
           asciiOptimization: true,
         ).vTableGetNullable(buffer, rootOffset, 34);
+        final reserved_fieldParam = const fb.StringReader(
+          asciiOptimization: true,
+        ).vTableGetNullable(buffer, rootOffset, 48);
+        final reserved_field1Param = const fb.StringReader(
+          asciiOptimization: true,
+        ).vTableGetNullable(buffer, rootOffset, 50);
+        final reserved_field2Param = const fb.StringReader(
+          asciiOptimization: true,
+        ).vTableGetNullable(buffer, rootOffset, 52);
+        final reserved_field3Param = const fb.StringReader(
+          asciiOptimization: true,
+        ).vTableGetNullable(buffer, rootOffset, 54);
+        final reserved_field4Param = const fb.StringReader(
+          asciiOptimization: true,
+        ).vTableGetNullable(buffer, rootOffset, 56);
+        final reserved_field5Param = const fb.StringReader(
+          asciiOptimization: true,
+        ).vTableGetNullable(buffer, rootOffset, 58);
         final object = Transaction(
           time: timeParam,
           tableNo: tableNoParam,
@@ -1072,6 +1528,12 @@ obx_int.ModelDefinition getObjectBoxModel() {
           customerName: customerNameParam,
           mobileNo: mobileNoParam,
           reserved: reservedParam,
+          reserved_field: reserved_fieldParam,
+          reserved_field1: reserved_field1Param,
+          reserved_field2: reserved_field2Param,
+          reserved_field3: reserved_field3Param,
+          reserved_field4: reserved_field4Param,
+          reserved_field5: reserved_field5Param,
         )..id = const fb.Int64Reader().vTableGet(buffer, rootOffset, 4, 0);
 
         return object;
@@ -1094,10 +1556,30 @@ obx_int.ModelDefinition getObjectBoxModel() {
       objectToFB: (udhariCustomer object, fb.Builder fbb) {
         final nameOffset = fbb.writeString(object.name);
         final phoneOffset = fbb.writeString(object.phone);
-        fbb.startTable(4);
+        final adreessOffset = object.adreess == null
+            ? null
+            : fbb.writeString(object.adreess!);
+        final reserved_fieldOffset = object.reserved_field == null
+            ? null
+            : fbb.writeString(object.reserved_field!);
+        final reserved_field1Offset = object.reserved_field1 == null
+            ? null
+            : fbb.writeString(object.reserved_field1!);
+        final reserved_field2Offset = object.reserved_field2 == null
+            ? null
+            : fbb.writeString(object.reserved_field2!);
+        final reserved_field3Offset = object.reserved_field3 == null
+            ? null
+            : fbb.writeString(object.reserved_field3!);
+        fbb.startTable(13);
         fbb.addInt64(0, object.id);
         fbb.addOffset(1, nameOffset);
         fbb.addOffset(2, phoneOffset);
+        fbb.addOffset(3, adreessOffset);
+        fbb.addOffset(8, reserved_fieldOffset);
+        fbb.addOffset(9, reserved_field1Offset);
+        fbb.addOffset(10, reserved_field2Offset);
+        fbb.addOffset(11, reserved_field3Offset);
         fbb.finish(fbb.endTable());
         return object.id;
       },
@@ -1110,8 +1592,30 @@ obx_int.ModelDefinition getObjectBoxModel() {
         final phoneParam = const fb.StringReader(
           asciiOptimization: true,
         ).vTableGet(buffer, rootOffset, 8, '');
-        final object = udhariCustomer(name: nameParam, phone: phoneParam)
-          ..id = const fb.Int64Reader().vTableGet(buffer, rootOffset, 4, 0);
+        final adreessParam = const fb.StringReader(
+          asciiOptimization: true,
+        ).vTableGetNullable(buffer, rootOffset, 10);
+        final reserved_fieldParam = const fb.StringReader(
+          asciiOptimization: true,
+        ).vTableGetNullable(buffer, rootOffset, 20);
+        final reserved_field1Param = const fb.StringReader(
+          asciiOptimization: true,
+        ).vTableGetNullable(buffer, rootOffset, 22);
+        final reserved_field2Param = const fb.StringReader(
+          asciiOptimization: true,
+        ).vTableGetNullable(buffer, rootOffset, 24);
+        final reserved_field3Param = const fb.StringReader(
+          asciiOptimization: true,
+        ).vTableGetNullable(buffer, rootOffset, 26);
+        final object = udhariCustomer(
+          name: nameParam,
+          phone: phoneParam,
+          adreess: adreessParam,
+          reserved_field: reserved_fieldParam,
+          reserved_field1: reserved_field1Param,
+          reserved_field2: reserved_field2Param,
+          reserved_field3: reserved_field3Param,
+        )..id = const fb.Int64Reader().vTableGet(buffer, rootOffset, 4, 0);
         obx_int.InternalToManyAccess.setRelInfo<udhariCustomer>(
           object.transactions,
           store,
@@ -1134,13 +1638,29 @@ obx_int.ModelDefinition getObjectBoxModel() {
       },
       objectToFB: (TransactionUdhari object, fb.Builder fbb) {
         final descriptionOffset = fbb.writeString(object.description);
-        fbb.startTable(7);
+        final reserved_fieldOffset = object.reserved_field == null
+            ? null
+            : fbb.writeString(object.reserved_field!);
+        final reserved_field1Offset = object.reserved_field1 == null
+            ? null
+            : fbb.writeString(object.reserved_field1!);
+        final reserved_field2Offset = object.reserved_field2 == null
+            ? null
+            : fbb.writeString(object.reserved_field2!);
+        final reserved_field3Offset = object.reserved_field3 == null
+            ? null
+            : fbb.writeString(object.reserved_field3!);
+        fbb.startTable(15);
         fbb.addInt64(0, object.id);
         fbb.addFloat64(1, object.amount);
         fbb.addInt64(2, object.date.millisecondsSinceEpoch);
         fbb.addOffset(3, descriptionOffset);
         fbb.addInt64(4, object.customer.targetId);
         fbb.addInt8(5, object.typeIndex);
+        fbb.addOffset(10, reserved_fieldOffset);
+        fbb.addOffset(11, reserved_field1Offset);
+        fbb.addOffset(12, reserved_field2Offset);
+        fbb.addOffset(13, reserved_field3Offset);
         fbb.finish(fbb.endTable());
         return object.id;
       },
@@ -1167,7 +1687,19 @@ obx_int.ModelDefinition getObjectBoxModel() {
             rootOffset,
             14,
             0,
-          );
+          )
+          ..reserved_field = const fb.StringReader(
+            asciiOptimization: true,
+          ).vTableGetNullable(buffer, rootOffset, 24)
+          ..reserved_field1 = const fb.StringReader(
+            asciiOptimization: true,
+          ).vTableGetNullable(buffer, rootOffset, 26)
+          ..reserved_field2 = const fb.StringReader(
+            asciiOptimization: true,
+          ).vTableGetNullable(buffer, rootOffset, 28)
+          ..reserved_field3 = const fb.StringReader(
+            asciiOptimization: true,
+          ).vTableGetNullable(buffer, rootOffset, 30);
         object.customer.targetId = const fb.Int64Reader().vTableGet(
           buffer,
           rootOffset,
@@ -1188,12 +1720,36 @@ obx_int.ModelDefinition getObjectBoxModel() {
       },
       objectToFB: (CartItem object, fb.Builder fbb) {
         final nameOffset = fbb.writeString(object.name);
-        fbb.startTable(7);
+        final reserved_fieldOffset = object.reserved_field == null
+            ? null
+            : fbb.writeString(object.reserved_field!);
+        final reserved_field1Offset = object.reserved_field1 == null
+            ? null
+            : fbb.writeString(object.reserved_field1!);
+        final reserved_field2Offset = object.reserved_field2 == null
+            ? null
+            : fbb.writeString(object.reserved_field2!);
+        final reserved_field3Offset = object.reserved_field3 == null
+            ? null
+            : fbb.writeString(object.reserved_field3!);
+        final reserved_field4Offset = object.reserved_field4 == null
+            ? null
+            : fbb.writeString(object.reserved_field4!);
+        final reserved_field5Offset = object.reserved_field5 == null
+            ? null
+            : fbb.writeString(object.reserved_field5!);
+        fbb.startTable(19);
         fbb.addInt64(0, object.id);
         fbb.addInt64(1, object.quantity);
         fbb.addOffset(2, nameOffset);
         fbb.addFloat64(3, object.price);
         fbb.addInt64(5, object.menuItem.targetId);
+        fbb.addOffset(12, reserved_fieldOffset);
+        fbb.addOffset(13, reserved_field1Offset);
+        fbb.addOffset(14, reserved_field2Offset);
+        fbb.addOffset(15, reserved_field3Offset);
+        fbb.addOffset(16, reserved_field4Offset);
+        fbb.addOffset(17, reserved_field5Offset);
         fbb.finish(fbb.endTable());
         return object.id;
       },
@@ -1215,10 +1771,34 @@ obx_int.ModelDefinition getObjectBoxModel() {
           6,
           0,
         );
+        final reserved_fieldParam = const fb.StringReader(
+          asciiOptimization: true,
+        ).vTableGetNullable(buffer, rootOffset, 28);
+        final reserved_field1Param = const fb.StringReader(
+          asciiOptimization: true,
+        ).vTableGetNullable(buffer, rootOffset, 30);
+        final reserved_field2Param = const fb.StringReader(
+          asciiOptimization: true,
+        ).vTableGetNullable(buffer, rootOffset, 32);
+        final reserved_field3Param = const fb.StringReader(
+          asciiOptimization: true,
+        ).vTableGetNullable(buffer, rootOffset, 34);
+        final reserved_field4Param = const fb.StringReader(
+          asciiOptimization: true,
+        ).vTableGetNullable(buffer, rootOffset, 36);
+        final reserved_field5Param = const fb.StringReader(
+          asciiOptimization: true,
+        ).vTableGetNullable(buffer, rootOffset, 38);
         final object = CartItem(
           name: nameParam,
           price: priceParam,
           quantity: quantityParam,
+          reserved_field: reserved_fieldParam,
+          reserved_field1: reserved_field1Param,
+          reserved_field2: reserved_field2Param,
+          reserved_field3: reserved_field3Param,
+          reserved_field4: reserved_field4Param,
+          reserved_field5: reserved_field5Param,
         )..id = const fb.Int64Reader().vTableGet(buffer, rootOffset, 4, 0);
         object.menuItem.targetId = const fb.Int64Reader().vTableGet(
           buffer,
@@ -1240,12 +1820,36 @@ obx_int.ModelDefinition getObjectBoxModel() {
       },
       objectToFB: (OrderItem object, fb.Builder fbb) {
         final nameOffset = fbb.writeString(object.name);
-        fbb.startTable(7);
+        final reserved_fieldOffset = object.reserved_field == null
+            ? null
+            : fbb.writeString(object.reserved_field!);
+        final reserved_field1Offset = object.reserved_field1 == null
+            ? null
+            : fbb.writeString(object.reserved_field1!);
+        final reserved_field2Offset = object.reserved_field2 == null
+            ? null
+            : fbb.writeString(object.reserved_field2!);
+        final reserved_field3Offset = object.reserved_field3 == null
+            ? null
+            : fbb.writeString(object.reserved_field3!);
+        final reserved_field4Offset = object.reserved_field4 == null
+            ? null
+            : fbb.writeString(object.reserved_field4!);
+        final reserved_field5Offset = object.reserved_field5 == null
+            ? null
+            : fbb.writeString(object.reserved_field5!);
+        fbb.startTable(19);
         fbb.addInt64(0, object.id);
         fbb.addOffset(1, nameOffset);
         fbb.addFloat64(3, object.price);
         fbb.addInt64(4, object.table.targetId);
         fbb.addInt64(5, object.quantity);
+        fbb.addOffset(12, reserved_fieldOffset);
+        fbb.addOffset(13, reserved_field1Offset);
+        fbb.addOffset(14, reserved_field2Offset);
+        fbb.addOffset(15, reserved_field3Offset);
+        fbb.addOffset(16, reserved_field4Offset);
+        fbb.addOffset(17, reserved_field5Offset);
         fbb.finish(fbb.endTable());
         return object.id;
       },
@@ -1267,10 +1871,34 @@ obx_int.ModelDefinition getObjectBoxModel() {
           10,
           0,
         );
+        final reserved_fieldParam = const fb.StringReader(
+          asciiOptimization: true,
+        ).vTableGetNullable(buffer, rootOffset, 28);
+        final reserved_field1Param = const fb.StringReader(
+          asciiOptimization: true,
+        ).vTableGetNullable(buffer, rootOffset, 30);
+        final reserved_field2Param = const fb.StringReader(
+          asciiOptimization: true,
+        ).vTableGetNullable(buffer, rootOffset, 32);
+        final reserved_field3Param = const fb.StringReader(
+          asciiOptimization: true,
+        ).vTableGetNullable(buffer, rootOffset, 34);
+        final reserved_field4Param = const fb.StringReader(
+          asciiOptimization: true,
+        ).vTableGetNullable(buffer, rootOffset, 36);
+        final reserved_field5Param = const fb.StringReader(
+          asciiOptimization: true,
+        ).vTableGetNullable(buffer, rootOffset, 38);
         final object = OrderItem(
           name: nameParam,
           quantity: quantityParam,
           price: priceParam,
+          reserved_field: reserved_fieldParam,
+          reserved_field1: reserved_field1Param,
+          reserved_field2: reserved_field2Param,
+          reserved_field3: reserved_field3Param,
+          reserved_field4: reserved_field4Param,
+          reserved_field5: reserved_field5Param,
         )..id = const fb.Int64Reader().vTableGet(buffer, rootOffset, 4, 0);
         object.table.targetId = const fb.Int64Reader().vTableGet(
           buffer,
@@ -1298,11 +1926,35 @@ obx_int.ModelDefinition getObjectBoxModel() {
       },
       objectToFB: (Active_Table_view object, fb.Builder fbb) {
         final paymentMethodOffset = fbb.writeString(object.paymentMethod);
-        fbb.startTable(5);
+        final reserved_fieldOffset = object.reserved_field == null
+            ? null
+            : fbb.writeString(object.reserved_field!);
+        final reserved_field1Offset = object.reserved_field1 == null
+            ? null
+            : fbb.writeString(object.reserved_field1!);
+        final reserved_field2Offset = object.reserved_field2 == null
+            ? null
+            : fbb.writeString(object.reserved_field2!);
+        final reserved_field3Offset = object.reserved_field3 == null
+            ? null
+            : fbb.writeString(object.reserved_field3!);
+        final reserved_field4Offset = object.reserved_field4 == null
+            ? null
+            : fbb.writeString(object.reserved_field4!);
+        final reserved_field5Offset = object.reserved_field5 == null
+            ? null
+            : fbb.writeString(object.reserved_field5!);
+        fbb.startTable(17);
         fbb.addInt64(0, object.id);
         fbb.addInt64(1, object.number);
         fbb.addFloat64(2, object.total);
         fbb.addOffset(3, paymentMethodOffset);
+        fbb.addOffset(10, reserved_fieldOffset);
+        fbb.addOffset(11, reserved_field1Offset);
+        fbb.addOffset(12, reserved_field2Offset);
+        fbb.addOffset(13, reserved_field3Offset);
+        fbb.addOffset(14, reserved_field4Offset);
+        fbb.addOffset(15, reserved_field5Offset);
         fbb.finish(fbb.endTable());
         return object.id;
       },
@@ -1324,10 +1976,34 @@ obx_int.ModelDefinition getObjectBoxModel() {
         final paymentMethodParam = const fb.StringReader(
           asciiOptimization: true,
         ).vTableGet(buffer, rootOffset, 10, '');
+        final reserved_fieldParam = const fb.StringReader(
+          asciiOptimization: true,
+        ).vTableGetNullable(buffer, rootOffset, 24);
+        final reserved_field1Param = const fb.StringReader(
+          asciiOptimization: true,
+        ).vTableGetNullable(buffer, rootOffset, 26);
+        final reserved_field2Param = const fb.StringReader(
+          asciiOptimization: true,
+        ).vTableGetNullable(buffer, rootOffset, 28);
+        final reserved_field3Param = const fb.StringReader(
+          asciiOptimization: true,
+        ).vTableGetNullable(buffer, rootOffset, 30);
+        final reserved_field4Param = const fb.StringReader(
+          asciiOptimization: true,
+        ).vTableGetNullable(buffer, rootOffset, 32);
+        final reserved_field5Param = const fb.StringReader(
+          asciiOptimization: true,
+        ).vTableGetNullable(buffer, rootOffset, 34);
         final object = Active_Table_view(
           number: numberParam,
           total: totalParam,
           paymentMethod: paymentMethodParam,
+          reserved_field: reserved_fieldParam,
+          reserved_field1: reserved_field1Param,
+          reserved_field2: reserved_field2Param,
+          reserved_field3: reserved_field3Param,
+          reserved_field4: reserved_field4Param,
+          reserved_field5: reserved_field5Param,
         )..id = const fb.Int64Reader().vTableGet(buffer, rootOffset, 4, 0);
         obx_int.InternalToManyAccess.setRelInfo<Active_Table_view>(
           object.orders,
@@ -1356,6 +2032,36 @@ class BillCounter_ {
   /// See [BillCounter.lastBillNo].
   static final lastBillNo = obx.QueryIntegerProperty<BillCounter>(
     _entities[0].properties[1],
+  );
+
+  /// See [BillCounter.reserved_field].
+  static final reserved_field = obx.QueryStringProperty<BillCounter>(
+    _entities[0].properties[2],
+  );
+
+  /// See [BillCounter.reserved_field1].
+  static final reserved_field1 = obx.QueryStringProperty<BillCounter>(
+    _entities[0].properties[3],
+  );
+
+  /// See [BillCounter.reserved_field2].
+  static final reserved_field2 = obx.QueryStringProperty<BillCounter>(
+    _entities[0].properties[4],
+  );
+
+  /// See [BillCounter.reserved_field3].
+  static final reserved_field3 = obx.QueryStringProperty<BillCounter>(
+    _entities[0].properties[5],
+  );
+
+  /// See [BillCounter.reserved_field4].
+  static final reserved_field4 = obx.QueryStringProperty<BillCounter>(
+    _entities[0].properties[6],
+  );
+
+  /// See [BillCounter.reserved_field5].
+  static final reserved_field5 = obx.QueryStringProperty<BillCounter>(
+    _entities[0].properties[7],
   );
 }
 
@@ -1530,6 +2236,36 @@ class MenuItem_ {
   static final onlineSellPriceHalf = obx.QueryStringProperty<MenuItem>(
     _entities[1].properties[33],
   );
+
+  /// See [MenuItem.reserved_field].
+  static final reserved_field = obx.QueryStringProperty<MenuItem>(
+    _entities[1].properties[34],
+  );
+
+  /// See [MenuItem.reserved_field1].
+  static final reserved_field1 = obx.QueryStringProperty<MenuItem>(
+    _entities[1].properties[35],
+  );
+
+  /// See [MenuItem.reserved_field2].
+  static final reserved_field2 = obx.QueryStringProperty<MenuItem>(
+    _entities[1].properties[36],
+  );
+
+  /// See [MenuItem.reserved_field3].
+  static final reserved_field3 = obx.QueryStringProperty<MenuItem>(
+    _entities[1].properties[37],
+  );
+
+  /// See [MenuItem.reserved_field4].
+  static final reserved_field4 = obx.QueryStringProperty<MenuItem>(
+    _entities[1].properties[38],
+  );
+
+  /// See [MenuItem.reserved_field5].
+  static final reserved_field5 = obx.QueryStringProperty<MenuItem>(
+    _entities[1].properties[39],
+  );
 }
 
 /// [Transaction] entity fields to define ObjectBox queries.
@@ -1608,6 +2344,36 @@ class Transaction_ {
   static final reserved = obx.QueryStringProperty<Transaction>(
     _entities[2].properties[14],
   );
+
+  /// See [Transaction.reserved_field].
+  static final reserved_field = obx.QueryStringProperty<Transaction>(
+    _entities[2].properties[15],
+  );
+
+  /// See [Transaction.reserved_field1].
+  static final reserved_field1 = obx.QueryStringProperty<Transaction>(
+    _entities[2].properties[16],
+  );
+
+  /// See [Transaction.reserved_field2].
+  static final reserved_field2 = obx.QueryStringProperty<Transaction>(
+    _entities[2].properties[17],
+  );
+
+  /// See [Transaction.reserved_field3].
+  static final reserved_field3 = obx.QueryStringProperty<Transaction>(
+    _entities[2].properties[18],
+  );
+
+  /// See [Transaction.reserved_field4].
+  static final reserved_field4 = obx.QueryStringProperty<Transaction>(
+    _entities[2].properties[19],
+  );
+
+  /// See [Transaction.reserved_field5].
+  static final reserved_field5 = obx.QueryStringProperty<Transaction>(
+    _entities[2].properties[20],
+  );
 }
 
 /// [udhariCustomer] entity fields to define ObjectBox queries.
@@ -1625,6 +2391,31 @@ class udhariCustomer_ {
   /// See [udhariCustomer.phone].
   static final phone = obx.QueryStringProperty<udhariCustomer>(
     _entities[3].properties[2],
+  );
+
+  /// See [udhariCustomer.adreess].
+  static final adreess = obx.QueryStringProperty<udhariCustomer>(
+    _entities[3].properties[3],
+  );
+
+  /// See [udhariCustomer.reserved_field].
+  static final reserved_field = obx.QueryStringProperty<udhariCustomer>(
+    _entities[3].properties[4],
+  );
+
+  /// See [udhariCustomer.reserved_field1].
+  static final reserved_field1 = obx.QueryStringProperty<udhariCustomer>(
+    _entities[3].properties[5],
+  );
+
+  /// See [udhariCustomer.reserved_field2].
+  static final reserved_field2 = obx.QueryStringProperty<udhariCustomer>(
+    _entities[3].properties[6],
+  );
+
+  /// See [udhariCustomer.reserved_field3].
+  static final reserved_field3 = obx.QueryStringProperty<udhariCustomer>(
+    _entities[3].properties[7],
   );
 
   /// see [udhariCustomer.transactions]
@@ -1666,6 +2457,26 @@ class TransactionUdhari_ {
   static final typeIndex = obx.QueryIntegerProperty<TransactionUdhari>(
     _entities[4].properties[5],
   );
+
+  /// See [TransactionUdhari.reserved_field].
+  static final reserved_field = obx.QueryStringProperty<TransactionUdhari>(
+    _entities[4].properties[6],
+  );
+
+  /// See [TransactionUdhari.reserved_field1].
+  static final reserved_field1 = obx.QueryStringProperty<TransactionUdhari>(
+    _entities[4].properties[7],
+  );
+
+  /// See [TransactionUdhari.reserved_field2].
+  static final reserved_field2 = obx.QueryStringProperty<TransactionUdhari>(
+    _entities[4].properties[8],
+  );
+
+  /// See [TransactionUdhari.reserved_field3].
+  static final reserved_field3 = obx.QueryStringProperty<TransactionUdhari>(
+    _entities[4].properties[9],
+  );
 }
 
 /// [CartItem] entity fields to define ObjectBox queries.
@@ -1693,6 +2504,36 @@ class CartItem_ {
   /// See [CartItem.menuItem].
   static final menuItem = obx.QueryRelationToOne<CartItem, Active_Table_view>(
     _entities[5].properties[4],
+  );
+
+  /// See [CartItem.reserved_field].
+  static final reserved_field = obx.QueryStringProperty<CartItem>(
+    _entities[5].properties[5],
+  );
+
+  /// See [CartItem.reserved_field1].
+  static final reserved_field1 = obx.QueryStringProperty<CartItem>(
+    _entities[5].properties[6],
+  );
+
+  /// See [CartItem.reserved_field2].
+  static final reserved_field2 = obx.QueryStringProperty<CartItem>(
+    _entities[5].properties[7],
+  );
+
+  /// See [CartItem.reserved_field3].
+  static final reserved_field3 = obx.QueryStringProperty<CartItem>(
+    _entities[5].properties[8],
+  );
+
+  /// See [CartItem.reserved_field4].
+  static final reserved_field4 = obx.QueryStringProperty<CartItem>(
+    _entities[5].properties[9],
+  );
+
+  /// See [CartItem.reserved_field5].
+  static final reserved_field5 = obx.QueryStringProperty<CartItem>(
+    _entities[5].properties[10],
   );
 }
 
@@ -1722,6 +2563,36 @@ class OrderItem_ {
   static final quantity = obx.QueryIntegerProperty<OrderItem>(
     _entities[6].properties[4],
   );
+
+  /// See [OrderItem.reserved_field].
+  static final reserved_field = obx.QueryStringProperty<OrderItem>(
+    _entities[6].properties[5],
+  );
+
+  /// See [OrderItem.reserved_field1].
+  static final reserved_field1 = obx.QueryStringProperty<OrderItem>(
+    _entities[6].properties[6],
+  );
+
+  /// See [OrderItem.reserved_field2].
+  static final reserved_field2 = obx.QueryStringProperty<OrderItem>(
+    _entities[6].properties[7],
+  );
+
+  /// See [OrderItem.reserved_field3].
+  static final reserved_field3 = obx.QueryStringProperty<OrderItem>(
+    _entities[6].properties[8],
+  );
+
+  /// See [OrderItem.reserved_field4].
+  static final reserved_field4 = obx.QueryStringProperty<OrderItem>(
+    _entities[6].properties[9],
+  );
+
+  /// See [OrderItem.reserved_field5].
+  static final reserved_field5 = obx.QueryStringProperty<OrderItem>(
+    _entities[6].properties[10],
+  );
 }
 
 /// [Active_Table_view] entity fields to define ObjectBox queries.
@@ -1744,6 +2615,36 @@ class Active_Table_view_ {
   /// See [Active_Table_view.paymentMethod].
   static final paymentMethod = obx.QueryStringProperty<Active_Table_view>(
     _entities[7].properties[3],
+  );
+
+  /// See [Active_Table_view.reserved_field].
+  static final reserved_field = obx.QueryStringProperty<Active_Table_view>(
+    _entities[7].properties[4],
+  );
+
+  /// See [Active_Table_view.reserved_field1].
+  static final reserved_field1 = obx.QueryStringProperty<Active_Table_view>(
+    _entities[7].properties[5],
+  );
+
+  /// See [Active_Table_view.reserved_field2].
+  static final reserved_field2 = obx.QueryStringProperty<Active_Table_view>(
+    _entities[7].properties[6],
+  );
+
+  /// See [Active_Table_view.reserved_field3].
+  static final reserved_field3 = obx.QueryStringProperty<Active_Table_view>(
+    _entities[7].properties[7],
+  );
+
+  /// See [Active_Table_view.reserved_field4].
+  static final reserved_field4 = obx.QueryStringProperty<Active_Table_view>(
+    _entities[7].properties[8],
+  );
+
+  /// See [Active_Table_view.reserved_field5].
+  static final reserved_field5 = obx.QueryStringProperty<Active_Table_view>(
+    _entities[7].properties[9],
   );
 
   /// see [Active_Table_view.orders]
