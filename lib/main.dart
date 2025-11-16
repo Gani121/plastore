@@ -93,8 +93,27 @@ class MyApp extends StatelessWidget {
           // These lines are correct
           localizationsDelegates: AppLocalizations.localizationsDelegates,
           supportedLocales: AppLocalizations.supportedLocales,
-          
           theme: ThemeData(primarySwatch: Colors.red),
+
+          // --- ADD THIS BUILDER FOR TEXT SCALING ---
+          // ✅ CORRECT
+          builder: (context, child) {
+            final mediaQueryData = MediaQuery.of(context);
+            
+            final newScaler = TextScaler.linear(1.0);
+            
+            final newMediaQueryData = mediaQueryData.copyWith(
+              textScaler: newScaler,
+            );
+
+            return MediaQuery(
+              data: newMediaQueryData,
+              child: child!,
+            );
+          },
+          
+          
+
           home: const LoginPage(), 
           debugShowCheckedModeBanner: false,
         );

@@ -16,7 +16,7 @@ import './cartprovier/cartProvider.dart';
 
 final printer = BillPrinter();
 int imageHeight = 92;
-double boxHeight = 0.35;
+double boxHeight = 0.4;
 double boxText = 16;
 bool isHoldEnabled = false;
 List<String> categories = [];
@@ -98,11 +98,13 @@ class _CartItemRowState extends State<CartItemRow> {
               children: [
                 Text(
                   widget.itemName,
+                  textScaler: TextScaler.linear(1.0),
                   style: const TextStyle(fontWeight: FontWeight.bold),
                   overflow: TextOverflow.ellipsis,
                 ),
                 Text(
                   "${(widget.price).toStringAsFixed(0)}", //₹
+                  textScaler: TextScaler.linear(1.0),
                   style: TextStyle(color: Colors.grey[600], fontSize: 12),
                 ),
               ],
@@ -154,6 +156,7 @@ class _CartItemRowState extends State<CartItemRow> {
               children: [
                 Text(
                   "₹$itemTotal",
+                  textScaler: TextScaler.linear(1.0),
                   style: const TextStyle(fontWeight: FontWeight.bold),
                 ),
                 IconButton(
@@ -288,12 +291,12 @@ class _NewOrderPageState extends State<NewOrderPage> with AutomaticKeepAliveClie
           for (final cartItem in cart1) {
             if (cartItem['id'] == item.id) {
               // debugPrint("newItem $newItem");
-              if (cartItem['portion'] == 'Full') {
+              if (cartItem['portion'].toLowerCase() == 'full') {
                 newItem = newItem.copyWith(
                   qty: cartItem['qty'] ?? 0,
                   selected: (cartItem['qty']?? 0) > 0
                 );
-              } else if (cartItem['portion'] == 'Half') {
+              } else if ((cartItem['portion']).toLowerCase() == 'half') {
                 newItem = newItem.copyWith(
                   h_qty: cartItem['qty'] ?? 0,
                   selected: (cartItem['qty'] ?? 0) > 0
@@ -308,7 +311,7 @@ class _NewOrderPageState extends State<NewOrderPage> with AutomaticKeepAliveClie
       }).toList();
       
       items = _items.map((item) => item.toMap()).toList();
-      // debugPrint("loded cart in the items is $items");
+      debugPrint("loded cart in the items is $items");
       setState(() { filteredItems = List.from(items); });
     }
   }
@@ -344,6 +347,7 @@ class _NewOrderPageState extends State<NewOrderPage> with AutomaticKeepAliveClie
       return const Center(
         child: Text(
           'No items found',
+          textScaler: TextScaler.linear(1.0),
           style: TextStyle(fontSize: 16),
         ),
       );
@@ -384,6 +388,7 @@ class _NewOrderPageState extends State<NewOrderPage> with AutomaticKeepAliveClie
               padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
               child: Text(
                 category,
+                textScaler: TextScaler.linear(1.0),
                 style: const TextStyle(
                   fontSize: 16,
                   fontWeight: FontWeight.bold,
@@ -402,7 +407,7 @@ class _NewOrderPageState extends State<NewOrderPage> with AutomaticKeepAliveClie
                 crossAxisCount: 3,
                 crossAxisSpacing: 3,
                 mainAxisSpacing: 6,
-                childAspectRatio: boxHeight,
+                childAspectRatio: (selectedStyle == "Restaurant With Image Style")? boxHeight : boxHeight*1.4 ,
               ),
               itemBuilder: (context, index) {
                 final item = itemsToShow[index];
@@ -425,6 +430,7 @@ class _NewOrderPageState extends State<NewOrderPage> with AutomaticKeepAliveClie
       return const Center(
         child: Text(
           'No items found',
+          textScaler: TextScaler.linear(1.0),
           style: TextStyle(fontSize: 16),
         ),
       );
@@ -465,6 +471,7 @@ class _NewOrderPageState extends State<NewOrderPage> with AutomaticKeepAliveClie
               padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
               child: Text(
                 category,
+                textScaler: TextScaler.linear(1.0),
                 style: const TextStyle(
                   fontSize: 16,
                   fontWeight: FontWeight.bold,
@@ -477,7 +484,7 @@ class _NewOrderPageState extends State<NewOrderPage> with AutomaticKeepAliveClie
             GridView.builder(
               shrinkWrap: true,
               physics: const NeverScrollableScrollPhysics(),
-              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
+              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
               itemCount: itemsToShow.length,
               gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
                 crossAxisCount: 3,
@@ -596,15 +603,17 @@ class _NewOrderPageState extends State<NewOrderPage> with AutomaticKeepAliveClie
                   padding: EdgeInsets.only(
                     top: 1,
                     bottom: 1,
-                    left: 4,
-                    right: 4,
+                    left: 1,
+                    right: 1,
                   ),
                   child: Text(
                     item["name"],
+                    textScaler: TextScaler.linear(1.0),
                     style: TextStyle(
-                        fontSize: (item["name"].toString().length > 24)
-                          ? boxText - 3
-                          : (item["name"].toString().length > 16 ? boxText - 2 : boxText),
+                      height: 0.9,
+                        fontSize: (item["name"].toString().length > 23)
+                          ? boxText - 4
+                          : (item["name"].toString().length > 16 ? boxText - 4 : boxText),
                       fontWeight: FontWeight.bold,
                     ),
                     softWrap: true,
@@ -635,6 +644,7 @@ class _NewOrderPageState extends State<NewOrderPage> with AutomaticKeepAliveClie
                           // Half Label
                           Text(
                             'HALF ${hPrice.toStringAsFixed(0)}', //₹
+                            textScaler: TextScaler.linear(1.0),
                             style: TextStyle(
                               fontSize: boxText * 0.5,
                               fontWeight: FontWeight.bold,
@@ -672,6 +682,7 @@ class _NewOrderPageState extends State<NewOrderPage> with AutomaticKeepAliveClie
                                       child: Center(
                                         child: Text(
                                           '-',
+                                          textScaler: TextScaler.linear(1.0),
                                           style: TextStyle(
                                             fontSize: boxText * 0.9,
                                             color: Colors.white,
@@ -694,6 +705,7 @@ class _NewOrderPageState extends State<NewOrderPage> with AutomaticKeepAliveClie
                                     child: Center(
                                       child: Text(
                                         item['h_qty'] > 0 ? item['h_qty'].toString() : '0',
+                                        textScaler: TextScaler.linear(1.0),
                                         style: TextStyle(
                                           fontSize: boxText * 1,
                                           color: Colors.white,
@@ -723,6 +735,7 @@ class _NewOrderPageState extends State<NewOrderPage> with AutomaticKeepAliveClie
                                       child: Center(
                                         child: Text(
                                           '+',
+                                          textScaler: TextScaler.linear(1.0),
                                           style: TextStyle(
                                             fontSize: boxText * 0.9,
                                             color: Colors.white,
@@ -760,13 +773,14 @@ class _NewOrderPageState extends State<NewOrderPage> with AutomaticKeepAliveClie
                         // Full Label
                         Text(
                           'FULL ${fPrice.toStringAsFixed(0)}', //₹
+                          textScaler: TextScaler.linear(1.0),
                           style: TextStyle(
                             fontSize: boxText * 0.5,
                             fontWeight: FontWeight.bold,
                             color: Colors.black54,
                           ),
                         ),
-                        SizedBox(height: 4),
+                        SizedBox(height: 2),
                         // Full Quantity and Price
                         Row(
                           mainAxisAlignment: MainAxisAlignment.center,
@@ -797,6 +811,7 @@ class _NewOrderPageState extends State<NewOrderPage> with AutomaticKeepAliveClie
                                     child: Center(
                                       child: Text(
                                         '-',
+                                        textScaler: TextScaler.linear(1.0),
                                         style: TextStyle(
                                           fontSize: boxText * 0.8,
                                           color: Colors.white,
@@ -819,6 +834,7 @@ class _NewOrderPageState extends State<NewOrderPage> with AutomaticKeepAliveClie
                                   child: Center(
                                     child: Text(
                                       item['qty'] > 0 ? item['qty'].toString() : '0',
+                                      textScaler: TextScaler.linear(1.0),
                                       style: TextStyle(
                                         fontSize: boxText * 1,
                                         color: Colors.white,
@@ -847,6 +863,7 @@ class _NewOrderPageState extends State<NewOrderPage> with AutomaticKeepAliveClie
                                     child: Center(
                                       child: Text(
                                         '+',
+                                        textScaler: TextScaler.linear(1.0),
                                         style: TextStyle(
                                           fontSize: boxText * 0.8,
                                           color: Colors.white,
@@ -1030,18 +1047,20 @@ class _NewOrderPageState extends State<NewOrderPage> with AutomaticKeepAliveClie
                 // Item Name
                 Padding(
                   padding: EdgeInsets.only(
-                    top: selectedStyle == "Restaurant With Image Style" ? 1 : 30 , // Increased top padding
+                    top: selectedStyle == "Restaurant With Image Style" ? 1 : 20 , // Increased top padding
                     bottom: 1,
                     left: 1,
                     right: 1,
                   ),
                   child: Text(
                     item["name"],
+                    textScaler: TextScaler.linear(1.0),
                     style: TextStyle(
                       fontSize: boxText,
                       fontWeight: FontWeight.bold,
                     ),
                     softWrap: true,
+                    textAlign: TextAlign.center,
                   ),
                 ),
 
@@ -1058,7 +1077,7 @@ class _NewOrderPageState extends State<NewOrderPage> with AutomaticKeepAliveClie
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  _buildQuantitySelector(item),
+                  _buildQuantitySelector(item,cartProvider,price),
                   _buildPriceTag(item, price.toString()),
                 ],
               ),
@@ -1145,6 +1164,7 @@ class _NewOrderPageState extends State<NewOrderPage> with AutomaticKeepAliveClie
       ),
       child: Text(
         priceText,
+        textScaler: TextScaler.linear(1.0),
         style: TextStyle(
           fontSize: boxText * 0.8,
           fontWeight: FontWeight.bold,
@@ -1155,7 +1175,7 @@ class _NewOrderPageState extends State<NewOrderPage> with AutomaticKeepAliveClie
   }
  
   Widget _buildQuantitySelector(
-    Map<String, dynamic> item, {
+    Map<String, dynamic> item, CartProvider? cartProvider, double fprice, {
     double fontSize = 14,
   }) {
     return GestureDetector(
@@ -1168,7 +1188,7 @@ class _NewOrderPageState extends State<NewOrderPage> with AutomaticKeepAliveClie
           context: context,
           builder: (context) {
             return AlertDialog(
-              title: Text("Enter Quantity"),
+              title: Text("Enter Quantity",textScaler: TextScaler.linear(1.0),),
               content: TextField(
                 controller: controller,
                 keyboardType: TextInputType.number,
@@ -1177,11 +1197,11 @@ class _NewOrderPageState extends State<NewOrderPage> with AutomaticKeepAliveClie
               ),
               actions: [
                 TextButton(
-                  child: Text("Cancel"),
+                  child: Text("Cancel",textScaler: TextScaler.linear(1.0),),
                   onPressed: () => Navigator.of(context).pop(),
                 ),
                 ElevatedButton(
-                  child: Text("OK"),
+                  child: Text("OK",textScaler: TextScaler.linear(1.0),),
                   onPressed: () => Navigator.of(context).pop(controller.text),
                 ),
               ],
@@ -1191,8 +1211,10 @@ class _NewOrderPageState extends State<NewOrderPage> with AutomaticKeepAliveClie
 
         if (newQuantity != null && newQuantity.isNotEmpty) {
           setState(() {
-            item['qty'] = int.tryParse(newQuantity) ?? 0;
+            int newQty = int.tryParse(newQuantity) ?? 0;
+            item['qty'] = newQty;
             item['selected'] = item['qty'] > 0; // Update selected state
+            cartProvider?.updateQuantity(item['id'], newQty, fprice ,item['name'],'full');
             // updateCart(item); // Update the cart with new quantity
           });
         }
@@ -1209,6 +1231,7 @@ class _NewOrderPageState extends State<NewOrderPage> with AutomaticKeepAliveClie
           child: FittedBox(
             child: Text(
               (item['qty'] ?? 0).toString(),
+              textScaler: TextScaler.linear(1.0),
               style: TextStyle(fontSize: fontSize, fontWeight: FontWeight.bold),
             ),
           ),
@@ -1220,12 +1243,12 @@ class _NewOrderPageState extends State<NewOrderPage> with AutomaticKeepAliveClie
 
 
 
-
   Widget _buildListView() {
     if (filteredItems.isEmpty) {
       return const Center(
         child: Text(
           'No items found',
+          textScaler: TextScaler.linear(1.0),
           style: TextStyle(fontSize: 16),
         ),
       );
@@ -1256,6 +1279,7 @@ class _NewOrderPageState extends State<NewOrderPage> with AutomaticKeepAliveClie
               padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
               child: Text(
                 category,
+                textScaler: TextScaler.linear(1.0),
                 style: const TextStyle(
                   fontSize: 16,
                   fontWeight: FontWeight.bold,
@@ -1272,7 +1296,7 @@ class _NewOrderPageState extends State<NewOrderPage> with AutomaticKeepAliveClie
               itemBuilder: (context, index) {
                 final item = categoryItems[index];
                 return Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 2, vertical: 4),
+                  padding: const EdgeInsets.symmetric(horizontal: 1, vertical: 2),
                   child: _buildItemListCard(item, isList: true),
                 );
               },
@@ -1334,13 +1358,13 @@ class _NewOrderPageState extends State<NewOrderPage> with AutomaticKeepAliveClie
     }
     return GestureDetector(
       onTap: () {
-        setState(() {
-          // Always increment quantity when item is tapped, whether selected or not
-          item['qty'] = (item['qty'] ?? 0) + 1;
-          item['selected'] = true; // Mark as selected
-          cartProvider?.addToCart(item, 'full', price);
-          // updateCart(item);
-        });
+        // setState(() {
+        //   // Always increment quantity when item is tapped, whether selected or not
+        //   item['h_qty'] = (item['h_qty'] ?? 0) + 1;
+        //   item['selected'] = true; // Mark as selected
+        //   cartProvider?.addToCart(item, 'full', price);
+        //   // updateCart(item);
+        // });
       },
       child: Stack(
         children: [
@@ -1350,10 +1374,10 @@ class _NewOrderPageState extends State<NewOrderPage> with AutomaticKeepAliveClie
                   ? Colors.green[100]
                   : Colors.white,
               border: Border.all(color: Colors.black12),
-              borderRadius: BorderRadius.circular(4),
+              borderRadius: BorderRadius.circular(2),
             ),
-            padding: EdgeInsets.all(isList ? 6 : 2),
-            child: isList ? _buildListItem(item, price.toStringAsFixed(0)) : _buildListItem(item, price.toStringAsFixed(0)),
+            padding: EdgeInsets.symmetric(vertical: 0,horizontal: 0),
+            child: isList ? _buildListItem(item, price.toStringAsFixed(0),hPrice.toStringAsFixed(0)) : _buildListItem(item, price.toStringAsFixed(0),hPrice.toStringAsFixed(0)),
           ),
 
           if (item['selected'] == true)
@@ -1365,6 +1389,9 @@ class _NewOrderPageState extends State<NewOrderPage> with AutomaticKeepAliveClie
                   setState(() {
                     item['selected'] = false;
                     item['qty'] = 0;
+                    item['h_qty'] = 0;
+                    cartProvider?.removeFromCart(item['id'], 'full');
+                    cartProvider?.removeFromCart(item['id'], 'half');
                     // updateCart(item);
                   });
                 },
@@ -1411,94 +1438,409 @@ class _NewOrderPageState extends State<NewOrderPage> with AutomaticKeepAliveClie
     );
   }
 
-  Widget _buildListItem(Map<String, dynamic> item,String? price) {
-      // Local image path
-          String baseDir = "/storage/emulated/0/Android/data/com.orbipay.test6/files/pictures/menu_images/";
+  // Widget _buildListItem(Map<String, dynamic> item, String? price,String? hprice ) {
+  //     // Local image path
+  //         String baseDir = "/storage/emulated/0/Android/data/com.orbipay.test6/files/pictures/menu_images/";
+  //   String imagePath = "$baseDir${item['name']}.jpeg";
+  //   File imageFile = File(imagePath);
+  //   bool hasImage = imageFile.existsSync();
+  //       // Check if the file exists
+  //   if (!hasImage) {
+  //     String baseDir = "/storage/emulated/0/Android/data/com.orbipay.test6/files/pictures/menu_images/";
+  //     imagePath = "$baseDir${item['name']}.jpg";
+  //     File imageFile = File(imagePath);
+  //     hasImage = imageFile.existsSync();
+  //   }
+
+  //     // Dynamic font sizes based on image size
+  //     double nameFontSize = imageHeight / 6; // ~35% of image height
+  //     double priceFontSize = imageHeight / 6; // ~30% of image height
+  //     double qtyFontSize = imageHeight / 6; // ~30% of image height
+  //     final fprice = double.tryParse(price ?? 0)
+
+  //     return Row(
+  //       crossAxisAlignment: CrossAxisAlignment.start,
+  //       children: [
+  //         // Item Image
+  //         ClipRRect(
+  //            onPressed: () {
+  //             setState(() {
+  //               // Always increment quantity when item is tapped, whether selected or not
+  //               item['h_qty'] = (item['h_qty'] ?? 0) + 1;
+  //               item['selected'] = true; // Mark as selected
+  //               cartProvider?.addToCart(item, 'full', double.tryParse(price) ?? 0.0);
+  //             });
+  //           },
+  //           borderRadius: BorderRadius.circular(8),
+  //           child: imageFile.existsSync()
+  //               ? Image.file(
+  //                   imageFile,
+  //                   width: imageHeight.toDouble() - 6,
+  //                   height: imageHeight.toDouble(),
+  //                   fit: BoxFit.cover,
+  //                 )
+  //               : Container(
+  //                   width: imageHeight.toDouble() - 6,
+  //                   height: imageHeight.toDouble(),
+  //                   color: Colors.grey[300],
+  //                   child: Icon(Icons.image, color: Colors.grey[600]),
+  //                 ),
+  //         ),
+
+  //         SizedBox(width: 3),
+          
+  //         // Right side with Column for layout
+  //         Expanded(
+  //            onPressed: () {
+  //             setState(() {
+  //               // Always increment quantity when item is tapped, whether selected or not
+  //               item['h_qty'] = (item['h_qty'] ?? 0) + 1;
+  //               item['selected'] = true; // Mark as selected
+  //               cartProvider?.addToCart(item, 'full', double.tryParse(price) ?? 0.0);
+  //             });
+  //           },
+  //           child: Container(
+  //             height: imageHeight.toDouble(), // Same height as image
+              
+  //             // ✅ CHANGED Stack to Column
+  //             child: Column( 
+  //               crossAxisAlignment: CrossAxisAlignment.start, // Aligns name to the left
+  //               children: [
+  //                 // Item Name at top
+  //                 Text(
+  //                   item["name"],
+  //                   textScaler: TextScaler.linear(1.0),
+  //                   style: TextStyle(
+  //                     fontSize: boxText,
+  //                     fontWeight: FontWeight.bold,
+  //                   ),
+  //                   softWrap: true,
+  //                   maxLines: 2,
+  //                   overflow: TextOverflow.visible,
+  //                 ),
+
+  //                 // ✅ ADDED Spacer to push everything else to the bottom
+  //                 const Spacer(),
+
+  //                 // Price + Quantity at bottom (Half)
+  //                 // (No longer needs Positioned)
+  //                 Row(
+  //                   // Use spaceBetween to fix spacing
+  //                   // mainAxisAlignment: MainAxisAlignment.spaceBetween, 
+  //                   mainAxisSize: MainAxisSize.min,
+  //                   children: [
+  //                     Text(
+  //                       'Half',
+  //                       textScaler: TextScaler.linear(1.0),
+  //                       style: TextStyle(fontSize: boxText * 0.7,),
+  //                     ),
+  //                     SizedBox(width: 6),
+  //                     // Wrap selector and price in a Row to keep them together
+  //                     Row(
+  //                       mainAxisSize: MainAxisSize.min,
+  //                       children: [
+  //                         _half_buildQuantitySelector(item, fontSize: qtyFontSize),
+  //                         SizedBox(width: 8),
+  //                         _half_buildPriceTag(item, hprice, fontSize: priceFontSize),
+  //                       ],
+  //                     )
+  //                   ],
+  //                 ),
+                  
+  //                 // ✅ ADDED a small gap between the two rows
+  //                 SizedBox(height: 2), 
+
+  //                 // Price + Quantity at bottom (Full)
+  //                 // (No longer needs Positioned)
+  //                 Row(
+  //                   // Use spaceBetween to fix spacing
+  //                   // mainAxisAlignment: MainAxisAlignment.spaceBetween,
+  //                   mainAxisSize: MainAxisSize.min,
+  //                   children: [
+  //                     Text(
+  //                       'Full',
+  //                       textScaler: TextScaler.linear(1.0),
+  //                       style: TextStyle(fontSize: boxText * 0.7,),
+  //                     ),
+  //                     SizedBox(width: 6),
+  //                     // Wrap selector and price in a Row to keep them together
+  //                     Row(
+  //                       mainAxisSize: MainAxisSize.min,
+  //                       children: [
+  //                         _buildQuantitySelector(item, fontSize: qtyFontSize),
+  //                         SizedBox(width: 8),
+  //                         _buildPriceTag(item, price, fontSize: priceFontSize),
+  //                       ],
+  //                     )
+  //                   ],
+  //                 ),
+  //               ],
+  //             ),
+  //           ),
+  //         ),
+          
+  //       ],
+  //     );
+  //   }
+
+
+  Widget _buildListItem(Map<String, dynamic> item, String price, String hprice) {
+    // Local image path
+    String baseDir = "/storage/emulated/0/Android/data/com.orbipay.test6/files/pictures/menu_images/";
     String imagePath = "$baseDir${item['name']}.jpeg";
     File imageFile = File(imagePath);
     bool hasImage = imageFile.existsSync();
-        // Check if the file exists
     if (!hasImage) {
-      String baseDir = "/storage/emulated/0/Android/data/com.orbipay.test6/files/pictures/menu_images/";
       imagePath = "$baseDir${item['name']}.jpg";
-      File imageFile = File(imagePath);
+      imageFile = File(imagePath);
       hasImage = imageFile.existsSync();
     }
 
-      // Dynamic font sizes based on image size
-      double nameFontSize = imageHeight / 6; // ~35% of image height
-      double priceFontSize = imageHeight / 6; // ~30% of image height
-      double qtyFontSize = imageHeight / 6; // ~30% of image height
+    // Dynamic font sizes based on image size
+    double nameFontSize = imageHeight / 6;
+    double priceFontSize = imageHeight / 6;
+    double qtyFontSize = imageHeight / 6;
 
-      return Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Item Image
-          ClipRRect(
+    // --- 1. FIXED SYNTAX & ADDED HPRICE ---
+    final double fPrice = double.tryParse(price ?? '0.0') ?? 0.0;
+    final double hPrice = double.tryParse(hprice ?? '0.0') ?? 0.0;
+
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // --- 2. WRAPPED IMAGE IN GESTUREDETECTOR ---
+        GestureDetector(
+          onTap: () {
+            if (hPrice > 0){
+              setState(() {
+                // --- 3. FIXED LOGIC TO ADD 'half' ITEM ---
+                item['h_qty'] = (item['h_qty'] ?? 0) + 1; // Use half quantity
+                item['selected'] = true; // Mark as selected
+                cartProvider?.addToCart(item, 'half', hPrice); // Use 'half' and hPrice
+              });
+            }
+          },
+          child: ClipRRect(
+            // (onPressed was removed from here)
             borderRadius: BorderRadius.circular(8),
             child: imageFile.existsSync()
                 ? Image.file(
                     imageFile,
-                    width: imageHeight.toDouble(),
+                    width: imageHeight.toDouble() - 6,
                     height: imageHeight.toDouble(),
                     fit: BoxFit.cover,
                   )
                 : Container(
-                    width: imageHeight.toDouble(),
+                    width: imageHeight.toDouble() - 6,
                     height: imageHeight.toDouble(),
                     color: Colors.grey[300],
                     child: Icon(Icons.image, color: Colors.grey[600]),
                   ),
           ),
-          SizedBox(width: 12),
+        ),
 
-          // Right side with Stack for bottom positioning
-          Expanded(
-            child: Container(
-              height: imageHeight.toDouble(), // Same height as image
-              child: Stack(
+        SizedBox(width: 3),
+
+        // Right side with Column for layout
+        Expanded(
+          // (onPressed was removed from here)
+          child: Container(
+            height: imageHeight.toDouble(), // Same height as image
+            
+            // --- 4. WRAPPED CONTAINER IN GESTUREDETECTOR ---
+            // This makes the whole right side tappable
+            child: GestureDetector(
+              behavior: HitTestBehavior.opaque, // Ensures tap works on empty space
+              onTap: () {
+                setState(() {
+                  // --- 5. FIXED LOGIC TO ADD 'full' ITEM ---
+                  item['qty'] = (item['qty'] ?? 0) + 1; // Use 'qty' (full quantity)
+                  item['selected'] = true; // Mark as selected
+                  cartProvider?.addToCart(item, 'full', fPrice); // Use 'full' and fPrice
+                });
+              },
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   // Item Name at top
                   Text(
                     item["name"],
+                    textScaler: TextScaler.linear(1.0),
+                    
                     style: TextStyle(
+                      height: 0.9,
                       fontSize: boxText,
                       fontWeight: FontWeight.bold,
                     ),
                     softWrap: true,
-                    maxLines: null,
+                    maxLines: 2,
                     overflow: TextOverflow.visible,
                   ),
 
-                  // Price + Quantity at bottom
-                  Positioned(
-                    bottom: 0,
-                    left: 0,
-                    right: 0,
-                    child: Row(
+                  const Spacer(), // Pushes everything else to the bottom
+
+                  // --- 6. FIXED LAYOUT FOR "Half" ROW ---
+                  if (hPrice > 0)
+                    Row(
+                      // mainAxisAlignment: MainAxisAlignment.spaceBetween, 
+                      // (Removed mainAxisSize: MainAxisSize.min from here)
                       children: [
-                        _buildQuantitySelector(item, fontSize: qtyFontSize),
-                        SizedBox(width: 12),
-                        _buildPriceTag(item, price, fontSize: priceFontSize),
-                        
+                        Text(
+                          'Half',
+                          textScaler: TextScaler.linear(1.0),
+                          style: TextStyle(fontSize: boxText * 0.7,),
+                        ),
+                        SizedBox(width: 4),
+                        Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            _half_buildQuantitySelector(item, cartProvider, hPrice, fontSize: qtyFontSize),
+                            SizedBox(width: 8),
+                            _half_buildPriceTag(item, hprice, fontSize: priceFontSize),
+                          ],
+                        )
                       ],
                     ),
+
+                  if (hPrice > 0) 
+                    SizedBox(height: 2),
+
+                  // --- 7. FIXED LAYOUT FOR "Full" ROW ---
+                  Row(
+                    // mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    // (Removed mainAxisSize: MainAxisSize.min from here)
+                    children: [
+                      Text(
+                        'Full',
+                        textScaler: TextScaler.linear(1.0),
+                        style: TextStyle(fontSize: boxText * 0.7,),
+                      ),
+                      SizedBox(width: 4),
+                      Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          _buildQuantitySelector(item, cartProvider, hPrice,fontSize: qtyFontSize),
+                          SizedBox(width: 8),
+                          _buildPriceTag(item, price, fontSize: priceFontSize),
+                        ],
+                      )
+                    ],
                   ),
                 ],
               ),
             ),
           ),
-        ],
-      );
-    }
+        ),
+      ],
+    );
+  }
+
+     
+  Widget _half_buildQuantitySelector( Map<String, dynamic> item, CartProvider? cartProvider, double hprice, {double fontSize = 14,}) {
+    return GestureDetector(
+      onTap: () async {
+        TextEditingController controller = TextEditingController(
+          text: (item['h_qty'] ?? 0).toString(),
+        );
+
+        final newQuantity = await showDialog<String>(
+          context: context,
+          builder: (context) {
+            return AlertDialog(
+              title: Text("Enter Quantity",textScaler: TextScaler.linear(1.0),),
+              content: TextField(
+                controller: controller,
+                keyboardType: TextInputType.number,
+                decoration: InputDecoration(hintText: "Enter quantity"),
+                autofocus: true,
+              ),
+              actions: [
+                TextButton(
+                  child: Text("Cancel",textScaler: TextScaler.linear(1.0),),
+                  onPressed: () => Navigator.of(context).pop(),
+                ),
+                ElevatedButton(
+                  child: Text("OK",textScaler: TextScaler.linear(1.0),),
+                  onPressed: () => Navigator.of(context).pop(controller.text),
+                ),
+              ],
+            );
+          },
+        );
+
+        if (newQuantity != null && newQuantity.isNotEmpty) {
+          setState(() {
+            int newQty = int.tryParse(newQuantity) ?? 0; 
+            item['h_qty'] = newQty;
+            item['selected'] = item['h_qty'] > 0; // Update selected state
+            cartProvider?.updateQuantity(item['id'], newQty, hprice, item['name'], 'half');
+            // updateCart(item); // Update the cart with new quantity
+          });
+        }
+      },
+      child: Container(
+        width: fontSize * 2.2, // scale width based on font size
+        height: fontSize * 1.8, // scale height based on font size
+        decoration: BoxDecoration(
+          border: Border.all(color: Colors.black26),
+          color: item['h_qty'] == 0 ? Colors.grey[200] : Colors.green[300],
+          borderRadius: BorderRadius.circular(4),
+        ),
+        child: Center(
+          child: FittedBox(
+            child: Text(
+              (item['h_qty'] ?? 0).toString(),
+              textScaler: TextScaler.linear(1.0),
+              style: TextStyle(fontSize: fontSize, fontWeight: FontWeight.bold),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
 
 
+  Widget _half_buildPriceTag(Map<String, dynamic> item, String? price1, {double fontSize = 14}) {
+    double price = double.tryParse(price1?.toString() ?? '0.0') ?? 0.0;
+    return FutureBuilder<String?>(
+      future: _getBillingType(),
+      builder: (context, snapshot) {
+        if (!snapshot.hasData) {
+          return const SizedBox(); 
+        }
+
+        return DottedBorder(
+          // 1. Move styling into the 'options' parameter
+          options: RectDottedBorderOptions(
+            color: Colors.black54,
+            strokeWidth: 1,
+            dashPattern: [4, 2],
+            // radius: Radius.circular(4),
+            // Note: 'dashPattern' and 'radius' might not be supported 
+            // exactly the same way in this package's options.
+          ),
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 1, vertical: 1),
+            child: Text(
+              "${price.toStringAsFixed(0)}",
+              textScaler: TextScaler.linear(1.0),
+              style: TextStyle(
+                fontSize: fontSize,
+                fontWeight: FontWeight.bold,
+                color: Colors.black87,
+              ),
+            ),
+          ),
+        );
+      },
+    );
+  }
 
 
   Widget _buildListView_half_full() {
     if (filteredItems.isEmpty) {
       return const Center(
-        child: Text('No items found', style: TextStyle(fontSize: 16)),
+        child: Text('No items found',textScaler: TextScaler.linear(1.0), style: TextStyle(fontSize: 16)),
       );
     }
     debugPrint(" $selectedCategory selected items $filteredItems");
@@ -1523,41 +1865,41 @@ class _NewOrderPageState extends State<NewOrderPage> with AutomaticKeepAliveClie
 
 
 
+  Widget _buildPriceTag(Map<String, dynamic> item, String? price1, {double fontSize = 14}) {
+    double price = double.tryParse(price1?.toString() ?? '0.0') ?? 0.0;
+    return FutureBuilder<String?>(
+      future: _getBillingType(),
+      builder: (context, snapshot) {
+        if (!snapshot.hasData) {
+          return const SizedBox(); 
+        }
 
-Widget _buildPriceTag(Map<String, dynamic> item, String? price1, {double fontSize = 14}) {
-  double price = double.tryParse(price1?.toString() ?? '0.0') ?? 0.0;
-  return FutureBuilder<String?>(
-    future: _getBillingType(),
-    builder: (context, snapshot) {
-      if (!snapshot.hasData) {
-        return const SizedBox(); 
-      }
-
-      return DottedBorder(
-        // 1. Move styling into the 'options' parameter
-        options: RectDottedBorderOptions(
-          color: Colors.black54,
-          strokeWidth: 1,
-          dashPattern: [4, 2],
-          // radius: Radius.circular(4),
-          // Note: 'dashPattern' and 'radius' might not be supported 
-          // exactly the same way in this package's options.
-        ),
-        child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 1, vertical: 1),
-          child: Text(
-            "${price.toStringAsFixed(0)}",
-            style: TextStyle(
-              fontSize: fontSize,
-              fontWeight: FontWeight.bold,
-              color: Colors.black87,
+        return DottedBorder(
+          // 1. Move styling into the 'options' parameter
+          options: RectDottedBorderOptions(
+            color: Colors.black54,
+            strokeWidth: 1,
+            dashPattern: [4, 2],
+            // radius: Radius.circular(4),
+            // Note: 'dashPattern' and 'radius' might not be supported 
+            // exactly the same way in this package's options.
+          ),
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 1, vertical: 1),
+            child: Text(
+              "${price.toStringAsFixed(0)}",
+              textScaler: TextScaler.linear(1.0),
+              style: TextStyle(
+                fontSize: fontSize,
+                fontWeight: FontWeight.bold,
+                color: Colors.black87,
+              ),
             ),
           ),
-        ),
-      );
-    },
-  );
-}
+        );
+      },
+    );
+  }
 
   Future<String?> _getBillingType() async {
     // final prefs = await SharedPreferences.getInstance();
@@ -1715,8 +2057,10 @@ Widget _buildPriceTag(Map<String, dynamic> item, String? price1, {double fontSiz
               try {
                 textWidget = Text(
                   label,
+                  textScaler: TextScaler.linear(1.0),
                   style: TextStyle(
                     fontSize: fontSize,
+                    height: 0.9,
                     color: isSelected ? Colors.white : Colors.black,
                     fontWeight: isSelected ? FontWeight.normal : FontWeight.bold,
                   ),
@@ -1727,6 +2071,7 @@ Widget _buildPriceTag(Map<String, dynamic> item, String? price1, {double fontSiz
                 fontSize = 10;
                 textWidget = Text(
                   label,
+                  textScaler: TextScaler.linear(1.0),
                   style: TextStyle(
                     fontSize: fontSize,
                     color: isSelected ? Colors.white : Colors.black,
@@ -1761,15 +2106,6 @@ Widget _buildPriceTag(Map<String, dynamic> item, String? price1, {double fontSiz
     _filterItems(category:selectedCategory);
   }
 
-  void _handleKOT() {
-    debugPrint("KOT button tapped!");
-    // Add your KOT logic here
-  }
-
-  void _handleSave() {
-    debugPrint("Save button tapped!");
-    // In a real app, you would call your showPrintOptions(context) here
-  }
 
   void _addItemsinTable() {
     final cartProvider = Provider.of<CartProvider>(context, listen: false);
@@ -1796,7 +2132,7 @@ Widget _buildPriceTag(Map<String, dynamic> item, String? price1, {double fontSiz
       appBar: AppBar(
         title: Row(
           children: [
-            Text("Select Items"),
+            Text("Select Items",textScaler: TextScaler.linear(1.0),),
             const SizedBox(width: 8),
             Expanded(
               child: AnimatedContainer(
@@ -1900,10 +2236,7 @@ Widget _buildPriceTag(Map<String, dynamic> item, String? price1, {double fontSiz
                       Container(
                         width: double.infinity,
                         color: Colors.grey[350], // Flat grey background
-                        padding: EdgeInsets.symmetric(
-                          horizontal: 12,
-                          vertical: 10,
-                        ),
+                        padding: EdgeInsets.symmetric(horizontal: 12,vertical: 1),
                         //margin: EdgeInsets.only(bottom: 8), // Space before GridView
                         child: Row(
                           mainAxisAlignment: MainAxisAlignment.spaceEvenly,
@@ -1945,13 +2278,13 @@ Widget _buildPriceTag(Map<String, dynamic> item, String? price1, {double fontSiz
                               isActive: isHoldEnabled,
                             ),
 
-                            _buildFlatSquareButton(
-                              Icons.local_shipping,
-                              "PARCEL",
-                              () {
-                                //TODO: Do something
-                              },
-                            ),
+                            // _buildFlatSquareButton(
+                            //   Icons.local_shipping,
+                            //   "PARCEL",
+                            //   () {
+                            //     //TODO: Do something
+                            //   },
+                            // ),
                           ],
                         ),
                       ),
@@ -1989,7 +2322,7 @@ Widget _buildPriceTag(Map<String, dynamic> item, String? price1, {double fontSiz
           color: Colors.grey[300],
           elevation: 0,
           child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 4.0),
+            padding: const EdgeInsets.symmetric(horizontal: 0.0, vertical: 0.0),
             child: (widget.tableno != null)
                 // IF table number exists, show the ADD button
                 ? Container(
@@ -1997,7 +2330,7 @@ Widget _buildPriceTag(Map<String, dynamic> item, String? price1, {double fontSiz
                     child: ElevatedButton.icon(
                       onPressed: _addItemsinTable,
                       icon: const Icon(Icons.add),
-                      label: const Text('ADD Items'),
+                      label: const Text('ADD Items',textScaler: TextScaler.linear(1.0),),
                       style: ElevatedButton.styleFrom(
                         backgroundColor: Colors.green,
                         foregroundColor: Colors.white,
@@ -2010,7 +2343,7 @@ Widget _buildPriceTag(Map<String, dynamic> item, String? price1, {double fontSiz
                   )
                 // ELSE, show the original button logic
                 : Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 20),
+                    padding: const EdgeInsets.symmetric(horizontal: 6,vertical: 0),
                     child: Row(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
@@ -2031,6 +2364,7 @@ Widget _buildPriceTag(Map<String, dynamic> item, String? price1, {double fontSiz
                                   ),
                                   child: Text(
                                     "ADD ITEMS (₹ ${total.toStringAsFixed(2)})",
+                                    textScaler: TextScaler.linear(1.0),
                                     style: const TextStyle(fontWeight: FontWeight.bold),
                                   ),
                                 )
@@ -2047,6 +2381,7 @@ Widget _buildPriceTag(Map<String, dynamic> item, String? price1, {double fontSiz
                                   ),
                                   child: Text(
                                     "NEXT (₹ ${total.toStringAsFixed(2)})",
+                                    textScaler: TextScaler.linear(1.0),
                                     style: const TextStyle(fontWeight: FontWeight.bold),
                                   ),
                                 ),
@@ -2161,12 +2496,12 @@ class _ListViewHalfFullState extends State<ListViewHalfFull> {
           borderRadius: BorderRadius.circular(10),
           child: Image.file(
             File(imagePath),
-            width: imageHeight.toDouble(),
+            width: imageHeight.toDouble()-5.0,
             height: imageHeight.toDouble(),
             fit: BoxFit.fill,
             errorBuilder: (context, error, stackTrace) {
               return Container(
-                width: imageHeight.toDouble(),
+                width: imageHeight.toDouble() -5.0,
                 height: imageHeight.toDouble(),
                 color: Colors.grey.shade300,
                 child: const Icon(Icons.image_not_supported),
@@ -2175,25 +2510,26 @@ class _ListViewHalfFullState extends State<ListViewHalfFull> {
           ),
         ),
 
-        const SizedBox(width: 12),
+        const SizedBox(width: 1),
 
         // Details on right
         Expanded(
           child: Container(
-            height: imageHeight.toDouble(),
-            padding: const EdgeInsets.only(right: 8), // <-- padding at right
+            height: imageHeight.toDouble()+4.0,
+            padding: const EdgeInsets.symmetric(vertical:0 , horizontal: 0), // <-- padding at right
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 // Item Name at top
                 Text(
                   item["name"],
+                  textScaler: TextScaler.linear(1.0),
                   style: TextStyle(
                     fontSize: boxText,
                     fontWeight: FontWeight.bold,
                   ),
-                  softWrap: true,
-                  maxLines: 2,
+                  // softWrap: true,
+                  // maxLines: 2,
                   overflow: TextOverflow.ellipsis,
                 ),
 
@@ -2208,6 +2544,7 @@ class _ListViewHalfFullState extends State<ListViewHalfFull> {
                       children: [
                         Text(
                           'HALF ${hPrice.toStringAsFixed(0)}', //₹
+                          textScaler: TextScaler.linear(1.0),
                           style: TextStyle(
                             fontSize: priceFontSize * 0.8,
                             fontWeight: FontWeight.bold,
@@ -2232,6 +2569,7 @@ class _ListViewHalfFullState extends State<ListViewHalfFull> {
                   children: [
                     Text(
                       'FULL ${fPrice.toStringAsFixed(0)}', //₹
+                      textScaler: TextScaler.linear(1.0),
                       style: TextStyle(
                         fontSize: priceFontSize * 0.8,
                         fontWeight: FontWeight.bold,
@@ -2286,6 +2624,7 @@ double buttonSize = 34;
             child: Center(
               child: Text(
                 '-',
+                textScaler: TextScaler.linear(1.0),
                 style: TextStyle(
                   fontSize: buttonSize1,
                   color: Colors.white,
@@ -2308,6 +2647,7 @@ double buttonSize = 34;
           child: Center(
             child: Text(
               item['h_qty'] > 0 ? item['h_qty'].toString() : '0',
+              textScaler: TextScaler.linear(1.0),
               style: TextStyle(
                 fontSize: buttonSize1,
                 color: Colors.white,
@@ -2337,6 +2677,7 @@ double buttonSize = 34;
             child: Center(
               child: Text(
                 '+',
+                textScaler: TextScaler.linear(1.0),
                 style: TextStyle(
                   fontSize: buttonSize1,
                   color: Colors.white,
@@ -2380,6 +2721,7 @@ double buttonSize = 34;
             child: Center(
               child: Text(
                 '-',
+                textScaler: TextScaler.linear(1.0),
                 style: TextStyle(
                   fontSize: buttonSize1,
                   color: Colors.white,
@@ -2402,6 +2744,7 @@ double buttonSize = 34;
           child: Center(
             child: Text(
               item['qty'] > 0 ? item['qty'].toString() : '0',
+              textScaler: TextScaler.linear(1.0),
               style: TextStyle(
                 fontSize: buttonSize1,
                 color: Colors.white,
@@ -2430,6 +2773,7 @@ double buttonSize = 34;
             child: Center(
               child: Text(
                 '+',
+                textScaler: TextScaler.linear(1.0),
                 style: TextStyle(
                   fontSize: buttonSize1,
                   color: Colors.white,
@@ -2555,7 +2899,7 @@ double buttonSize = 34;
           children: [
             Icon(icon, size: 20, color: Colors.black87),
             SizedBox(width: 6),
-            Text(label, style: TextStyle(color: Colors.black87, fontSize: 13)),
+            Text(label,textScaler: TextScaler.linear(1.0), style: TextStyle(color: Colors.black87, fontSize: 13)),
           ],
         ),
       ),

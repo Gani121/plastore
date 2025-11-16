@@ -70,7 +70,7 @@ class CartProvider extends ChangeNotifier {
           'name': "${item['name']} (Half)",
           'sellPrice': price,
           'qty': item['h_qty'] ?? 1,
-          'portion': 'Half',
+          'portion': 'half',
           'total': (item['h_qty'] ?? 1) * price,
         };
       } else {
@@ -79,7 +79,7 @@ class CartProvider extends ChangeNotifier {
           'name': item['name'],
           'sellPrice': price,
           'qty': item['qty'] ?? 1,
-          'portion': 'Full',
+          'portion': 'full',
           'total': (item['qty'] ?? 1) * price,
         };
       }
@@ -216,21 +216,59 @@ class CartProvider extends ChangeNotifier {
   void updateQuantity(
     int id,
     int newQty,
-    String portion, {
-    int? tableNo,
-  }) async {
+    double sellPrice,
+    String itemName,
+    String portion, 
+    {int? tableNo, }
+    ) async {
+    
+    // 1. TRY TO FIND AND UPDATE THE ITEM
     for (int i = 0; i < _cart.length; i++) {
-      if (_cart[i]['id'] == id &&
-          (_cart[i]['portion'].toString()).toLowerCase() ==
-              portion.toLowerCase()) {
-        // Update quantity if item exists
+      if (_cart[i]['id'] == id && (_cart[i]['portion'].toString()).toLowerCase() == portion.toLowerCase()) {
         _cart[i]['qty'] = newQty;
         _cart[i]['total'] = _cart[i]['sellPrice'] * newQty;
-        debugPrint("_cart $_cart");
+        debugPrint("Updated item in cart: $_cart");
         notifyListeners();
-        break;
+        return; 
       }
     }
+
+    // Don't add an item with 0 or less quantity
+    if (newQty <= 0) {
+      return;
+    }
+
+    // We must have the price and name to add a new item
+    if (sellPrice == null || itemName == null) {
+      debugPrint("Error: Cannot add new item. Price or name not provided.");
+      return;
+    }
+    final Map<String, dynamic> cartItem;
+
+    if (portion.toLowerCase() == 'half') {
+        cartItem = {
+          'id': id,
+          'name': "${itemName} (Half)",
+          'qty': newQty,
+          'portion': portion.toLowerCase(),
+          'sellPrice': sellPrice,
+          'total': sellPrice * newQty,
+        };
+      } else {
+        cartItem = {
+          'id': id,
+          'name': itemName,
+          'qty': newQty,
+          'portion': portion.toLowerCase(),
+          'sellPrice': sellPrice,
+          'total': sellPrice * newQty,
+        };
+      }
+
+
+    _cart.add(cartItem);
+    debugPrint("Added new item to cart: $_cart");
+    notifyListeners();
   }
 
     // Update item price in cart

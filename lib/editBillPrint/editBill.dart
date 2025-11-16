@@ -315,7 +315,7 @@ void addtablecart(CartProvider cartProvider) async {
   Widget _buildItemCards(CartProvider cartProvider) {
     // final cartProvider = Provider.of<CartProvider>(context);
     final cart = cartProvider.cart;
-    debugPrint("cart items _buildItemCards $cart");
+    // debugPrint("cart items _buildItemCards $cart");
     
     // addtablecart(cartProvider);
     
@@ -346,6 +346,7 @@ void addtablecart(CartProvider cartProvider) async {
                 final price = item['sellPrice'] ?? 0;
                 final portion = item['portion'] ?? 'Full';
                 final id = item['id'];
+                final name = item['name'];
                 final total = item['total'].toString() is double
                     ? item['total'] as double
                     : double.tryParse(item['total']?.toString() ?? '0.0') ?? 0.0;
@@ -464,6 +465,8 @@ void addtablecart(CartProvider cartProvider) async {
                                         cartProvider.updateQuantity(
                                           id,
                                           qty - 1,
+                                          price,
+                                          name,
                                           portion,
                                         );
                                         addtablecart(cartProvider);
@@ -485,7 +488,7 @@ void addtablecart(CartProvider cartProvider) async {
                                   onFieldSubmitted: (val) {
                                       final newQty = int.tryParse(val ?? qty) ?? qty;
                                       if (newQty > 0 && newQty != qty) {
-                                        cartProvider.updateQuantity(id, newQty, portion);
+                                        cartProvider.updateQuantity(id, newQty, price, name, portion);
                                         addtablecart(cartProvider);
                                         setState(() { });
                                       } else if( newQty < 1 || newQty.toString().isEmpty){
@@ -535,6 +538,8 @@ void addtablecart(CartProvider cartProvider) async {
                                   cartProvider.updateQuantity(
                                     id,
                                     qty + 1,
+                                    price,
+                                    name,
                                     portion,
                                   );
                                   addtablecart(cartProvider);
