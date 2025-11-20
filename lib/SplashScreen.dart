@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:video_player/video_player.dart';
+// import 'package:video_player/video_player.dart';
 import 'main.dart'; // your next page
 
 class SplashScreen extends StatefulWidget {
@@ -10,25 +10,25 @@ class SplashScreen extends StatefulWidget {
 }
 
 class _SplashScreenState extends State<SplashScreen> {
-  late VideoPlayerController _controller;
+  // late VideoPlayerController _controller;
 
   @override
   void initState() {
     super.initState();
 
-    _controller = VideoPlayerController.asset("assets/video/splash.mp4")
-      ..initialize().then((_) {
-        setState(() {}); // refresh when initialized
-        _controller.play(); // auto play
-      });
+    // _controller = VideoPlayerController.asset("assets/video/splash.mp4")
+    //   ..initialize().then((_) {
+    //     setState(() {}); // refresh when initialized
+    //     _controller.play(); // auto play
+    //   });
 
-    // Navigate when video ends
-    _controller.addListener(() {
-      if (_controller.value.position >= _controller.value.duration &&
-          !_controller.value.isPlaying) {
-        _navigateNext();
-      }
-    });
+    // // Navigate when video ends
+    // _controller.addListener(() {
+    //   if (_controller.value.position >= _controller.value.duration &&
+    //       !_controller.value.isPlaying) {
+    //     _navigateNext();
+    //   }
+    // });
   }
 
   void _navigateNext() {
@@ -39,7 +39,7 @@ class _SplashScreenState extends State<SplashScreen> {
 
   @override
   void dispose() {
-    _controller.dispose();
+    // _controller.dispose();
     super.dispose();
   }
 
@@ -63,18 +63,20 @@ class _SplashScreenState extends State<SplashScreen> {
     return Scaffold(
       backgroundColor: Colors.white, // same as your logo background
       body: Center(
-        child: _controller.value.isInitialized
-            ? const SizedBox(
-                width: 60, // your desired width
-                height: 60, // your desired height
-                child: CircularProgressIndicator(
-                  strokeWidth: 6, // thickness of the circle
-                  valueColor: AlwaysStoppedAnimation<Color>(
-                    Colors.green,
-                  ), // color
-                ),
-              )
-            : const SizedBox(
+        child:
+        //  _controller.value.isInitialized
+        //     ? const SizedBox(
+        //         width: 60, // your desired width
+        //         height: 60, // your desired height
+        //         child: CircularProgressIndicator(
+        //           strokeWidth: 6, // thickness of the circle
+        //           valueColor: AlwaysStoppedAnimation<Color>(
+        //             Colors.green,
+        //           ), // color
+        //         ),
+        //       )
+        //     : 
+            const SizedBox(
                 width: 60, // your desired width
                 height: 60, // your desired height
                 child: CircularProgressIndicator(

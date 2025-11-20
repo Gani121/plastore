@@ -333,6 +333,7 @@ class BillPrinter {
         }
       }
       await printer.finish(finishFeed);
+      await Future.delayed(const Duration(milliseconds: 200));
       return;
 
     } else {
@@ -356,6 +357,15 @@ class BillPrinter {
       if (printerCharacteristic == null) {
         throw Exception("Printer characteristic not found");
       }
+      // ESC @ command (Initialize printer)
+      List<int> resetCommand = [0x1B, 0x40];
+      try {
+        await printerCharacteristic.write(resetCommand, withoutResponse: false);
+        await Future.delayed(const Duration(milliseconds: 100));
+        // debugPrint("✅ Printer buffer cleared command sent.");
+      } catch (e) {
+        debugPrint("❌ Failed to clear printer buffer: $e");
+      }
       // Split data into chunks to avoid exceeding maximum length
       const int maxChunkSize = 230; // Use 200 to be safe (printer reported max 237)
       debugPrint("📦 Sending ${bytes.length} bytes in chunks of $maxChunkSize");
@@ -369,7 +379,7 @@ class BillPrinter {
         try {
           // Try writeWithoutResponse first (faster for thermal printers)
           await printerCharacteristic.write(chunk, withoutResponse: true);
-          debugPrint("✅ Chunk ${(i ~/ maxChunkSize) + 1} sent successfully");
+          // debugPrint("✅ Chunk ${(i ~/ maxChunkSize) + 1} sent successfully");
           
           // Small delay between chunks to prevent overwhelming the printer
           await Future.delayed(Duration(milliseconds: 5));
@@ -379,9 +389,9 @@ class BillPrinter {
           // Try with response if withoutResponse fails
           try {
             await printerCharacteristic.write(chunk, withoutResponse: false);
-            debugPrint("✅ Chunk ${(i ~/ maxChunkSize) + 1} sent with response");
+            // debugPrint("✅ Chunk ${(i ~/ maxChunkSize) + 1} sent with response");
           } catch (e2) {
-            debugPrint("❌ Failed to send chunk ${(i ~/ maxChunkSize) + 1} with response: $e2");
+            // debugPrint("❌ Failed to send chunk ${(i ~/ maxChunkSize) + 1} with response: $e2");
             throw Exception("Failed to send data to printer");
           }
         } 
@@ -389,56 +399,59 @@ class BillPrinter {
         //   bytes = [];
         // }
       }
+      // SC588 Beep Commands
+      // List<int> beepCommand = [0x1B, 0x42, 0x03, 0x05];
+      // await printerCharacteristic.write([0x1B, 0x42, 0x01, 0x02], withoutResponse: false);
     }
     bytes = [];
     debugPrint("🎉 All data sent successfully to printer!");
   }
 
   Uint8List _processImageForPrinter(
-  Uint8List rgbaBytes, 
-  int originalWidth, 
-  int originalHeight, 
-  int targetWidth
-) {
-  final originalImage = img.Image.fromBytes(
-    width: originalWidth,
-    height: originalHeight,
-    bytes: rgbaBytes.buffer,
-    format: img.Format.uint8,
-    order: img.ChannelOrder.rgba,
-  );
+    Uint8List rgbaBytes, 
+    int originalWidth, 
+    int originalHeight, 
+    int targetWidth
+  ) {
+    final originalImage = img.Image.fromBytes(
+      width: originalWidth,
+      height: originalHeight,
+      bytes: rgbaBytes.buffer,
+      format: img.Format.uint8,
+      order: img.ChannelOrder.rgba,
+    );
 
-  final resizedImage = img.copyResize(
-    originalImage,
-    width: targetWidth,
-    interpolation: img.Interpolation.average,
-  );
+    final resizedImage = img.copyResize(
+      originalImage,
+      width: targetWidth,
+      interpolation: img.Interpolation.average,
+    );
 
-  final pitch = resizedImage.width ~/ 8;
-  final result = Uint8List(resizedImage.height * pitch);
-  int resultIndex = 0;
+    final pitch = resizedImage.width ~/ 8;
+    final result = Uint8List(resizedImage.height * pitch);
+    int resultIndex = 0;
 
-  for (int y = 0; y < resizedImage.height; y++) {
-    for (int x_byte = 0; x_byte < pitch; x_byte++) {
-      int packedByte = 0;
-      for (int x_bit = 0; x_bit < 8; x_bit++) {
-        final x = x_byte * 8 + x_bit;
-        
-        final pixel = resizedImage.getPixel(x, y);
-        final luminance = (0.299 * pixel.r + 0.587 * pixel.g + 0.114 * pixel.b).toInt();
-        
-        if (luminance < 128) {
-          // --- THIS IS THE KEY CHANGE ---
-          // Reverses the bit order to match many common thermal printers.
-          packedByte |= (1 << x_bit); 
+    for (int y = 0; y < resizedImage.height; y++) {
+      for (int x_byte = 0; x_byte < pitch; x_byte++) {
+        int packedByte = 0;
+        for (int x_bit = 0; x_bit < 8; x_bit++) {
+          final x = x_byte * 8 + x_bit;
+          
+          final pixel = resizedImage.getPixel(x, y);
+          final luminance = (0.299 * pixel.r + 0.587 * pixel.g + 0.114 * pixel.b).toInt();
+          
+          if (luminance < 128) {
+            // --- THIS IS THE KEY CHANGE ---
+            // Reverses the bit order to match many common thermal printers.
+            packedByte |= (1 << x_bit); 
+          }
         }
+        result[resultIndex++] = packedByte;
       }
-      result[resultIndex++] = packedByte;
     }
+    
+    return result;
   }
-  
-  return result;
-}
 
 
 
@@ -1084,81 +1097,112 @@ class BillPrinter {
     }
   }
 
-Future<void> sendQRtoPrinter(int total) async {
-  try {
-    bytes = [];
-    await Future.delayed(Duration(milliseconds: 500));
-    final prefs = await SharedPreferences.getInstance();
 
-    // Retrieve stored preferences
-    String paperSize = prefs.getString('paperSize') ?? '2';
-    final double receiptWidth = (paperSize == "2")
-        ? 384.0
-        : (paperSize == "3")
-            ? 512.0
-            : 576.0;
 
-    String? upiId = prefs.getString('upi');
-    String qrSizePref = prefs.getString('qrSize') ?? "5";
-    double qrPixelSize = getQrPixelSize(qrSizePref);
-    String businessName = prefs.getString('businessName') ?? 'Hotel Test';
-    bool printQRLogo = prefs.getBool('printQRlogo') ?? true;
-    bool printQr = prefs.getBool('printQR') ?? false;
-    if (printQr && upiId != null && upiId.isNotEmpty) {
-
-      // Encode business name and form QR UPI data
-      final encodedBusinessName = Uri.encodeComponent(businessName);
-      final qrData = "upi://pay?pa=$upiId&pn=$encodedBusinessName&am=$total.00&cu=INR";
-
-      // Build QR code painter
-      final double logoWidth = (150 == qrPixelSize) ? 40 : 40 - ((80 / qrPixelSize) * 10);
-      final double logoHeight = (150 == qrPixelSize) ? 35 : 35 - ((70 / qrPixelSize) * 10);
-
-      final qrPainter = QrPainter(
-        data: qrData,
-        version: QrVersions.auto,
-        gapless: true,
-        embeddedImage: printQRLogo ? await _loadLogoImage() : null,
-        embeddedImageStyle: printQRLogo
-            ? QrEmbeddedImageStyle(size: Size(logoWidth, logoHeight))
-            : null,
-      );
-
-      // Convert QrPainter (ui.Image) → PNG bytes → img.Image
-      final ui.Image qrUiImage = await qrPainter.toImage(qrPixelSize);
-      final byteData = await qrUiImage.toByteData(format: ui.ImageByteFormat.png);
-      final Uint8List pngBytes = byteData!.buffer.asUint8List();
-      final img.Image? qrImage = img.decodeImage(pngBytes);
-      qrUiImage.dispose(); // free GPU memory
-
-      if (qrImage == null) {
-        debugPrint("❌ Failed to decode QR image");
-        return;
-      }
-
-      if (_generator == null) {
-        debugPrint("❌ _generator not initialized");
-        return;
-      }
-
-      // Prepare printer bytes
-      // bytes ??= <int>[];
-      bytes += _generator!.image(qrImage);
-      // bytes += _generator!.feed(1);
-
-      // Send to printer
-      await _sendToPrinter(imageBytes: pngBytes);
-
+  Future<void> sendQRtoPrinter(int total) async {
+    try {
       bytes = [];
       await Future.delayed(const Duration(milliseconds: 500));
+      final prefs = await SharedPreferences.getInstance();
 
-      debugPrint("✅ QR printed successfully.");
+      // 1. Retrieve basic preferences
+      String paperSize = prefs.getString('paperSize') ?? '2';
+      // Define the full width of the paper in pixels
+      final int paperWidthPx = (paperSize == "2") ? 384 : (paperSize == "3") ? 512 : 576;
+
+      String? upiId = prefs.getString('upi');
+      String qrSizePref = prefs.getString('qrSize') ?? "5";
+      double qrPixelSize = getQrPixelSize(qrSizePref); // Ensure this isn't wider than paperWidthPx
+      String businessName = prefs.getString('businessName') ?? 'Hotel Test';
+      bool printQRLogo = prefs.getBool('printQRlogo') ?? true;
+      bool printQr = prefs.getBool('printQR') ?? false;
+
+      if (printQr && upiId != null && upiId.isNotEmpty) {
+        debugPrint("🖨️ Generating QR Code...");
+
+        // 2. Clean Business Name (Remove special chars that might break UPI)
+        // It is safer to keep the name simple for the UPI string
+        final cleanName = businessName.replaceAll(RegExp(r'[^\w\s]'), ''); 
+        final encodedBusinessName = Uri.encodeComponent(cleanName);
+        
+        // 3. Construct UPI URI
+        final qrData = "upi://pay?pa=$upiId&pn=$encodedBusinessName&am=$total.00&cu=INR";
+
+        // 4. Calculate Logo Size
+        final double logoWidth = (150 == qrPixelSize) ? 40 : 40 - ((80 / qrPixelSize) * 10);
+        final double logoHeight = (150 == qrPixelSize) ? 35 : 35 - ((70 / qrPixelSize) * 10);
+
+        // 5. Generate QR Image
+        final qrPainter = QrPainter(
+          data: qrData,
+          version: QrVersions.auto,
+          errorCorrectionLevel: QrErrorCorrectLevel.M,
+          gapless: true,
+
+          // eyeStyle: const QrEyeStyle(
+          //   eyeShape: QrEyeShape.square,
+          //   color: Color(0xFF000000),
+          // ),
+          // // Define style for the small data dots
+          // dataModuleStyle: const QrDataModuleStyle(
+          //   dataModuleShape: QrDataModuleShape.square,
+          //   color: Color(0xFF000000),
+          // ),
+
+          embeddedImage: printQRLogo ? await _loadLogoImage() : null,
+          embeddedImageStyle: printQRLogo
+              ? QrEmbeddedImageStyle(size: Size(logoWidth, logoHeight))
+              : null,
+        );
+
+        // Convert to Image Data
+        final ui.Image qrUiImage = await qrPainter.toImage(qrPixelSize);
+        final byteData = await qrUiImage.toByteData(format: ui.ImageByteFormat.png);
+        final Uint8List pngBytes = byteData!.buffer.asUint8List();
+        final img.Image? originalQrImage = img.decodeImage(pngBytes);
+        qrUiImage.dispose(); 
+
+        if (originalQrImage == null) {
+          debugPrint("❌ Failed to decode QR image");
+          return;
+        }
+
+        if (_generator == null) {
+          debugPrint("❌ _generator not initialized");
+          return;
+        }
+
+        // 1. Create a white canvas (Named arguments are now required)
+        int canvasHeight = originalQrImage.height; 
+        img.Image centeredCanvas = img.Image(width: paperWidthPx, height: canvasHeight,);
+        
+        // 2. Fill with white background
+        img.fill(centeredCanvas, color: img.ColorRgb8(255, 255, 255));
+
+        // 3. Calculate X offset to center the QR
+        int dstX = (paperWidthPx - originalQrImage.width) ~/ 2;
+        int dstY = 0; // 10px padding from top
+
+        // 4. Paste the QR code onto the white canvas
+        img.compositeImage(centeredCanvas, originalQrImage, dstX: dstX, dstY: dstY);
+
+        bytes += _generator!.image(centeredCanvas, align: PosAlign.center);
+
+        await _sendToPrinter(imageBytes: pngBytes);
+
+        bytes = [];
+        await Future.delayed(const Duration(milliseconds: 500));
+        
+        debugPrint("✅ QR printed successfully.");
+      }
+    } catch (e, stack) {
+      debugPrint("❌ Error printing QR: $e");
+      debugPrint("Stack trace: $stack");
     }
-  } catch (e, stack) {
-    debugPrint("❌ Error printing QR: $e");
-    debugPrint("Stack trace: $stack");
   }
-}
+
+
+
 
 
 
@@ -2350,7 +2394,7 @@ Future<Uint8List?> footerImage() async {
   try {
     // Footer
     yOffset += await _drawText(canvas, footer, y: yOffset, width: receiptWidth, fontSize: fItem, align: TextAlign.center);
-    yOffset += 70; // Extra padding at the bottom
+    yOffset += 40; // Extra padding at the bottom
     
     // Stop recording
     final ui.Picture picture = recorder.endRecording();

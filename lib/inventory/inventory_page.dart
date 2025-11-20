@@ -8,6 +8,7 @@ import '../models/menu_item.dart';
 import 'package:test1/cartprovier/ObjectBoxService.dart';
 import 'package:provider/provider.dart';
 import '../theme_setting/theme_provider.dart';
+import 'package:test1/l10n/app_localizations.dart';
 
 class InventoryPage extends StatefulWidget {
   //final Store store;
@@ -66,19 +67,19 @@ class _InventoryPageState extends State<InventoryPage> {
       context: context,
       builder: (context) {
         return AlertDialog(
-          title: Text("Adjust Stock for ${item.name}"),
+          title: Text("${AppLocalizations.of(context)!.print} ${item.name}"),
           content: TextField(
             controller: controller,
             keyboardType: TextInputType.number,
-            decoration: const InputDecoration(
-              labelText: "Enter quantity to add",
+            decoration: InputDecoration(
+              labelText: AppLocalizations.of(context)!.enter_qty_add,
               border: OutlineInputBorder(),
             ),
           ),
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(context),
-              child: const Text("Cancel"),
+              child: Text(AppLocalizations.of(context)!.cancel),
             ),
             ElevatedButton(
               onPressed: () async {
@@ -88,7 +89,7 @@ class _InventoryPageState extends State<InventoryPage> {
                 final int addValue = int.tryParse(controller.text) ?? 0;
                 if (addValue <= 0) {
                   ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text("Enter a valid number")),
+                    SnackBar(content: Text(AppLocalizations.of(context)!.enter_valid_number)),
                   );
                   return;
                 }
@@ -128,14 +129,14 @@ class _InventoryPageState extends State<InventoryPage> {
             ? TextField(
                 controller: _searchController,
                 autofocus: true,
-                decoration: const InputDecoration(
-                  hintText: 'Search items...',
+                decoration:  InputDecoration(
+                  hintText: '${AppLocalizations.of(context)!.searchItems}...',
                   border: InputBorder.none,
                   hintStyle: TextStyle(color: Colors.white70),
                 ),
                 style: const TextStyle(color: Colors.white, fontSize: 18),
               )
-            : const Text("Item List"),
+            :  Text(AppLocalizations.of(context)!.itemList),
         backgroundColor: themeProvider.primaryColor, // Colors.purple.shade700,
         actions: _isSearching
             ? [
@@ -172,7 +173,7 @@ class _InventoryPageState extends State<InventoryPage> {
                         child: TextButton(
                           onPressed: () {},
                           child: Text(
-                            "INVENTORY (${_items.length})",
+                            "${AppLocalizations.of(context)!.inventoryHeader} (${_items.length})",
                             style: const TextStyle(color: Colors.purple),
                           ),
                         ),
@@ -198,8 +199,8 @@ class _InventoryPageState extends State<InventoryPage> {
           ? Center(
               child: Text(
                 _isSearching
-                    ? "No items match your search."
-                    : "No items found. Add some items to get started!",
+                    ? AppLocalizations.of(context)!.noItemMatch
+                    : AppLocalizations.of(context)!.noItemFound,
               ),
             )
           : ListView.builder(
@@ -280,7 +281,7 @@ class _InventoryPageState extends State<InventoryPage> {
                                   ),
                                 ),
                                 Text(
-                                  "Barcode: ${item.barCode ?? 'N/A'}",
+                                  "${AppLocalizations.of(context)!.barcode}: ${item.barCode ?? 'N/A'}",
                                   style: const TextStyle(fontSize: 12),
                                 ),
                                 Text(
@@ -288,7 +289,7 @@ class _InventoryPageState extends State<InventoryPage> {
                                   style: const TextStyle(fontSize: 14),
                                 ),
                                 Text(
-                                  "Current Stock: ${item.adjustStock}",
+                                  "${AppLocalizations.of(context)!.currentStock}: ${item.adjustStock}",
                                   style: const TextStyle(fontSize: 16),
                                 ),
                                 const SizedBox(height: 6),
@@ -303,7 +304,7 @@ class _InventoryPageState extends State<InventoryPage> {
                                       horizontal: 12,
                                     ),
                                   ),
-                                  child: const Text("Adjust Stock"),
+                                  child: Text(AppLocalizations.of(context)!.adjustStock),
                                 ),
                               ],
                             ),
@@ -324,7 +325,7 @@ class _InventoryPageState extends State<InventoryPage> {
           );
           _loadItems(); // Refresh after adding new item
         },
-        label: const Text("NEW ITEM"),
+        label: Text(AppLocalizations.of(context)!.newItem),
         icon: const Icon(Icons.add),
         backgroundColor: themeProvider.primaryColor, //Colors.purple.shade700,
       ),

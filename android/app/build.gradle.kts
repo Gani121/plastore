@@ -28,13 +28,15 @@ android {
 
     buildTypes {
         getByName("release") {
-            isMinifyEnabled = false        // Keep false for now
-            isShrinkResources = false      // Fixes the unused resources error
+            isMinifyEnabled = true        // Keep false for now
+            isShrinkResources = true      // Fixes the unused resources error
             signingConfig = signingConfigs.getByName("release")
         }
 
         getByName("debug") {
-            signingConfig = signingConfigs.getByName("release") // optional: use same key for debug
+            signingConfig = signingConfigs.getByName("release")
+            isMinifyEnabled = false
+            isShrinkResources = false
         }
     }
 

@@ -3,6 +3,7 @@ import '../models/menu_item.dart';
 import '../objectbox.g.dart';
 import 'package:objectbox/objectbox.dart';
 import 'add_item_page.dart';
+import 'package:test1/l10n/app_localizations.dart';
 
 class ItemLedgerPage extends StatefulWidget {
   final MenuItem item;
@@ -115,20 +116,20 @@ class _ItemLedgerPageState extends State<ItemLedgerPage> {
               final confirmed = await showDialog<bool>(
                 context: context,
                 builder: (context) => AlertDialog(
-                  title: const Text("Delete Item"),
-                  content: const Text(
-                    "Are you sure you want to delete this item?",
+                  title:  Text(AppLocalizations.of(context)!.deleteItem),
+                  content:  Text(
+                    AppLocalizations.of(context)!.deleteNote,
                   ),
                   actions: [
                     TextButton(
-                      child: const Text("Cancel"),
+                      child:  Text(AppLocalizations.of(context)!.cancel),
                       onPressed: () => Navigator.pop(context, false),
                     ),
                     ElevatedButton(
                       style: ElevatedButton.styleFrom(
                         backgroundColor: Colors.red,
                       ),
-                      child: const Text("Delete"),
+                      child: Text(AppLocalizations.of(context)!.delete),
                       onPressed: () => Navigator.pop(context, true),
                     ),
                   ],
@@ -149,7 +150,7 @@ class _ItemLedgerPageState extends State<ItemLedgerPage> {
                 query.close();
                 Navigator.pop(context);
                 ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text("Item deleted successfully")),
+                  SnackBar(content: Text(AppLocalizations.of(context)!.deleteItemSuccess)),
                 );
               }
             },
@@ -184,7 +185,7 @@ class _ItemLedgerPageState extends State<ItemLedgerPage> {
                   ),
                   const SizedBox(height: 8),
                   Text(
-                    "Stock: ${item.adjustStock ?? 0}",
+                    "${AppLocalizations.of(context)!.stock}: ${item.adjustStock ?? 0}",
                     style: const TextStyle(
                       fontSize: 16,
                       fontWeight: FontWeight.bold,
@@ -195,10 +196,10 @@ class _ItemLedgerPageState extends State<ItemLedgerPage> {
             ),
 
             // 📜 Transactions List
-            // const Text(
-            //   "Recent Transactions",
-            //   style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-            // ),
+            Text(
+              AppLocalizations.of(context)!.recent_tran,
+              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+            ),
             // const SizedBox(height: 12),
             // ListView.builder(
             //   shrinkWrap: true,
