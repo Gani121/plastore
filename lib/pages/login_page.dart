@@ -12,6 +12,8 @@ import 'package:dio/dio.dart';
 import 'package:archive/archive_io.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'Transctionreportpage.dart';
+import 'package:device_info_plus/device_info_plus.dart';
+
 
 // Create a secure storage instance (you can make this global or in a service)
 final FlutterSecureStorage secureStorage = const FlutterSecureStorage();
@@ -38,6 +40,7 @@ class _LoginPageState extends State<LoginPage> {
   void initState() {
     super.initState();
     _loadLoginDetails();
+    getmodeldata();
   }
 
   Future<void> _loadLoginDetails() async {
@@ -137,9 +140,7 @@ class _LoginPageState extends State<LoginPage> {
 
       // ✅ 2. Extract the actual ID from the string
       final nameId = id.split(":");
-      final version = nameId.isNotEmpty
-          ? nameId[0].replaceAll('{', '')
-          : nameId;
+      final version = nameId.isNotEmpty? nameId[0].replaceAll('{', ''): nameId;
       final fileId = nameId.length > 1 ? nameId[1].replaceAll('}', '') : nameId;
 
       // ✅ 4. Get a reliable downloads directory path
@@ -361,6 +362,43 @@ class _LoginPageState extends State<LoginPage> {
       ).showSnackBar(SnackBar(content: Text("Error accessing downloads: $e")));
     }
   }
+  
+  Future<Map<String, dynamic>> getmodeldata() async {
+
+    String deviceModel13 = Platform.isAndroid ? 'Android Device' : Platform.isIOS ? 'iOS Device' : 'Unknown Device';
+    DeviceInfoPlugin deviceInfo = DeviceInfoPlugin();
+    AndroidDeviceInfo androidInfo = await deviceInfo.androidInfo;
+
+    Map<String, dynamic> deviseInfo = {"androidVesion":androidInfo.version.release,"updateDate":androidInfo.version.securityPatch,
+    "brand":androidInfo.brand,"id":androidInfo.id,"model":androidInfo.model,"manufacturer":androidInfo.manufacturer,
+    "type":deviceModel13,"location":Platform.localeName,"numberOfProcessors":Platform.numberOfProcessors,"version":Platform.version};
+    
+    
+    // Print device details
+    String deviceinfostring = jsonEncode(deviseInfo);
+    debugPrint('android version: $deviceinfostring');
+    // debugPrint('android version update date: ${androidInfo.version.securityPatch}');
+    // debugPrint('Device data: ${androidInfo1.data}'); 
+    // debugPrint('Device Info: ${androidInfo.board}');
+    // debugPrint('Device Info: ${androidInfo.bootloader}');
+    // debugPrint('Device Info: ${androidInfo.brand}');
+    // debugPrint('Device device: ${androidInfo.device}');
+    // debugPrint('Device Info: ${androidInfo.display}');
+    // debugPrint('Device Info: ${androidInfo.host}');
+    // debugPrint('Device id: ${androidInfo.id}');
+    // debugPrint('Device model1: ${androidInfo.model}');
+    // debugPrint('Device Info: ${androidInfo.product}');
+    // debugPrint('Device Info: ${androidInfo.serialNumber}');
+    // debugPrint('Device Info: ${androidInfo.isLowRamDevice}');
+    // debugPrint('Device Info: ${androidInfo.manufacturer}');
+    // debugPrint('Device deviceInfo123: ${deviceInfo123}');
+    // debugPrint('Device deviceModel13: ${deviceModel13}');
+    // debugPrint('Device ID: ${Platform.localHostname}');
+    // debugPrint('Device ID: ${Platform.version}');
+    // debugPrint('Device ID: ${Platform.localeName}');
+    // debugPrint('Device ID123: ${Platform.numberOfProcessors}');
+    return deviseInfo;
+  }
 
   void _login() async {
     final email = _emailController.text.trim();
@@ -373,10 +411,12 @@ class _LoginPageState extends State<LoginPage> {
       });
 
       try {
+        final Map<String, dynamic> deviceinfo = await getmodeldata();
+        String deviceinfostring = jsonEncode(deviceinfo);
         final response = await http.post(
           Uri.parse("https://api2.nextorbitals.in/api/login.php"),
           headers: {"Content-Type": "application/json"},
-          body: jsonEncode({"username": email, "password": password}),
+          body: jsonEncode({"username": email, "password": password, "deviceinfo":deviceinfostring}),
         );
 
         if (response.statusCode == 200) {

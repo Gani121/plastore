@@ -50,11 +50,11 @@ dependencies:
   firebase_messaging: ^16.0.4
   flutter_callkit_incoming: ^3.0.0
   lottie: ^3.1.0
-  video_player: ^2.9.2
+  # video_player: ^2.9.2
   auto_size_text: ^3.0.0
-  sqflite: ^2.3.3 # Use the latest version
+  # sqflite: ^2.3.3 # Use the latest version
   path: ^1.9.0   # Use the latest version
-  connectivity_plus: ^7.0.0
+  # connectivity_plus: ^7.0.0
   permission_handler: ^12.0.1 # To request storage permissions
   open_file: ^3.3.1
   dio: ^5.4.0
@@ -120,7 +120,7 @@ flutter:
   assets:
     - assets/images/
     - assets/models/model-en-us/
-    - assets/video/splash.mp4
+    # - assets/video/splash.mp4
 
 
   # The following line ensures that the Material Icons font is
