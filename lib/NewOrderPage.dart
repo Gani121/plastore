@@ -899,8 +899,8 @@ class _NewOrderPageState extends State<NewOrderPage> with AutomaticKeepAliveClie
                       item['qty'] = 0;
                       item['h_qty'] = 0;
                       item['selectedPortion'] = null;
-                      cartProvider?.removeFromCart(item['id'],'half');
-                      cartProvider?.removeFromCart(item['id'],'full');
+                      cartProvider?.removeFromCart(item['name'],'half');
+                      cartProvider?.removeFromCart(item['name'],'full');
                     });
                   },
                   child: Container(
@@ -1390,8 +1390,8 @@ class _NewOrderPageState extends State<NewOrderPage> with AutomaticKeepAliveClie
                     item['selected'] = false;
                     item['qty'] = 0;
                     item['h_qty'] = 0;
-                    cartProvider?.removeFromCart(item['id'], 'full');
-                    cartProvider?.removeFromCart(item['id'], 'half');
+                    cartProvider?.removeFromCart(item['name'], 'full');
+                    cartProvider?.removeFromCart(item['name'], 'half');
                     // updateCart(item);
                   });
                 },
@@ -2832,8 +2832,8 @@ double buttonSize = 34;
                     item['selected'] = false;
                     item['qty'] = 0;
                     item['h_qty'] = 0;
-                    cartProvider?.removeFromCart(item['id'], 'half');
-                    cartProvider?.removeFromCart(item['id'], 'full');
+                    cartProvider?.removeFromCart(item['name'], 'half');
+                    cartProvider?.removeFromCart(item['name'], 'full');
                     // updateCart(item);
                   });
                 },

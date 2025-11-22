@@ -9,6 +9,7 @@
 .flutter-plugins-dependencies
 .dart_tool/
 flutter_build/
+.amazonq/
 
 # Flutter/Dart
 build/
@@ -16,3 +17,21 @@ build/
 .flutter-plugins
 .flutter-plugins-dependencies
 pubspec.lock
+
+flutter/ephemeral/
+
+# Visual Studio user-specific files.
+*.suo
+*.user
+*.userosscache
+*.sln.docstates
+
+# Visual Studio build-related files.
+x64/
+x86/
+
+# Visual Studio cache files
+# files ending in .cache can be ignored
+*.[Cc]ache
+# but keep track of directories ending in .cache
+!*.[Cc]ache/

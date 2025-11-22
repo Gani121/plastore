@@ -346,7 +346,7 @@ void addtablecart(CartProvider cartProvider) async {
                 final price = item['sellPrice'] ?? 0;
                 final portion = item['portion'] ?? 'Full';
                 final id = item['id'];
-                final name = item['name'];
+                final String name = item['name'];
                 final total = item['total'].toString() is double
                     ? item['total'] as double
                     : double.tryParse(item['total']?.toString() ?? '0.0') ?? 0.0;
@@ -416,13 +416,45 @@ void addtablecart(CartProvider cartProvider) async {
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
                           // Portion
-                          Text(
-                            '$portion  ₹',
-                            style: TextStyle(
-                              fontSize: 12,
-                              color: Colors.grey[700],
-                            ),
+                          Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                '$portion  ₹',
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  color: Colors.grey[700],
+                                ),
+                              ),
+                              const SizedBox(height: 0),
+                              TextButton(
+                                style: TextButton.styleFrom(
+                                  padding: EdgeInsets.zero,
+                                  minimumSize: Size.zero,
+                                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                                ),
+                                onPressed: () {
+                                  final newItem = Map<String, dynamic>.from(item);
+
+                                  // Determine the base name (e.g., "Burger" from "Burger_1")
+                                  final baseName = name.contains('_') ? name.substring(0, name.lastIndexOf('_')) : name;
+
+                                  // Count how many items in the cart start with the base name
+                                  final count = cartProvider.cart.where((cartItem) => (cartItem['name'] as String).startsWith(baseName)).length;
+
+                                  // Create the new name, e.g., "Burger_2" if count is 2
+                                  // debugPrint("count ${count}");
+                                  newItem['name'] = '${baseName}_${count}';
+
+                                  // Add the new item to the cart
+                                  cartProvider.addToCart(newItem, portion, price);
+                                },
+                                child: Text('copy', style: TextStyle(color: Colors.blue)),
+                              )
+                            ]
                           ),
+                        
+                          
                           SizedBox(
                             width: 50,
                             child: TextFormField(
@@ -443,10 +475,10 @@ void addtablecart(CartProvider cartProvider) async {
                               onFieldSubmitted: (val) {
                                 final newPrice = int.tryParse(val) ?? price.toInt();
                                 if (newPrice > 0 && newPrice != price.toInt()) {
-                                  cartProvider.updatePricePortion(id, newPrice, portion);
+                                  cartProvider.updatePricePortion(name, newPrice, portion);
                                   addtablecart(cartProvider);
                                 } else if( newPrice < 1 || newPrice.toString().isEmpty){
-                                    cartProvider.removeFromCart(id, portion);
+                                    cartProvider.removeFromCart(name, portion);
                                     addtablecart(cartProvider);
                                     setState(() { });
                                   }
@@ -492,7 +524,7 @@ void addtablecart(CartProvider cartProvider) async {
                                         addtablecart(cartProvider);
                                         setState(() { });
                                       } else if( newQty < 1 || newQty.toString().isEmpty){
-                                        cartProvider.removeFromCart(id, portion);
+                                        cartProvider.removeFromCart(name, portion);
                                         addtablecart(cartProvider);
                                         setState(() { });
                                       }
@@ -553,7 +585,7 @@ void addtablecart(CartProvider cartProvider) async {
                           IconButton(
                             icon: const Icon(Icons.delete_outline, color: Colors.red),
                             tooltip: 'Remove Item',
-                            onPressed: () => {_deleteItem(id, portion),
+                            onPressed: () => {_deleteItem(name, portion),
                             setState(() { })},
                           ),
                         ],
@@ -602,7 +634,7 @@ void addtablecart(CartProvider cartProvider) async {
   }
 
 
-  void _deleteItem(int index,String portion) {
+  void _deleteItem(String index,String portion) {
     final cartProvider = Provider.of<CartProvider>(context, listen: false);
     cartProvider.removeFromCart(index, portion); // Make sure this method exists in your provider
     setState(() { });
@@ -1443,14 +1475,14 @@ class __BottomBarState extends State<_BottomBar> {
               const SizedBox(height: 16),
               ListTile(
                 leading: Icon(Icons.money_rounded, color: Colors.green.shade600, size: 30),
-                title: const Text('Cash', style: TextStyle(fontSize: 16)),
+                title: Text('Cash', style: TextStyle(fontSize: 16)),
                 onTap: () => Navigator.pop(context, 'CASH'),
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
               ),
               const Divider(),
               ListTile(
                 leading: Icon(Icons.qr_code_scanner_rounded, color: Colors.deepPurple.shade400, size: 30),
-                title: const Text('UPI / QR Code', style: TextStyle(fontSize: 16)),
+                title: Text('UPI / QR Code', style: TextStyle(fontSize: 16)),
                 onTap: () => Navigator.pop(context, 'UPI'),
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
               ),
@@ -2003,4 +2035,3 @@ class __BottomBarState extends State<_BottomBar> {
   // }
 
 }
-

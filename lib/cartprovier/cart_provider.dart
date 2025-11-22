@@ -105,8 +105,7 @@ class CartProvider extends ChangeNotifier {
       bool itemExists = false;
       // debugPrint("cart item to set item is $cartItem");
       for (int i = 0; i < _cart.length; i++) {
-        if (_cart[i]['id'] == cartItem['id'] &&
-            _cart[i]['portion'] == cartItem['portion']) {
+        if (_cart[i]['id'] == cartItem['id'] && _cart[i]['portion'] == cartItem['portion'] && _cart[i]['name'] == cartItem['name']) {
           _cart[i]['qty'] = cartItem['qty'];
           _cart[i]['total'] = cartItem['total'];
 
@@ -116,10 +115,48 @@ class CartProvider extends ChangeNotifier {
       }
 
       // If item doesn't exist, add it to cart
+      // debugPrint("asdfghjkl1");
       if (!itemExists) {
-        _cart.add(cartItem);
-        // _selectedItemIds.add(cartItem['id']);
+        // debugPrint("asdfghjkl2");
+        // Find the last index of an item with the same base name to group them.
+        final newName = cartItem['name'] as String;
+        final baseName = newName.contains('_') ? newName.substring(0, newName.lastIndexOf('_')) : newName;
+        // debugPrint("asdfghjkl3");
+        final count = (_cart.where((cartItem) => (cartItem['name'] as String).startsWith(baseName)).length) - 1;
+        // debugPrint("asdfghjkl4");
+        final baseName1 = count > 0  ? newName.substring(0, newName.lastIndexOf('_')) + '_${count}': newName.split("_")[0];
+        // debugPrint("asdfghjkl5");
+        
+
+        // debugPrint("asdfghjkl5");
+        int index = -1;
+        for(int i = 0; i < _cart.length; i++){
+            // debugPrint("asdfghjkl ${_cart[i]['name']} $baseName1");
+            // debugPrint("asdfghjkl ${_cart[i]['name'] == baseName1 } $i");
+            if(_cart[i]['name'] == baseName1){
+              index = i;
+              break;
+            }
+        }
+
+        // debugPrint("asdfghjkl6;${count} $newName ${count > 0} $index $baseName $baseName1 ");
+
+        if (index != -1) {
+          // If found, insert the new item right after the last one.
+          _cart.insert(index +1, cartItem);
+          if (kDebugMode) {
+            debugPrint('Cart inserted successfully. Total items: ${_cart}');
+          }
+        } else {
+          // debugPrint("asdfghjkl add item");
+          // Otherwise, add it to the end of the list.
+          _cart.add(cartItem);
+          if (kDebugMode) {
+            debugPrint('Cart added successfully. Total items: ${_cart}');
+          }
+        }
       }
+      // _cart.add(cartItem);
 
       // debugPrint("cart item to set item is $item");
 
@@ -132,9 +169,7 @@ class CartProvider extends ChangeNotifier {
       // _cart.add(_cart);
       notifyListeners();
 
-      if (kDebugMode) {
-        debugPrint('Cart updated successfully. Total items: ${_cart}');
-      }
+      
     } catch (e) {
       if (kDebugMode) {
         debugPrint('\x1B[31m Error saving cart: $e \x1B[0m');
@@ -180,19 +215,19 @@ class CartProvider extends ChangeNotifier {
     notifyListeners();
   }
 
-  void removeFromCart(int id, String portion, {int? tableNo}) {
+  void removeFromCart(String name, String portion, {int? tableNo}) {
     try {
       // Convert both to lowercase for case-insensitive comparison
       final targetPortion = portion.toLowerCase().trim();
       //debugPrint(" $id $targetPortion");
 
       _cart.removeWhere((item) {
-        final itemId = item['id'];
+        final itemName = item['name'];
         final itemPortion = (item['portion']?.toString() ?? '')
             .toLowerCase()
             .trim();
-        debugPrint(" $itemId $itemPortion");
-        return itemId == id && itemPortion == targetPortion;
+        debugPrint(" $itemName $itemPortion");
+        return itemName == name && itemPortion == targetPortion;
       });
 
       notifyListeners();
@@ -224,7 +259,7 @@ class CartProvider extends ChangeNotifier {
     
     // 1. TRY TO FIND AND UPDATE THE ITEM
     for (int i = 0; i < _cart.length; i++) {
-      if (_cart[i]['id'] == id && (_cart[i]['portion'].toString()).toLowerCase() == portion.toLowerCase()) {
+      if (_cart[i]['name'] == itemName && (_cart[i]['portion'].toString()).toLowerCase() == portion.toLowerCase()) {
         _cart[i]['qty'] = newQty;
         _cart[i]['total'] = _cart[i]['sellPrice'] * newQty;
         debugPrint("Updated item in cart: $_cart");
@@ -273,13 +308,13 @@ class CartProvider extends ChangeNotifier {
 
     // Update item price in cart
   void updatePricePortion(
-    int id,
+    String name,
     int newPrice,
     String portion, {
     int? tableNo,
   }) async {
     for (int i = 0; i < _cart.length; i++) {
-      if (_cart[i]['id'] == id &&
+      if (_cart[i]['name'] == name &&
           (_cart[i]['portion'].toString()).toLowerCase() ==
               portion.toLowerCase()) {
         // Update quantity if item exists

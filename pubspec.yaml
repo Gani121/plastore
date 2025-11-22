@@ -72,6 +72,7 @@ dependencies:
   printing: ^5.11.1
   android_intent_plus: ^6.0.0
   esc_pos_utils_plus: ^2.0.1
+  device_info_plus: ^10.1.0
 
   flutter_localizations:
     sdk: flutter
