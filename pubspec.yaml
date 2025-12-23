@@ -54,7 +54,7 @@ dependencies:
   auto_size_text: ^3.0.0
   # sqflite: ^2.3.3 # Use the latest version
   path: ^1.9.0   # Use the latest version
-  # connectivity_plus: ^7.0.0
+  connectivity_plus: ^7.0.0
   permission_handler: ^12.0.1 # To request storage permissions
   open_file: ^3.3.1
   dio: ^5.4.0

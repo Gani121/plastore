@@ -177,7 +177,7 @@ class _DostiKitchenPageState extends State<DostiKitchenPage> {
     };
     loadRecentTransactions(store);
     loadSelectedStyle();
-    printer.syncPendingTransactions(context);
+    // printer.syncPendingTransactions(context);
   }
 
 
@@ -1166,13 +1166,16 @@ class _LiveTimeBarState extends State<LiveTimeBar> {
         _isOnline = true;
         prefs.setBool('isOnline',_isOnline);
       });
-      // await Future.delayed(Duration(seconds: 10));
-      // printer.syncPendingTransactions(context);
     } else {
       setState(() {
         _isOnline = false;
         prefs.setBool('isOnline',_isOnline);
       });
+    }
+    if(isConnected){
+      // final objectBoxService = Provider.of<ObjectBoxService>(context,listen: false,);
+      // final store = objectBoxService.store;
+      printer.syncPendingTransactions(context);
     }
   }
 
