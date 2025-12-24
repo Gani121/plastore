@@ -117,59 +117,88 @@ class _InventoryPageState extends State<InventoryPage> {
   }
 
 
-    Future<void> _showAdjustStockDialog(BuildContext context, MenuItem item) async {
+  Future<void> _showAdjustStockDialog(BuildContext context, MenuItem item) async {
     final TextEditingController controller = TextEditingController();
+    bool isOverride = false;
 
     await showDialog(
       context: context,
       builder: (context) {
-        return AlertDialog(
-          title: Text("${AppLocalizations.of(context)!.print} ${item.name}"),
-          content: TextField(
-            controller: controller,
-            keyboardType: TextInputType.number,
-            decoration: InputDecoration(
-              labelText: AppLocalizations.of(context)!.enter_qty_add,
-              border: OutlineInputBorder(),
-            ),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: Text(AppLocalizations.of(context)!.cancel),
-            ),
-            ElevatedButton(
-              onPressed: () async {
-                final store = Provider.of<ObjectBoxService>(context, listen: false).store;
-                final Box<MenuItem> menuItemBox = store.box<MenuItem>();
+        return StatefulBuilder(
+          builder: (context, setDialogState) {
+            return AlertDialog(
+              title: Text("${AppLocalizations.of(context)!.print} ${item.name}"),
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  TextField(
+                    controller: controller,
+                    keyboardType: TextInputType.number,
+                    decoration: InputDecoration(
+                      labelText: AppLocalizations.of(context)!.enter_qty_add,
+                      border: OutlineInputBorder(),
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      const Text("Override Stock"),
+                      Switch(
+                        value: isOverride,
+                        onChanged: (val) {
+                          setDialogState(() {
+                            isOverride = val;
+                          });
+                        },
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(context),
+                  child: Text(AppLocalizations.of(context)!.cancel),
+                ),
+                ElevatedButton(
+                  onPressed: () async {
+                    final store = Provider.of<ObjectBoxService>(context, listen: false).store;
+                    final Box<MenuItem> menuItemBox = store.box<MenuItem>();
 
-                final int addValue = int.tryParse(controller.text) ?? 0;
-                if (addValue <= 0) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(content: Text(AppLocalizations.of(context)!.enter_valid_number)),
-                  );
-                  return;
-                }
+                    final int addValue = int.tryParse(controller.text) ?? 0;
+                    if (!isOverride && addValue <= 0) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(content: Text(AppLocalizations.of(context)!.enter_valid_number)),
+                      );
+                      return;
+                    }
 
-                // Update the stock
-                int currentStock = item.adjustStock ?? 0;
-                item.adjustStock = currentStock + addValue;
+                    // Update the stock
+                    int currentStock = item.adjustStock ?? 0;
+                    if (isOverride) {
+                      item.adjustStock = addValue;
+                    } else {
+                      item.adjustStock = currentStock + addValue;
+                    }
 
-                // Save to database
-                menuItemBox.put(item);
-                print_log("✅ Stock updated in $item");
+                    // Save to database
+                    menuItemBox.put(item);
+                    print_log("✅ Stock updated in $item");
 
-                Navigator.pop(context); // Close dialog
+                    Navigator.pop(context); // Close dialog
 
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(content: Text("✅ Stock updated to ${item.adjustStock}")),
-                );
-                // _filteredItems
-                setState(() {});
-              },
-              child: const Text("OK"),
-            ),
-          ],
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(content: Text("✅ Stock updated to ${item.adjustStock}")),
+                    );
+                    // _filteredItems
+                    setState(() {});
+                  },
+                  child: const Text("OK"),
+                ),
+              ],
+            );
+          },
         );
       },
     );
