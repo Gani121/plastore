@@ -13,6 +13,7 @@ import 'package:flutter/services.dart';
 // import 'package:external_path/external_path.dart';
 // import 'package:permission_handler/permission_handler.dart';
 import 'package:path/path.dart' as p;
+import 'package:http/http.dart' as http;
 
 
 enum keys {
@@ -175,21 +176,6 @@ Future<void> cleanupOrphanedExpenseImages(List<String> currentPhotoPaths,String 
 Future<String?> getDownloadFolder() async {
   try {
 
-    // 1. Request Storage Permissions (Required for Android 11+)
-    // if (!await requestPermission()) {
-    //   print_log("Permission denied: Cannot access internal storage.");
-    //   return "";
-    // }
-
-
-    // Returns: /storage/emulated/0/Download
-    // final downloadPath = await ExternalPath.getExternalStoragePublicDirectory(ExternalPath.DIRECTORY_DOWNLOAD);
-    // final saveDir = Directory(downloadPath);
-    // if (!await saveDir.exists()) {
-    //   await saveDir.create(recursive: true);
-    // }
-    // final destinationPath1 = p.join(saveDir.path, 'Orbipay');
-
 
     final extDir = await getExternalStorageDirectory();
     if (!await extDir!.exists()) {
@@ -213,28 +199,6 @@ Future<String?> getDownloadFolder() async {
 }
 
 
-
-// Helper function to handle the strict Android 11+ permissions
-// Future<bool> requestPermission() async {
-//   if (Platform.isAndroid) {
-//     // Check for Android 11+ (API 30+)
-//     if (await Permission.manageExternalStorage.isDenied) {
-//       // 1. Request the permission
-//       var status = await Permission.manageExternalStorage.request();
-      
-//       // 2. If valid but denied, open the specific settings page
-//       if (!status.isGranted) {
-//         print_log("Opening system settings for All Files Access...");
-//         await openAppSettings(); // from permission_handler package
-//         // Note: The user has to toggle it manually and come back.
-//         // You might need to check status again or restart the action.
-//         return await Permission.manageExternalStorage.isGranted;
-//       }
-//       return status.isGranted;
-//     }
-//   }
-//   return true;
-// }
 
 
 
@@ -266,32 +230,56 @@ bool areAllQuantitiesZero(List<Map<String, dynamic>> cart) {
   return false;
 }
 
-// Future<String> getMediaFolderpath() async {
-//   try {
-//     // 1. Get the Root Storage path (e.g., /storage/emulated/0)
-//     final List<String>? paths = await ExternalPath.getExternalStorageDirectories();
-//     final String rootPath = paths!.first; // The first one is usually internal storage
-
-//     // 2. Define your package name
-//     // You can hardcode it: String packageName = "com.orbipay.test6";
-//     // Or get it dynamically (Recommended):
-//     PackageInfo packageInfo = await PackageInfo.fromPlatform();
-//     String packageName = packageInfo.packageName;
-
-//     // 3. Construct the specific Android/media path
-//     // Target: /storage/emulated/0/Android/media/com.orbipay.test6
-//     final String mediaPath = "$rootPath/Android/media/$packageName";
+/// 
+/// ApiCalls { t - transection, l - login, a - addItem, m - menu, i - imageFile }
+/// 
+/// Payload Map<String, Object?>
+/// 
+/// hotelName 
+/// 
+Future<http.Response?> apiCalls(
+  String apiCalls,
+  String hotelName,
+  Map<String, Object?>  payload,
+  ) async {
+    print_log("apiCalls in utility $apiCalls hotelName $hotelName payload $payload");
     
-//     // 4. Create the directory
-//     final Directory mediaDir = Directory(mediaPath);
-//     if (!await mediaDir.exists()) {
-//       await mediaDir.create(recursive: true);
-//       // print("Created Media Folder: ${mediaDir.path}");
-//     }
-
-//     return mediaDir.path;
-//   } catch (e) {
-//     print_log_red("Error creating media folder: $e");
-//     return "";
-//   }
-// }
+    switch(apiCalls){
+      case "t":
+        final response = await http.post(
+          Uri.parse("https://api2.nextorbitals.in/api/save_transaction2.php"),
+          headers: {"Content-Type": "application/json"},
+          body: jsonEncode(payload),
+        ).timeout(const Duration(seconds: 5));
+        return response;
+      case "m":
+        final response = await http
+          .get(
+            Uri.parse(
+              "https://api2.nextorbitals.in/api/get_menu.php?hotel_name=$hotelName&menutype=ac",
+            ),
+            headers: {'Content-Type': 'application/json'},
+          ).timeout(const Duration(seconds: 300));
+        return response;
+      case "a":
+        final response = await http.post(
+          Uri.parse('https://api2.nextorbitals.in/api/add_item.php'),
+          headers: {'Content-Type': 'application/json'},
+          body: jsonEncode(payload),
+        );
+        return response;
+      case "l":
+        final response = await http.post(
+          Uri.parse("https://api2.nextorbitals.in/api/login.php"),
+          headers: {"Content-Type": "application/json"},
+          body: jsonEncode(payload),
+        );
+        return response;
+      case "i":
+        final apiUrl = Uri.parse("https://api2.nextorbitals.in/api/menu_filename.php?hotel_name=${hotelName}",);
+        http.Response response = await http.get(apiUrl);
+        return response;
+      default:
+        return null;
+    }
+}

@@ -308,8 +308,9 @@ class _AddItemPageState extends State<AddItemPage> {
 
 
   Future<void> sendItemtoServer(MenuItem item) async {
+    final prefs = await SharedPreferences.getInstance();
     try {
-      final prefs = await SharedPreferences.getInstance();
+      
       final hotelName = prefs.getString('username');
 
       if (hotelName == null) {
@@ -350,11 +351,10 @@ class _AddItemPageState extends State<AddItemPage> {
 
       print_log("Payload to send to server: ${jsonEncode(payload)}");
 
-      final response = await http.post(
-        Uri.parse('https://api2.nextorbitals.in/api/add_item.php'),
-        headers: {'Content-Type': 'application/json'},
-        body: jsonEncode(payload),
-      );
+      http.Response? response = await apiCalls("a", hotelName, payload);
+        if (response == null) {
+          return;
+        }
 
       print_log('Server Response: ${response.statusCode} ${response.body}');
     } catch (e) {

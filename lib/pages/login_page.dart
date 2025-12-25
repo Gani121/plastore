@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:io';
 import 'package:flutter/material.dart';
+import 'package:test1/utilities.dart';
 import '../main.dart';
 import 'dart:convert';
 import 'package:http/http.dart' as http;
@@ -366,38 +367,20 @@ class _LoginPageState extends State<LoginPage> {
   Future<Map<String, dynamic>> getmodeldata() async {
     try{
       String deviceModel13 = Platform.isAndroid ? 'Android Device' : Platform.isIOS ? 'iOS Device' : 'Unknown Device';
+
+
+
       DeviceInfoPlugin deviceInfo = DeviceInfoPlugin();
       AndroidDeviceInfo androidInfo = await deviceInfo.androidInfo;
-
-      Map<String, dynamic> deviseInfo = {"androidVesion":androidInfo.version.release,"updateDate":androidInfo.version.securityPatch,
+      Map<String, dynamic> deviseInfo = {"androidVesion":androidInfo.version.release,
       "brand":androidInfo.brand,"id":androidInfo.id,"model":androidInfo.model,"manufacturer":androidInfo.manufacturer,
-      "type":deviceModel13,"location":Platform.localeName,"numberOfProcessors":Platform.numberOfProcessors,"version":Platform.version};
-      
-      
+      "type":deviceModel13,"location":Platform.localeName,"numberOfProcessors":Platform.numberOfProcessors};
       // Print device details
       String deviceinfostring = jsonEncode(deviseInfo);
       debugPrint('android version: $deviceinfostring');
-      // debugPrint('android version update date: ${androidInfo.version.securityPatch}');
-      // debugPrint('Device data: ${androidInfo1.data}'); 
-      // debugPrint('Device Info: ${androidInfo.board}');
-      // debugPrint('Device Info: ${androidInfo.bootloader}');
-      // debugPrint('Device Info: ${androidInfo.brand}');
-      // debugPrint('Device device: ${androidInfo.device}');
-      // debugPrint('Device Info: ${androidInfo.display}');
-      // debugPrint('Device Info: ${androidInfo.host}');
-      // debugPrint('Device id: ${androidInfo.id}');
-      // debugPrint('Device model1: ${androidInfo.model}');
-      // debugPrint('Device Info: ${androidInfo.product}');
-      // debugPrint('Device Info: ${androidInfo.serialNumber}');
-      // debugPrint('Device Info: ${androidInfo.isLowRamDevice}');
-      // debugPrint('Device Info: ${androidInfo.manufacturer}');
-      // debugPrint('Device deviceInfo123: ${deviceInfo123}');
-      // debugPrint('Device deviceModel13: ${deviceModel13}');
-      // debugPrint('Device ID: ${Platform.localHostname}');
-      // debugPrint('Device ID: ${Platform.version}');
-      // debugPrint('Device ID: ${Platform.localeName}');
-      // debugPrint('Device ID123: ${Platform.numberOfProcessors}');
+
       return deviseInfo;
+      
     }catch(e){
       return {};
     }
@@ -418,11 +401,16 @@ class _LoginPageState extends State<LoginPage> {
         final Map<String, dynamic> deviceinfo = await getmodeldata();
         // final Map<String, dynamic> deviceinfo = {};
         String deviceinfostring = jsonEncode(deviceinfo);
-        final response = await http.post(
-          Uri.parse("https://api2.nextorbitals.in/api/login.php"),
-          headers: {"Content-Type": "application/json"},
-          body: jsonEncode({"username": email, "password": password, "deviceinfo":deviceinfostring}),
-        );
+        debugPrint('android version: $deviceinfostring');
+        final payload = {
+          "username": email,
+          "password": password,
+          "deviceinfo":deviceinfostring,
+        };
+        http.Response? response = await apiCalls("l", email, payload);
+        if (response == null) {
+          return;
+        }
         debugPrint("server response ${response.statusCode} ${response.body} ");
         if (response.statusCode == 200) {
           debugPrint("Expiry remaining11 ");

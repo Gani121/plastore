@@ -1172,11 +1172,11 @@ class _LiveTimeBarState extends State<LiveTimeBar> {
         prefs.setBool('isOnline',_isOnline);
       });
     }
-    if(isConnected){
+    // if(isConnected){
       // final objectBoxService = Provider.of<ObjectBoxService>(context,listen: false,);
       // final store = objectBoxService.store;
       printer.syncPendingTransactions(context);
-    }
+    // }
   }
 
   Future<void> loadSelectedStyle() async {

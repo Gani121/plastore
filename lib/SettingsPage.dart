@@ -18,6 +18,7 @@ import 'dart:async';
 import 'package:objectbox/objectbox.dart';
 import 'database_Module/menu_item.dart';
 import 'package:archive/archive.dart';
+import 'package:test1/utilities.dart';
 
 
 
@@ -104,10 +105,10 @@ class SettingsPage extends StatelessWidget {
     try {
       // print("hotelName ${hotelName}");
       // 2️⃣ Call your PHP API to get the menu filename
-      final apiUrl = Uri.parse(
-        "https://api2.nextorbitals.in/api/menu_filename.php?hotel_name=${hotelName}",
-      );
-      final apiResponse = await http.get(apiUrl);
+      http.Response? apiResponse = await apiCalls("i", hotelName, {});
+        if (apiResponse == null) {
+          return;
+        }
 
       if (apiResponse.statusCode != 200) {
         throw Exception(
@@ -269,15 +270,10 @@ class SettingsPage extends StatelessWidget {
       // print("hotelName $hotelName");
 
       try {
-        final response = await http
-            .get(
-              Uri.parse(
-                "https://api2.nextorbitals.in/api/get_menu.php?hotel_name=$hotelName&menutype=ac",
-              ),
-              headers: {'Content-Type': 'application/json'},
-            )
-            .timeout(const Duration(seconds: 300));
-
+        http.Response? response = await apiCalls("m",hotelName, {});
+        if (response == null) {
+          return;
+        }
         if (response.statusCode == 200) {
           final jsonData = jsonDecode(response.body);
           // print("server response $jsonData");
@@ -290,14 +286,17 @@ class SettingsPage extends StatelessWidget {
 
             downloadHotelZip(context, hotelName);
             
-            // print("✅ Menu loaded from server: ${menuItems.length} items");
+            print_log("✅ Menu loaded from server: ${menuItems.length} items");
           } else {
-            // print("❌ 'data' is not a list");
+            print_log("❌ 'data' is not a list");
           }
         } else {
           debugPrint('HTTP Error: ${response.statusCode}: ${response.reasonPhrase}');
         }
       } catch (error) {
+        if (error is SocketException){
+          screen_massage(context, "Device Not Connected");
+        }
         debugPrint("❌ Error in ApiCallPage: $error");
       }
     }
