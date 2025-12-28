@@ -38,6 +38,7 @@ class _PrinterSetupPageState extends State<PrinterSetupPage>
   bool miniPrinterKOT = false;
   bool marathi = false;
   bool _customerName = false;
+  bool _otherPrnter = false;
   bool _isgst = false;
   double _fontSize = 1; // 1 = small, 2 = medium, 3 = large
   int _charsPerLine = 32; // default width
@@ -196,6 +197,7 @@ class _PrinterSetupPageState extends State<PrinterSetupPage>
       miniPrinterKOT = prefs.getBool('miniPrinterKOT') ?? false;
       marathi = prefs.getBool('marathi') ?? false;
       _customerName = prefs.getBool('customerName') ?? false;
+      _otherPrnter = prefs.getBool('otherprinter') ?? false;
       _isgst = prefs.getBool('isgst') ?? false;
       _logoWidth =  prefs.getInt('logoWidth')?? 200;
       _logoheight =  prefs.getInt('logoheight')?? 200;
@@ -217,6 +219,7 @@ class _PrinterSetupPageState extends State<PrinterSetupPage>
     await prefs.setBool('miniPrinterKOT', miniPrinterKOT);
     await prefs.setBool('marathi', marathi);
     await prefs.setBool('customerName', _customerName);
+    await prefs.setBool('otherprinter', _otherPrnter);
     await prefs.setBool('isgst', _isgst);
     await prefs.setInt('logoWidth', _logoWidth);
     await prefs.setInt('logoheight', _logoheight);
@@ -247,6 +250,7 @@ class _PrinterSetupPageState extends State<PrinterSetupPage>
     await prefs.setBool('miniPrinterKOT', miniPrinterKOT);
     await prefs.setBool('marathi', marathi);
     await prefs.setBool('customerName', _customerName);
+    await prefs.setBool('otherprinter', _otherPrnter);
     await prefs.setBool('isgst', _isgst);
     await prefs.setString('footerText', _footerController.text);
     await prefs.setInt('logoWidth', _logoWidth);
@@ -773,6 +777,16 @@ Future<void> _connectKOTPrinter() async {
               onChanged: (val) {
                 setState(() {
                   _customerName = val;
+                });
+                _autoSaveSettings(); // Auto-save when changed
+              },
+            ),
+            SwitchListTile(
+              title: Text("Other Printer"),
+              value: _otherPrnter,
+              onChanged: (val) {
+                setState(() {
+                  _otherPrnter = val;
                 });
                 _autoSaveSettings(); // Auto-save when changed
               },

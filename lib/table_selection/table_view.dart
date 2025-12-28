@@ -5,6 +5,7 @@ import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:convert';
 import 'package:objectbox/objectbox.dart';
+import 'dart:async';
 
 // --- Import your other files ---
 import '../database_Module/ObjectBoxService.dart';
@@ -213,6 +214,10 @@ void _addNewTable() {
 
   /// Deletes a table from the database by its ID.
   void _deleteTable(int tableId) {
+    final table = _tablesList.get(tableId);
+    if (table != null) {
+      _updateTableTimer(table.number, 0);
+    }
     _tablesList.remove(tableId);
     // After deleting, reload the data to update the UI
     _loadTables();
@@ -240,9 +245,23 @@ void _addNewTable() {
     
     // Save the updated table object to the database
     _tablesList.put(table); 
+    
+    _updateTableTimer(table.number, newTotal);
 
     debugPrint("✅ Table #${table.number} total updated to: $newTotal from $cart");
     setState(() { });
+  }
+
+  Future<void> _updateTableTimer(int tableNumber, double total) async {
+    final prefs = await SharedPreferences.getInstance();
+    final key = 'table_timer_$tableNumber';
+    if (total > 0) {
+      if (!prefs.containsKey(key)) {
+        await prefs.setString(key, DateTime.now().toIso8601String());
+      }
+    } else {
+      await prefs.remove(key);
+    }
   }
 
   Future<Map<String, dynamic>> loadRecentTransactions(Active_Table_view table) async {
@@ -343,29 +362,6 @@ void _addNewTable() {
     } catch (e) {
       debugPrint("Print error: $e");
     } 
-
-    // List<Map<String, dynamic>>? updatedCart;
-    // if (selectedStyle == "half-Full View") {
-    //   updatedCart = await Navigator.push<List<Map<String, dynamic>>>(
-    //     context,
-    //     MaterialPageRoute(
-    //       builder: (context) => MenuItemPage(
-    //         cart1: existingCart,
-    //         mode: "edit",
-    //         tableno: tableNo,
-    //       ),
-    //     ),
-    //   );
-    //   // ... (rest of your navigation logic) ...
-    // } else {
-    //    updatedCart = await Navigator.push<List<Map<String, dynamic>>>(
-    //     context,
-    //     MaterialPageRoute(
-    //       builder: (context) => NewOrderPage(cart1: existingCart, tableno: tableNo,),
-    //     ),
-    //   );
-      
-    // }
     
     // After returning from the page, update the table total
     // (You'll need to add your updateTableTotal function back)
@@ -455,49 +451,31 @@ void _addNewTable() {
                                     mainAxisAlignment: MainAxisAlignment.center,
                                     children: [
                                       Text(
-                                        'Table',
+                                        'Table ${table.number.toString()}',
                                         style: TextStyle(
-                                            fontSize: 12,
+                                            fontSize: 17,
+                                            fontWeight: FontWeight.bold,
                                             color: (table.total > 0) ? const Color.fromARGB(255, 255, 255, 255) : Colors.green.shade900),
                                       ),
-                                      Text(
-                                        table.number.toString(),
-                                        style: TextStyle(
-                                          fontSize: 25,
-                                          fontWeight: FontWeight.bold,
-                                          color:  (table.total > 0) ? const Color.fromARGB(255, 255, 255, 255) :const Color.fromARGB(
-                                              255, 0, 0, 0),
-                                        ),
-                                      ),
+                                      // Text(
+                                      //   table.number.toString(),
+                                      //   style: TextStyle(
+                                      //     fontSize: 14,
+                                      //     fontWeight: FontWeight.bold,
+                                      //     color:  (table.total > 0) ? const Color.fromARGB(255, 255, 255, 255) :const Color.fromARGB(
+                                      //         255, 0, 0, 0),
+                                      //   ),
+                                      // ),
                                       Text(
                                         '₹${table.total.toStringAsFixed(0)}',
                                         style: TextStyle(
-                                            fontSize: 14,
+                                            fontSize: 15,
                                             color:  (table.total > 0) ? const Color.fromARGB(255, 255, 255, 255) : Colors.grey.shade700),
                                       ),
+                                      TableTimerWidget(tableNumber: table.number, total: table.total),
                                     ],
                                   ),
                                 ),
-                                
-                                // Edit icon
-                                // Positioned(
-                                //   top: 0,
-                                //   right: 0,
-                                //   child: GestureDetector(
-                                //     onTap: () {
-                                //       _navigateToOrderPage(table);
-                                //     },
-                                //     child: Container(
-                                //       padding: EdgeInsets.zero,
-                                //       child: Icon(
-                                //         Icons.edit,
-                                //         color:  (table.total > 0) ? const Color.fromARGB(255, 51, 255, 0) : const Color.fromARGB(
-                                //             255, 247, 62, 62),
-                                //         size: 20.0,
-                                //       ),
-                                //     ),
-                                //   ),
-                                // ),
                               ],
                             ),
                           ),
@@ -646,4 +624,98 @@ void _addNewTable() {
   }
 
 
+}
+
+class TableTimerWidget extends StatefulWidget {
+  final int tableNumber;
+  final double total;
+
+  const TableTimerWidget({
+    Key? key,
+    required this.tableNumber,
+    required this.total,
+  }) : super(key: key);
+
+  @override
+  State<TableTimerWidget> createState() => _TableTimerWidgetState();
+}
+
+class _TableTimerWidgetState extends State<TableTimerWidget> {
+  Timer? _timer;
+  Duration _duration = Duration.zero;
+
+  @override
+  void initState() {
+    super.initState();
+    _checkTimer();
+  }
+
+  @override
+  void didUpdateWidget(covariant TableTimerWidget oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.total != widget.total) {
+      _checkTimer();
+    }
+  }
+
+  void _checkTimer() async {
+    if (widget.total <= 0) {
+      _timer?.cancel();
+      _timer = null;
+      if (mounted) setState(() => _duration = Duration.zero);
+      return;
+    }
+
+    final prefs = await SharedPreferences.getInstance();
+    final key = 'table_timer_${widget.tableNumber}';
+    String? startTimeStr = prefs.getString(key);
+
+    if (startTimeStr == null) {
+      final now = DateTime.now();
+      await prefs.setString(key, now.toIso8601String());
+      startTimeStr = now.toIso8601String();
+    }
+
+    final startTime = DateTime.parse(startTimeStr);
+    _startTicker(startTime);
+  }
+
+  void _startTicker(DateTime startTime) {
+    _timer?.cancel();
+    _updateDuration(startTime);
+    _timer = Timer.periodic(const Duration(seconds: 1), (_) {
+      _updateDuration(startTime);
+    });
+  }
+
+  void _updateDuration(DateTime startTime) {
+    if (!mounted) return;
+    setState(() {
+      _duration = DateTime.now().difference(startTime);
+    });
+  }
+
+  @override
+  void dispose() {
+    _timer?.cancel();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (widget.total <= 0) return const SizedBox.shrink();
+    
+    final hours = _duration.inHours.toString().padLeft(2, '0');
+    final minutes = (_duration.inMinutes % 60).toString().padLeft(2, '0');
+    final seconds = (_duration.inSeconds % 60).toString().padLeft(2, '0');
+
+    return Text(
+      '$hours:$minutes:$seconds',
+      style: const TextStyle(
+        fontSize: 10,
+        color: Colors.white,
+        fontWeight: FontWeight.bold,
+      ),
+    );
+  }
 }

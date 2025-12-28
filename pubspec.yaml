@@ -32,6 +32,8 @@ dependencies:
     sdk: flutter
   intl: 0.20.2
   blue_thermal_printer: ^1.1.5
+  pos_universal_printer: ^0.2.10
+  esc_pos_utils_plus: ^2.0.1
   dotted_border: ^3.1.0
   shared_preferences: ^2.2.2
   image_picker: ^1.1.0
@@ -71,11 +73,12 @@ dependencies:
   image: ^4.1.7 # Add this line
   printing: ^5.11.1
   android_intent_plus: ^6.0.0
-  esc_pos_utils_plus: ^2.0.1
   device_info_plus: ^10.1.0
   package_info_plus: ^9.0.0
   # external_path: ^2.2.0
   scrollable_positioned_list: ^0.3.8 # Add this line
+  
+
 
   flutter_localizations:
     sdk: flutter

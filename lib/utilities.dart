@@ -200,6 +200,21 @@ Future<String?> getDownloadFolder() async {
 
 
 
+Future<void> sleep(int time,String duration) async {
+
+  switch(duration){
+    case "s":
+      await Future.delayed(Duration(seconds: time));
+    case "m":
+      await Future.delayed(Duration(milliseconds: time));
+    default:
+      await Future.delayed(Duration(milliseconds: time));
+  }
+  
+}
+
+
+
 
 
 /// Checks if all items in a cart-like list have a quantity of zero or less.

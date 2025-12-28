@@ -81,6 +81,11 @@ class MyApp extends StatelessWidget {
         // ACTUAL INSTANCE of your provider.
 
         return MaterialApp(
+          // initialRoute: '/',
+          // routes: {
+          //   '/': (context) => const DostiKitchenPage(),
+          //   '/details': (context) => const DostiKitchenPage(),
+          // },
           title: 'Orbipay',
           
           // 2. Now you can access the 'locale' property from the instance

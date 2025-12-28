@@ -16,137 +16,229 @@ import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:internet_connection_checker_plus/internet_connection_checker_plus.dart';
 import 'package:http/http.dart' as http;
 import 'package:permission_handler/permission_handler.dart';
+import 'package:flutter_blue_plus/flutter_blue_plus.dart' as bl;
 import 'package:blue_thermal_printer/blue_thermal_printer.dart' as thermal;
+// import 'package:pos_universal_printer/pos_universal_printer.dart' as pos;
 import 'package:esc_pos_utils_plus/esc_pos_utils_plus.dart';
 import '/objectbox.g.dart';
 import 'package:intl/intl.dart';
 import 'database_Module/BillCounter.dart';
+import 'database_Module/ObjectBoxService.dart';
 import 'database_Module/menu_item.dart';
+import 'dart:convert';
+import 'dart:math';
 import 'dart:typed_data';
+import './printer_pages/cat_protocol.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
 import 'database_Module/tableCart.dart';
 
-enum PrintQuality { light, normal, dark, maximum }
 
-enum SoundPattern { shortBeep, longBeep, doubleBeep, tripleBeep, continuous }
+
+  enum PrintQuality {
+    light,
+    normal, 
+    dark,
+    maximum
+  }
+
+  enum SoundPattern {
+  shortBeep,    // Quick confirmation
+  longBeep,     // Attention required
+  doubleBeep,   // Success
+  tripleBeep,   // Error/alert
+  continuous,   // Continuous beep
+}
+
 
 class BillPrinter {
   thermal.BlueThermalPrinter printer = thermal.BlueThermalPrinter.instance;
-  thermal.BluetoothDevice? _connectedDevice;
+  thermal.BluetoothDevice? _selectedDevice;
+  thermal.BluetoothDevice? _selectedKOTDevice;
+  bl.BluetoothDevice? _connectedDevice;
   Generator? _generator;
   Function()? onTransactionAdded;
+  List<bl.ScanResult> _scanResults = [];
+  StreamSubscription<List<bl.ScanResult>>? _scanSubscription;
+  static const String SERVICE_UUID1 = "0000ff00-0000-1000-8000-00805f9b34fb";
+  static const String CHARACTERISTIC_UUID = "0000ff02-0000-1000-8000-00805f9b34fb";
+  static const String SERVICE_UUID = "49535343-8841-43f4-a8d4-ecbe34729bb3";
   late List<int> bytes = [];
   final int printerWidth = 384;
   late bool KOT_Print = false;
   late Store store;
+  static bool _isSyncing = false;
+  String dashLine = "------------------------------------";
+  static const List<int> resetBuffer = [0x1B, 0x40]; // ESC @
+  static const List<int> initCommand = [27, 64]; // ESC @
+
+
+
 
   Future<bool> printCart({
-    required BuildContext context,
-    required List<Map<String, dynamic>> cart1,
-    required int total,
-    required String mode,
-    required String payment_mode,
-    List<Map<String, dynamic>>? oldcart1,
-    int? tableNo,
-    Map<String, dynamic>? transactionData,
-  }) async {
-    try {
-      store = Provider.of<ObjectBoxService>(context, listen: false).store;
-      bytes = [];
-      final stopwatch = Stopwatch()..start();
-      final cart = (oldcart1 != null) ? oldcart1 : cart1;
-      final _tableno = tableNo ?? 0;
-      final prefs = await SharedPreferences.getInstance();
-      final int billNo = (transactionData?['billNo'] == null)
-          ? getNextBillNo(context)
-          : transactionData?['billNo'];
-
-      debugPrint(
-        "check printer is connected total $total mode $mode payment_mode $payment_mode  $transactionData billNo $billNo",
-      );
-
-      KOT_Print =
-          mode.toLowerCase().contains("kot") ||
-          payment_mode.toLowerCase().contains("kot");
-
-      final device = await _getSavedPrinter(
-        KOTmode: KOT_Print,
-        context: context,
-      );
-      bool settle_button_enabled =
-          prefs.getBool("settle_button_enabled") ?? false;
-
-      if (device != null || settle_button_enabled) {
-        bool isConnected = await _isConnected();
-        debugPrint(
-          "check printer is connected ${isConnected} $transactionData",
-        );
-
-        if (!isConnected || settle_button_enabled) {
+        required BuildContext context,
+        required List<Map<String, dynamic>> cart1,
+        required int total,
+        required String mode,
+        required String payment_mode,
+        List<Map<String, dynamic>>? oldcart1,
+        int? tableNo,
+        Map<String, dynamic>? transactionData,
+      }) async {
+        try {
+          store = Provider.of<ObjectBoxService>(context, listen: false).store;
           bytes = [];
-
-          final store = Provider.of<ObjectBoxService>(
-            context,
-            listen: false,
-          ).store;
+          final stopwatch = Stopwatch()..start();
+          final cart =  (oldcart1 != null) ? oldcart1 : cart1;
+          final _tableno = tableNo ?? 0;
+          final prefs = await SharedPreferences.getInstance();
+          final int billNo = (transactionData?['billNo'] == null) ? getNextBillNo(context) : transactionData?['billNo'];
           final box = store.box<Transaction>();
-          print_log(
-            "settle_button_enabled mode ${isConnected}  payment_mode $payment_mode settle_button_enabled $settle_button_enabled",
-          );
           int pageback1 = 0;
           // if (mode == "settle1") pageback1 = 2;
           if (_tableno > 0) pageback1 = 1;
 
-          if (settle_button_enabled) {
-            await settel_update(
-              context: context,
-              prefs: prefs,
-              box: box,
-              cart: cart,
-              oldcart1: oldcart1,
-              total: total,
-              tableNo: _tableno,
-              pageback: pageback1,
-              payment_mode: payment_mode,
-              mode: mode,
-              transactionData: transactionData,
-            );
-            return true;
-          } else {
-            bool isconnected = await _connectToPrinter(device!);
-            if (!isconnected) {
-              return false;
+          debugPrint("check printer is connected total $total mode $mode payment_mode $payment_mode  $transactionData billNo $billNo $cart");
+
+          
+          // return true;
+
+          KOT_Print = mode.toLowerCase().contains("kot") || payment_mode.toLowerCase().contains("kot");
+          
+          final device = await _getSavedPrinter(KOTmode:KOT_Print,context: context);
+          bool settle_button_enabled = prefs.getBool("settle_button_enabled") ?? false;
+          bool otherprinter = prefs.getBool("otherprinter") ?? false;
+          if(settle_button_enabled){
+              await settel_update(
+                  context: context,
+                  prefs: prefs,
+                  box: box,
+                  cart: cart,
+                  oldcart1: oldcart1,
+                  total: total,
+                  tableNo: _tableno,
+                  pageback: pageback1,
+                  payment_mode: payment_mode,
+                  mode: mode,
+                  transactionData:transactionData,
+                );
+                return true;
+
             }
-          }
 
-          switch (mode.toLowerCase()) {
-            case "only_kot":
-              await sendKotToPrinter(
+
+          if(otherprinter){
+            await printnewprinter(context: context, cart1:cart, total:total, billNo: billNo,tableNumber: _tableno,transactionData:transactionData);
+
+            await settel_update(
                 context: context,
+                prefs: prefs,
+                box: box,
                 cart: cart,
-                tableNumber: _tableno,
-                kotNumber: transactionData?['billNo'],
-                transactionData: transactionData,
-              );
-              return true;
-            case "onlyprint":
-              await sendDataToPrinter(
-                context: context,
-                cart1: cart,
+                oldcart1: oldcart1,
                 total: total,
-                billNo: billNo,
-                tableNumber: _tableno,
-                transactionData: transactionData,
+                tableNo: _tableno,
+                pageback: pageback1,
+                payment_mode: payment_mode,
+                mode: mode,
+                transactionData:transactionData,
               );
               return true;
-            case "onlysettle":
-              await _disconnect();
 
-              final ttid = prefs.getInt("tt$tableNo");
+            }
+
+
+
+
+          if (device != null || settle_button_enabled ) {
+            bool isConnected = await _isConnected();
+            debugPrint("check printer is connected ${isConnected} $transactionData");
+
+            if (!isConnected || settle_button_enabled ) {
+              bytes = [];
+
+              print_log("settle_button_enabled mode ${isConnected}  payment_mode $payment_mode settle_button_enabled $settle_button_enabled");
+
+              bool isconnected =  await _connectToPrinter(device);
+              if(!isconnected){
+              return false;
+              }
+
+              switch (mode.toLowerCase()) {
+                case "only_kot":
+                  await sendKotToPrinter(context: context,cart:cart,tableNumber: _tableno, kotNumber:  transactionData?['billNo'],transactionData:transactionData);
+                  return true;
+                case "onlyprint":
+                  await sendDataToPrinter(context: context, cart1:cart, total:total, billNo: billNo,tableNumber: _tableno ,transactionData:transactionData);
+                  return true;
+                case "onlysettle":
+                  await _disconnect();
+                  
+                  final ttid = prefs.getInt("tt$tableNo");
+                  final isnonzero = areAllQuantitiesZero(cart);
+                  print_log("qty check  ${isnonzero} > 0");
+                  if(isnonzero){
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text("Please ckeck the cart"),
+                        duration: Duration(seconds: 1),
+                      ),
+                    );
+                    return false;
+                  }
+                  int id;
+                  if(ttid != null){
+                    id = ttid;
+                    await updateTransactionToObjectBox(
+                      context: context,
+                      cart: cart,
+                      total: total,
+                      tableNo: _tableno,
+                      pageback: pageback1,
+                      payment_mode: payment_mode,
+                      status: mode,
+                      id: ttid.toString(),
+                      transactionData:transactionData,
+                    );
+                    // int gotId = int.parse(ttid.toString());
+                    sendTransactionToServer(box, ttid);
+                  } else {
+
+                    id  = await saveTransactionToObjectBox(
+                      context: context,
+                      cart: cart,
+                      total: total,
+                      tableNo: _tableno,
+                      pageback: pageback1,
+                      payment_mode: payment_mode,
+                      status: mode,
+                      transactionData:transactionData
+                    );
+                  }
+                  
+                  final key = "table${tableNo}";
+                  final message = 'clear table cart data $key';
+                  print_log_red('$message');
+                  // prefs.remove(key);
+                  deletetablecart(_tableno);
+                  debugPrint("saveTransactionToObjectBox with id - $id  table $key ");
+                  sendTransactionToServer(box, id);
+                  prefs.remove("tt$tableNo",);
+                  return true;
+              }
+
+              if(payment_mode.toLowerCase().contains("kot")){
+
+                await sendKotToPrinter(context: context,cart:cart,tableNumber: _tableno,kotNumber: transactionData?['billNo'],transactionData:transactionData);
+              }else{
+
+                await sendDataToPrinter(context: context, cart1:cart, total:total, billNo: billNo,tableNumber: _tableno,transactionData:transactionData);
+              }
+              
+              late final String id;
               final isnonzero = areAllQuantitiesZero(cart);
               print_log("qty check  ${isnonzero} > 0");
-              if (isnonzero) {
+              if(isnonzero){
                 ScaffoldMessenger.of(context).showSnackBar(
                   SnackBar(
                     content: Text("Please ckeck the cart"),
@@ -155,24 +247,27 @@ class BillPrinter {
                 );
                 return false;
               }
-              int id;
-              if (ttid != null) {
-                id = ttid;
+              if (payment_mode.contains("_")) {
+                List pm = payment_mode.split("_");
+                String paymentMode = pm[0];
+                id = pm[1];
+                debugPrint("updateTransactionToObjectBox ID is $id and mode $payment_mode");
                 await updateTransactionToObjectBox(
                   context: context,
                   cart: cart,
                   total: total,
                   tableNo: _tableno,
                   pageback: pageback1,
-                  payment_mode: payment_mode,
+                  payment_mode: paymentMode,
                   status: mode,
-                  id: ttid.toString(),
-                  transactionData: transactionData,
+                  id: id,
+                  transactionData:transactionData,
                 );
-                // int gotId = int.parse(ttid.toString());
-                sendTransactionToServer(box, ttid);
+                int gotId = int.parse(id);
+                sendTransactionToServer(box, gotId);
+                
               } else {
-                id = await saveTransactionToObjectBox(
+                int id  = await saveTransactionToObjectBox(
                   context: context,
                   cart: cart,
                   total: total,
@@ -180,658 +275,357 @@ class BillPrinter {
                   pageback: pageback1,
                   payment_mode: payment_mode,
                   status: mode,
-                  transactionData: transactionData,
+                  transactionData:transactionData,
                 );
+
+                debugPrint("saveTransactionToObjectBox with id - $id ");
+                sendTransactionToServer(box, id);
+                if (_tableno > 0){
+                  prefs.setInt("tt$tableNo", id);
+                }
               }
 
-              final key = "table${tableNo}";
-              final message = 'clear table cart data $key';
-              debugPrint('\x1B[31m $message \x1B[0m');
-              // prefs.remove(key);
-              deletetablecart(_tableno);
-              debugPrint(
-                "saveTransactionToObjectBox with id - $id  table $key ",
-              );
-              sendTransactionToServer(box, id);
-              prefs.remove("tt$tableNo");
-              return true;
-          }
-
-          if (payment_mode.toLowerCase().contains("kot")) {
-            await sendKotToPrinter(
-              context: context,
-              cart: cart,
-              tableNumber: _tableno,
-              kotNumber: transactionData?['billNo'],
-              transactionData: transactionData,
-            );
-          } else {
-            await sendDataToPrinter(
-              context: context,
-              cart1: cart,
-              total: total,
-              billNo: billNo,
-              tableNumber: _tableno,
-              transactionData: transactionData,
-            );
-          }
-
-          late final String id;
-          final isnonzero = areAllQuantitiesZero(cart);
-          print_log("qty check  ${isnonzero} > 0");
-          if (isnonzero) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: Text("Please ckeck the cart"),
-                duration: Duration(seconds: 1),
-              ),
-            );
-            return false;
-          }
-          if (payment_mode.contains("_")) {
-            List pm = payment_mode.split("_");
-            String paymentMode = pm[0];
-            id = pm[1];
-            debugPrint(
-              "updateTransactionToObjectBox ID is $id and mode $payment_mode",
-            );
-            await updateTransactionToObjectBox(
-              context: context,
-              cart: cart,
-              total: total,
-              tableNo: _tableno,
-              pageback: pageback1,
-              payment_mode: paymentMode,
-              status: mode,
-              id: id,
-              transactionData: transactionData,
-            );
-            int gotId = int.parse(id);
-            sendTransactionToServer(box, gotId);
-          } else {
-            int id = await saveTransactionToObjectBox(
-              context: context,
-              cart: cart,
-              total: total,
-              tableNo: _tableno,
-              pageback: pageback1,
-              payment_mode: payment_mode,
-              status: mode,
-              transactionData: transactionData,
-            );
-
-            debugPrint("saveTransactionToObjectBox with id - $id ");
-            sendTransactionToServer(box, id);
-            if (_tableno > 0) {
-              prefs.setInt("tt$tableNo", id);
+              stopwatch.stop();
+              debugPrint("send print function Processing time: ${stopwatch.elapsedMilliseconds}ms and ${stopwatch.elapsedMilliseconds/1000} s");
+            } else {
+              await _disconnect(); 
             }
           }
-
-          stopwatch.stop();
-          debugPrint(
-            "send print function Processing time: ${stopwatch.elapsedMilliseconds}ms and ${stopwatch.elapsedMilliseconds / 1000} s",
+        } catch (e) {
+          print_log_red("❌ Error while printing in printCart: $e");
+          Navigator.pop(context);
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text("Printer Is Not Connected, Please Restart the Printer"),
+              duration: Duration(seconds: 5),
+            ),
           );
-        } else {
-          await _disconnect();
+        } 
+
+        return true;
+      }
+
+
+Future<void> printInChunks(thermal.BlueThermalPrinter printer, Uint8List allBytes) async {
+  const int firstChunkSize = 130;
+  const int chunkSize = 230;
+  const int delayMs = 300;
+  
+  if (allBytes.length <= firstChunkSize) {
+    await printer.writeBytes(allBytes);
+    return;
+  }
+  
+  // ✅ CRITICAL: Send COMPLETE image headers first (usually <50 bytes)
+  // Find ESC * command end and send as first chunk
+  int escStarEnd = _findEscStarEnd(allBytes);
+  final headerChunk = allBytes.sublist(0, (escStarEnd + 10).clamp(0, firstChunkSize));
+  await printer.writeBytes(headerChunk);
+  await sleep(delayMs, "m");
+  
+  // First 130 bytes (must include complete header)
+  final firstChunk = allBytes.sublist(0, firstChunkSize);
+  await printer.writeBytes(firstChunk);
+  await sleep(delayMs, "m");
+  
+  // Remaining raster data only
+  final remaining = allBytes.sublist(firstChunkSize);
+  for (int i = 0; i < remaining.length; i += chunkSize) {
+    final end = (i + chunkSize < remaining.length) ? i + chunkSize : remaining.length;
+    final chunk = remaining.sublist(i, end);
+    await printer.writeBytes(Uint8List.fromList(List<int>.from(chunk)));
+    await sleep(delayMs, "m");
+  }
+}
+
+/// Find end of ESC * header (nL+nH bytes)
+int _findEscStarEnd(Uint8List bytes) {
+  for (int i = 0; i < bytes.length - 4; i++) {
+    if (bytes[i] == 0x1B && bytes[i+1] == 0x2A) { // ESC *
+      return i + 4; // Skip ESC*m nL nH
+    }
+  }
+  return 20; // Default safe header size
+}
+
+
+
+
+
+
+Future<List<int>> _getLogoBytes(String imagePath, {int printerWidth = 384}) async {
+  try {
+    // 1. Load and decode image
+    final file = File(imagePath);
+    final bytes = await file.readAsBytes();
+    img.Image? image = img.decodeImage(bytes);
+    
+    if (image == null) {
+      debugPrint("❌ Invalid image at $imagePath");
+      return [0x1B, 0x40];
+    }
+    
+    // 2. Resize to printer width
+    image = img.copyResize(image, width: printerWidth);
+    
+    // 3. Convert to monochrome - FIXED VERSION
+    img.Image mono = img.Image(width: image.width, height: image.height);
+    for (int y = 0; y < image.height; y++) {
+      for (int x = 0; x < image.width; x++) {
+        final pixel = image.getPixel(x, y);
+        final gray = img.getLuminance(pixel);
+        final isBlack = gray < 128;
+        // ✅ CORRECT: Use Color object
+        final color = isBlack ? img.ColorRgb8(0, 0, 0) : img.ColorRgb8(255, 255, 255);
+        mono.setPixel(x, y, color);
+      }
+    }
+    
+    // 4. Generate ESC/POS raster bytes (rasterize directly from mono)
+    List<int> cmd = [];
+    cmd.addAll([0x1B, 0x2A, 33]); // ESC * m=33
+    
+    final byteWidth = (printerWidth + 7) ~/ 8;
+    cmd.add(byteWidth & 0xFF);
+    cmd.add((byteWidth >> 8) & 0xFF);
+    
+    // Raster data
+    for (int y = 0; y < mono.height; y++) {
+      for (int x = 0; x < byteWidth; x++) {
+        int byteData = 0;
+        for (int bit = 0; bit < 8; bit++) {
+          final px = x * 8 + bit;
+          if (px < printerWidth) {
+            final pixel = mono.getPixel(px, y);
+            final isBlack = img.getLuminance(pixel) < 128;
+            if (isBlack) {
+              byteData |= (1 << (7 - bit));
+            }
+          }
         }
+        cmd.add(byteData);
       }
-    } catch (e) {
-      print_log_red("❌ Error while printing: $e");
-      Navigator.pop(context);
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text("Printer Is Not Connected, Please Restart the Printer"),
-          duration: Duration(seconds: 5),
-        ),
-      );
     }
-
-    return true;
+    
+    cmd.add(0x0A); // End raster
+    debugPrint("✅ Logo: ${cmd.length} bytes (${mono.width}x${mono.height})");
+    return cmd;
+    
+  } catch (e) {
+    debugPrint("❌ Logo error: $e");
+    return [0x1B, 0x40];
   }
+}
 
-  // Bluetooth connection methods with blue_thermal_printer
-  Future<bool> _connectToPrinter(
-    thermal.BluetoothDevice device, {
-    BuildContext? context,
-  }) async {
-    try {
-      // Connect using blue_thermal_printer
-      await printer.connect(device);
 
-      // Initialize generator
-      final prefs = await SharedPreferences.getInstance();
-      String paperSize = prefs.getString('paperSize') ?? '2';
-      debugPrint("--- paperSize $paperSize ---");
 
-      // Load capability profile
-      final profile = await CapabilityProfile.load();
+Future<void> printBillWithLogo(thermal.BlueThermalPrinter bluetooth) async {
+  final prefs = await SharedPreferences.getInstance();
+  final imagePath = prefs.getString('imagePath');
+  List<int> bytes = [];
+  
+  // ESC/POS Init + Logo raster (your processed logo ~100 bytes)
+  bytes.addAll([0x1B, 0x40]); // Init
+  bytes.addAll(await _getLogoBytes(imagePath ?? "")); // Your logo raster
+  
+  
+  final completeBytes = Uint8List.fromList(bytes);
+  debugPrint("Total bytes: ${completeBytes.length}"); // e.g., 450
+  
+  await printInChunks(bluetooth, completeBytes);
+  await bluetooth.paperCut();
+}
 
-      // Set paper size based on preference
-      PaperSize size;
-      switch (paperSize) {
-        case "2":
-          size = PaperSize.mm58;
-          break;
-        case "3":
-          size = PaperSize.mm72;
-          break;
-        case "4":
-          size = PaperSize.mm80;
-          break;
-        default:
-          size = PaperSize.mm58;
-      }
 
-      _generator = Generator(size, profile);
-      _connectedDevice = device;
 
-      debugPrint("✅ Connected to printer: ${device.name}");
-      return true;
-    } catch (e) {
-      debugPrint("❌ Error connecting to printer: $e");
-      return false;
-    }
-  }
-
-  Future<bool> _isConnected({BuildContext? context}) async {
-    final connected = await printer.isConnected;
-    return connected == true;
-  }
-
-  Future<void> _disconnect({BuildContext? context}) async {
-    await printer.disconnect();
-    _connectedDevice = null;
-    _generator = null;
-  }
-
-  Future<void> _sendToPrinter({
-    Uint8List? imageBytes,
-    BuildContext? context,
-  }) async {
-    final isConnected = await _isConnected();
-    if (!isConnected) {
-      throw Exception("Printer not connected");
-    }
-
-    final prefs = await SharedPreferences.getInstance();
-    final bool miniPrinter = prefs.getBool('miniPrinter') ?? false;
-    final bool miniPrinterKOT = prefs.getBool('miniPrinterKOT') ?? false;
-
-    if (bytes.isNotEmpty) {
-      // Convert bytes to Uint8List
-      final data = Uint8List.fromList(bytes);
-
-      // Send the data to printer
-      await printer.writeBytes(data);
-
-      // Wait for printer to process
-      await Future.delayed(Duration(milliseconds: 100));
-    }
-
-    bytes = [];
-    debugPrint("🎉 All data sent successfully to printer!");
-  }
-
-  int getNextBillNo(BuildContext context) {
-    final store = Provider.of<ObjectBoxService>(context, listen: false).store;
-    final billCounterBox = store.box<BillCounter>();
-    final existingCounters = billCounterBox.getAll();
-    debugPrint("next bill number ${existingCounters}");
-    int billNo = (existingCounters.isEmpty)
-        ? 1
-        : existingCounters.first.lastBillNo;
-    debugPrint("next bill number ${billNo}");
-    return billNo;
-  }
-
-  void setNextBillNo(BuildContext context, int billNo) async {
-    final store = Provider.of<ObjectBoxService>(context, listen: false).store;
-    final billCounterBox = store.box<BillCounter>();
-
-    BillCounter? existingCounter = billCounterBox.getAll().isNotEmpty
-        ? billCounterBox.getAll().first
-        : null;
-
-    final nextBillNo = billNo + 1;
-    debugPrint("✅ Saving next Bill No to ObjectBox: $nextBillNo");
-
-    if (existingCounter != null) {
-      existingCounter.lastBillNo = existingCounter.lastBillNo + 1;
-      billCounterBox.put(existingCounter);
-    } else {
-      BillCounter newCounter = BillCounter(lastBillNo: nextBillNo);
-      billCounterBox.put(newCounter);
-    }
-
-    debugPrint("✅ BillCounter saved successfully with billNo: $nextBillNo");
-  }
-
-  Future<void> sendDataToPrinter({
+  ///SIZE
+  /// 0- normal size text
+  /// 1- only bold text
+  /// 2- bold with medium text
+  /// 3- bold with large text
+  ///ALIGN
+  /// 0- ESC_ALIGN_LEFT
+  /// 1- ESC_ALIGN_CENTER
+  /// 2- ESC_ALIGN_RIGHT
+  Future<void> printnewprinter({
     required BuildContext context,
     required List<Map<String, dynamic>> cart1,
     required int total,
     required int billNo,
     required Map<String, dynamic>? transactionData,
-    required int? tableNumber,
+    required int tableNumber,
   }) async {
+
     try {
-      debugPrint("🖨 Printing bill $billNo total $total");
+      List<Map<String, dynamic>> cart = cart1.map((item) => Map<String, dynamic>.from(item)).toList();
 
-      List<Map<String, dynamic>> cart = cart1
-          .map((e) => Map<String, dynamic>.from(e))
-          .toList();
+    final prefs = await SharedPreferences.getInstance();
+    String businessName = prefs.getString('businessName') ?? 'Hotel Test';
+    String contactPhone = prefs.getString('contactPhone') ?? '';
+    String contactEmail = prefs.getString('contactEmail') ?? '';
+    String businessAddress = prefs.getString('businessAddress') ?? '';
+    bool marathi = prefs.getBool('marathi') ?? false;
+    bool customerName = prefs.getBool('customerName') ?? false;
+    String gst = prefs.getString('gst') ?? '';
+    String? upiId = prefs.getString('upi');
 
-      final prefs = await SharedPreferences.getInstance();
+    // ⚙ Printer user settings
+    bool printQr = prefs.getBool('printQR') ?? true;
+    String _qrSize = prefs.getString('qrSize') ?? "5";
+    int logoWidth = prefs.getInt('logoWidth') ?? 200;
+    int logoheight = prefs.getInt('logoheight') ?? 200;
+    String footer =  prefs.getString('footerText')?? "** Thank You **";
+    bool printName = prefs.getBool('printName') ?? true;
+    String paperSize = prefs.getString('paperSize') ?? '2';
+    bool _printQRlogo = prefs.getBool('printQRlogo') ?? true;
+    
+    int headerFontSizePref = prefs.getInt('headerFontSize') ?? 2;
+    int itemFontSizePref = (prefs.getDouble('fontSize') ?? 1).toInt();
 
-      // ---------------- BUSINESS INFO ----------------
-      String businessName = prefs.getString('businessName') ?? '';
-      String contactPhone = prefs.getString('contactPhone') ?? '';
-      String contactEmail = prefs.getString('contactEmail') ?? '';
-      String businessAddress = prefs.getString('businessAddress') ?? '';
-      String gst = prefs.getString('gst') ?? '';
-      String? upiId = prefs.getString('upi');
+    // Get print quality from settings or use maximum
+    PrintQuality quality = PrintQuality.maximum;
+    SoundPattern sound = SoundPattern.tripleBeep;
+    final String dateTime = DateFormat('dd-MMM-yyyy hh:mm a').format(DateTime.now());
+    final imagePath = prefs.getString('imagePath');
+    String? address;
+    thermal.BluetoothDevice? device;
 
-      bool printLogo = prefs.getBool('printLogo') ?? true;
-      bool printQr = prefs.getBool('printQR') ?? true;
-      bool printName = prefs.getBool('printName') ?? true;
-      bool customerName = prefs.getBool('customerName') ?? false;
 
-      String footer = prefs.getString('footerText') ?? '** THANK YOU **';
+    address = prefs.getString('saved_printer_address');
+    debugPrint("Looking for saved printer with address: $address");
+    
+    if (address == null) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Printer Is Not Selected")));
+      return;
+    }
 
-      int headerFontSize = (prefs.getInt('headerFontSize') ?? 2).clamp(1, 3);
-
-      int itemFontSize = (prefs.getDouble('fontSize') ?? 1).round().clamp(1, 3);
-
-      final String dateTime = DateFormat(
-        'dd-MMM-yyyy hh:mm a',
-      ).format(DateTime.now());
-
-      if (_generator == null) {
-        throw Exception("Printer generator not initialized");
+      // Method 1: Check bonded devices first (already paired)
+      List<thermal.BluetoothDevice> bondedDevices = await printer.getBondedDevices();
+      debugPrint("Found ${bondedDevices.length} bonded devices");
+      
+      for (var _device in bondedDevices) {
+        debugPrint("Bonded: ${_device.name} - ${_device.address}");
+        if (_device.address == address) {
+          debugPrint("✅ Found saved printer in bonded devices!");
+          device = _device;
+          break;
+        }
       }
 
-      // ---------------- RESET & DARK PRINT ----------------
-      bytes = [];
-      bytes += _generator!.reset();
-
-      // 🔥 DARK PRINT DENSITY (IMPORTANT)
-      bytes += [0x1D, 0x7C, 0x0A];
-
-      bytes += _generator!.clearStyle();
-
-      // ---------------- LOGO ----------------
-      if (printLogo) {
-        await _printHotelLogo(prefs);
-        await _sendToPrinter();
-        bytes = [];
-        bytes += _generator!.reset();
-        bytes += [0x1D, 0x7C, 0x0A];
-        bytes += _generator!.clearStyle();
+      // Method 2: If not bonded, create a device from address and connect
+      if (device == null) {
+        debugPrint("🔄 Printer not bonded, creating device from address...");
+        device = thermal.BluetoothDevice("Printer", address);
+        debugPrint("✅ Created device from address: ${device.address}");
       }
 
-      // ---------------- HEADER ----------------
-      List<String> _splitTextToLines(String text, int maxWidth) {
-        List<String> lines = [];
-        List<String> words = text.split(' ');
-        String currentLine = '';
+      bool? isConnected = await printer.isConnected;
+      if (isConnected != true) {
+        await printer.connect(device!);
+        print_log("❌ connected");
+      }
+      printer.writeBytes(Uint8List.fromList(initCommand));
 
-        for (String word in words) {
-          // Check if current line is empty
-          if (currentLine.isEmpty) {
-            currentLine = word;
+
+
+      //  printer.printNewLine();
+        // printer.printCustom("HEADER",3,1);
+
+        // printer.printLeftRight("LEFT", "RIGHT",1,format: "%-15s %15s %n");
+        // printer.print3Column("Col1", "Col2", "Col3",1,format: "%-20s %10s %10s %n");
+        // printer.printNewLine();
+        // printer.print4Column("Col1","Col2","Col3","Col4",1);
+        // printer.print4Column("Col1","Col2","Col3","Col4",1,format: "%-14s %5s %5s %5s %n" );
+        // printer.printNewLine();
+        // String testString = "मराठी भाषा";
+        // printer.printCustom(testString, 1, 1, charset: "windows-1250");
+        // printer.printCustom("Body left",1,0);
+        
+      // await printBillWithLogo(printer);
+
+      // print_log("❌ start printing");
+      if(businessName.isNotEmpty){
+          // Business header
+          printer.printCustom(businessName, 3, 1);
+        }
+
+        if (contactPhone.isNotEmpty) {
+          printer.printCustom(contactPhone, 0, 1);
+        }
+        
+        if (contactEmail.isNotEmpty) {
+          printer.printCustom(contactEmail, 0, 1);
+        }
+        
+        if (businessAddress.isNotEmpty) {
+          printer.printCustom(businessAddress, 0, 1);
+        }
+
+      String billtable = (tableNumber > 0) ?  "Bill No: $billNo / Table No-: $tableNumber" : ((transactionData?['orderType'] ?? "Dine-In") == "Dine-In" ) ?  "Bill No:$billNo" : "Bill No:$billNo /OrderType:${transactionData?['orderType']}";
+      printer.printCustom(billtable, 1, 0);
+      printer.printCustom("Time:- $dateTime", 1, 0);
+
+      if (customerName ) {
+          debugPrint("⚠️ check printer is connected tota --$transactionData---");
+          printer.printCustom("TO Customer:- ", 1, 1);
+          printer.printCustom("Name: ${transactionData?['customerName'] ?? " "}", 0, 0);
+          printer.printCustom("Mobile NO: ${transactionData?['mobileNo'] ?? " "}", 0, 0);
+          printer.printCustom("Adreess: ${transactionData?['reserved'] ?? " "}", 0, 0);
+        }
+
+      // await printer.writeBytes(Uint8List.fromList(resetBuffer));
+      // await sleep(1, "s");
+      printer.printCustom(dashLine, 1, 1);
+      printer.print4Column("Item", "qty", "Rate", "sum", 1,format: "%-17s %4s %4s %4s");  //"%-14s %5s %5s %5s %n"
+      printer.printNewLine();
+      // printer.printNewLine();
+
+              // Cart items
+        for (var item in cart) {
+          String name = item['name'] ?? 'Item';
+          int qty = item['qty'] ?? 0;
+          final rawPrice = item['sellPrice'];
+          final int rate = rawPrice is num
+              ? rawPrice.toInt()
+              : int.tryParse(rawPrice.toString().replaceAll(',', '')) ??
+                    double.tryParse(rawPrice.toString())?.toInt() ??
+                    0;
+          
+          print_log("rate  $item and $total");
+          int itemTotal = qty * rate;
+          if(name.length <= 20){
+            printer.print4Column(name, qty.toString(), rate.toString(), itemTotal.toString(), 1,format: "%-17s %3s %4s %5s"); //"%-14s %5s %5s %5s %n" 30
+          }else{
+            String n1 = name.substring(0, 20);
+            String n2 = name.substring(20);
+            printer.print4Column(n1, qty.toString(), rate.toString(), itemTotal.toString(), 1,format: "%-17s %3s %4s %5s");//"%-14s %5s %5s %5s %n"
+            printer.printCustom(n2, 0, 0);
           }
-          // Check if adding this word would exceed maxWidth
-          else if ((currentLine.length + 1 + word.length) > maxWidth) {
-            // Add current line to result and start new line with current word
-            lines.add(currentLine);
-            currentLine = word;
-          }
-          // Word fits in current line
-          else {
-            currentLine = '$currentLine $word';
-          }
+
         }
-
-        // Add the last line
-        if (currentLine.isNotEmpty) {
-          lines.add(currentLine);
-        }
-
-        return lines;
-      }
-
-      if (printName && businessName.isNotEmpty) {
-        int maxLineWidth = 25; //
-
-        List<String> nameLines = _splitTextToLines(businessName, maxLineWidth);
-
-        for (String line in nameLines) {
-          bytes += _generator!.text(
-            line,
-            styles: PosStyles(
-              align: PosAlign.center,
-              bold: true,
-              fontType: PosFontType.fontA,
-              height: _textSizeFromInt(headerFontSize),
-              width: _textSizeFromInt(headerFontSize),
-            ),
-          );
-        }
-      }
-      if (contactPhone.isNotEmpty) {
-        bytes += _generator!.text(
-          'Ph: $contactPhone',
-          styles: PosStyles(align: PosAlign.center),
-        );
-      }
-
-      if (contactEmail.isNotEmpty) {
-        bytes += _generator!.text(
-          contactEmail,
-          styles: PosStyles(align: PosAlign.center),
-        );
-      }
-
-      if (businessAddress.isNotEmpty) {
-        bytes += _generator!.text(
-          businessAddress,
-          styles: PosStyles(align: PosAlign.center),
-        );
-      }
-
-      if (gst.isNotEmpty) {
-        bytes += _generator!.text(
-          'GST: $gst',
-          styles: PosStyles(align: PosAlign.center),
-        );
-      }
-
-      bytes += _generator!.hr();
-
-      // ---------------- BILL INFO ----------------
-      bytes += _generator!.text(
-        tableNumber != null
-            ? 'Bill No: $billNo  |  Table: $tableNumber'
-            : 'Bill No: $billNo',
-        styles: PosStyles(bold: true, align: PosAlign.center),
-      );
-
-      bytes += _generator!.text(
-        'Time: $dateTime',
-        styles: PosStyles(align: PosAlign.center),
-      );
-
-      bytes += _generator!.hr();
-
-      // ---------------- CUSTOMER INFO ----------------
-      if (customerName && transactionData != null) {
-        if ((transactionData['customerName'] ?? '').toString().isNotEmpty) {
-          bytes += _generator!.text(
-            'Customer: ${transactionData['customerName']}',
-            styles: PosStyles(bold: true),
-          );
-        }
-
-        if ((transactionData['mobileNo'] ?? '').toString().isNotEmpty) {
-          bytes += _generator!.text('Mobile: ${transactionData['mobileNo']}');
-        }
-
-        if ((transactionData['reserved'] ?? '').toString().isNotEmpty) {
-          bytes += _generator!.text('Address: ${transactionData['reserved']}');
-        }
-
-        bytes += _generator!.hr();
-      }
-
-      // ---------------- ITEM HEADER ----------------
-      bytes += _generator!.row([
-        PosColumn(text: 'Item', width: 6, styles: PosStyles(bold: true)),
-        PosColumn(
-          text: 'Qty',
-          width: 2,
-          styles: PosStyles(bold: true, align: PosAlign.right),
-        ),
-        PosColumn(
-          text: 'Rate',
-          width: 2,
-          styles: PosStyles(bold: true, align: PosAlign.right),
-        ),
-        PosColumn(
-          text: 'Amt',
-          width: 2,
-          styles: PosStyles(bold: true, align: PosAlign.right),
-        ),
-      ]);
-
-      bytes += _generator!.hr();
-
-      // ---------------- CART ITEMS ----------------
-      for (var item in cart) {
-        String name = item['name'] ?? '';
-        int qty = item['qty'] ?? 0;
-
-        int rate = (item['sellPrice'] is num)
-            ? (item['sellPrice'] as num).toInt()
-            : int.tryParse(item['sellPrice'].toString()) ?? 0;
-
-        int amt = qty * rate;
-
-        bytes += _generator!.row([
-          PosColumn(
-            text: name,
-            width: 6,
-            styles: PosStyles(
-              bold: true,
-              fontType: PosFontType.fontA,
-              height: _textSizeFromInt(itemFontSize),
-            ),
-          ),
-          PosColumn(
-            text: qty.toString(),
-            width: 2,
-            styles: PosStyles(align: PosAlign.right),
-          ),
-          PosColumn(
-            text: rate.toString(),
-            width: 2,
-            styles: PosStyles(align: PosAlign.right),
-          ),
-          PosColumn(
-            text: amt.toString(),
-            width: 2,
-            styles: PosStyles(align: PosAlign.right),
-          ),
-        ]);
-      }
-
-      // ---------------- TOTAL ----------------
-      bytes += _generator!.hr();
-      bytes += _generator!.row([
-        PosColumn(
-          text: 'TOTAL',
-          width: 6,
-          styles: PosStyles(
-            bold: true,
-            fontType: PosFontType.fontA,
-            height: PosTextSize.size2,
-            width: PosTextSize.size2,
-          ),
-        ),
-        PosColumn(
-          text: 'Rs. $total',
-          width: 6,
-          styles: PosStyles(
-            bold: true,
-            align: PosAlign.right,
-            height: PosTextSize.size2,
-            width: PosTextSize.size2,
-          ),
-        ),
-      ]);
-
-      bytes += _generator!.hr();
-
-      // ---------------- QR PAYMENT ----------------
-      if (printQr && upiId != null && upiId.isNotEmpty) {
-        bytes += _generator!.text(
-          'Scan to Pay',
-          styles: PosStyles(align: PosAlign.center, bold: true),
-        );
-
-        bytes += _generator!.qrcode(
-          'upi://pay?pa=$upiId&pn=${Uri.encodeComponent(businessName)}&am=$total&cu=INR',
-          size: QRSize.size6,
-        );
-      }
-
-      // ---------------- FOOTER ----------------
-      bytes += _generator!.text(
-        footer,
-        styles: PosStyles(align: PosAlign.center, bold: true),
-      );
-
-      bytes += _generator!.feed(3);
-      //bytes += _generator!.cut();
-
-      debugPrint("✅ Print bytes: ${bytes.length}");
-      await _sendToPrinter();
-      await _disconnect();
+      // await printer.writeBytes(Uint8List.fromList(resetBuffer));
+      // await sleep(3, "s");
+      printer.printCustom(dashLine, 1, 1);
+      printer.printCustom("TOTAL  - $total", 2, 2);
+      // printer.printLeftRight("TOTAL", total.toString(), 1,format: "%-15s %15s");
+      // final String encodedBusinessName = Uri.encodeComponent(businessName);
+      // String qrData = "upi://pay?pa=$upiId&pn=$encodedBusinessName&am=$total.00&cu=INR";
+      // printer.printQRcode(qrData, 200, 200, 1);
+      printer.printNewLine();
+      printer.printCustom(footer, 1, 1);
+      printer.printNewLine();
+      printer.printNewLine();
+      // printer.printNewLine();
+      printer.paperCut();
+      
     } catch (e) {
-      print_log_red("❌ Print error: $e");
+      print_log("❌ Connection/Print error: $e");
+
+    } finally {
+      await printer.disconnect();
     }
   }
 
-  // ==============================================
-  // HELPER METHOD TO SPLIT LONG ITEM NAMES
-  // ==============================================
-  List<String> _splitItemName(String name, {int maxLineLength = 16}) {
-    List<String> lines = [];
-
-    if (name.length <= maxLineLength) {
-      // If name is short enough, return as single line
-      lines.add(name);
-      return lines;
-    }
-
-    // Split by words first
-    List<String> words = name.split(' ');
-    String currentLine = '';
-
-    for (String word in words) {
-      // Check if adding this word would exceed the max line length
-      if ((currentLine + ' ' + word).length <= maxLineLength) {
-        // Add word to current line
-        if (currentLine.isEmpty) {
-          currentLine = word;
-        } else {
-          currentLine += ' ' + word;
-        }
-      } else {
-        // Save current line and start new line
-        if (currentLine.isNotEmpty) {
-          lines.add(currentLine);
-        }
-
-        // If word itself is longer than maxLineLength, split the word
-        if (word.length > maxLineLength) {
-          // Split long word into chunks
-          for (int i = 0; i < word.length; i += maxLineLength) {
-            int end = i + maxLineLength;
-            if (end > word.length) end = word.length;
-            lines.add(word.substring(i, end));
-          }
-          currentLine = '';
-        } else {
-          currentLine = word;
-        }
-      }
-    }
-
-    // Add the last line if not empty
-    if (currentLine.isNotEmpty) {
-      lines.add(currentLine);
-    }
-
-    // Ensure we don't have too many lines (limit to 3 lines maximum)
-    if (lines.length > 2) {
-      lines = lines.sublist(0, 2);
-      // Truncate the last line if needed
-      if (lines[2].length > maxLineLength) {
-        lines[2] = lines[2].substring(0, maxLineLength - 2) + '...';
-      }
-    }
-
-    return lines;
-  }
-
-  // ==============================================
-  // HELPER METHOD TO PRINT HOTEL LOGO
-  // ==============================================
-  Future<void> _printHotelLogo(SharedPreferences prefs) async {
-    try {
-      final imagePath = prefs.getString('imagePath');
-      final printLogo = prefs.getBool('printLogo') ?? true;
-      int logoWidth = prefs.getInt('logoWidth') ?? 200;
-
-      if (imagePath != null && File(imagePath).existsSync() && printLogo) {
-        final file = File(imagePath);
-
-        if (!await file.exists()) {
-          debugPrint("❌ Logo file not found at: $imagePath");
-          return;
-        }
-
-        final imageBytes = await file.readAsBytes();
-        final img.Image? original = img.decodeImage(imageBytes);
-
-        if (original == null) {
-          debugPrint("❌ Failed to decode image at: $imagePath");
-          return;
-        }
-
-        // Resize the image
-        final resized = img.copyResize(
-          original,
-          width: logoWidth,
-          maintainAspect: true,
-        );
-
-        // Convert to grayscale for better thermal printing
-        final grayscale = img.grayscale(resized);
-
-        // Add the image to the bytes buffer
-        bytes += _generator!.image(grayscale, align: PosAlign.center);
-
-        debugPrint("✅ Logo added to print buffer successfully.");
-      }
-    } catch (e, stack) {
-      debugPrint("❌ Error adding logo: $e");
-      debugPrint("Stack trace: $stack");
-    }
-  }
-
-  PosTextSize _textSizeFromInt(int size) {
-    switch (size) {
-      case 1:
-        return PosTextSize.size1;
-      case 2:
-        return PosTextSize.size2;
-      case 3:
-        return PosTextSize.size3;
-      case 4:
-        return PosTextSize.size4;
-      case 5:
-        return PosTextSize.size5;
-      case 6:
-        return PosTextSize.size6;
-      case 7:
-        return PosTextSize.size7;
-      case 8:
-        return PosTextSize.size8;
-      default:
-        return PosTextSize.size1;
-    }
-  }
 
   Future<bool> settel_update({
     required BuildContext context,
@@ -846,7 +640,8 @@ class BillPrinter {
     required String mode,
     required Map<String, dynamic>? transactionData,
   }) async {
-    if (tableNo > 0) {
+
+    if (tableNo > 0){
       final ttid = prefs.getInt("tt$tableNo");
       final isnonzero = areAllQuantitiesZero(cart);
       print_log("qty check  ${isnonzero} > 0");
@@ -891,11 +686,12 @@ class BillPrinter {
       prefs.remove("tt$tableNo");
       return true;
     } else {
+
       late final String id;
       final final_cart = (oldcart1 != null) ? oldcart1 : cart;
       final isnonzero = areAllQuantitiesZero(final_cart);
       print_log("qty check  ${isnonzero} > 0");
-      if (isnonzero) {
+      if(isnonzero){
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text("Please ckeck the cart"),
@@ -908,9 +704,7 @@ class BillPrinter {
         List pm = payment_mode.split("_");
         String paymentMode = pm[0];
         id = pm[1];
-        debugPrint(
-          "updateTransactionToObjectBox ID is $id and mode $payment_mode",
-        );
+        debugPrint("updateTransactionToObjectBox ID is $id and mode $payment_mode");
         await updateTransactionToObjectBox(
           context: context,
           cart: cart,
@@ -920,12 +714,13 @@ class BillPrinter {
           payment_mode: paymentMode,
           status: mode,
           id: id,
-          transactionData: transactionData,
+          transactionData:transactionData,
         );
         int gotId = int.parse(id);
         sendTransactionToServer(box, gotId);
+        
       } else {
-        int id = await saveTransactionToObjectBox(
+        int id  = await saveTransactionToObjectBox(
           context: context,
           cart: cart,
           total: total,
@@ -933,165 +728,1208 @@ class BillPrinter {
           pageback: pageback,
           payment_mode: payment_mode,
           status: mode,
-          transactionData: transactionData,
+          transactionData:transactionData,
         );
 
         debugPrint("saveTransactionToObjectBox with id - $id ");
         sendTransactionToServer(box, id);
-        if (tableNo > 0) {
+        if (tableNo > 0){
           prefs.setInt("tt$tableNo", id);
         }
+        
       }
       return true;
     }
   }
+    
+  void deletetablecart(int tableNo) async {
 
+    // 3. Find if an entry for this table already exists
+    final box = store.box<tableCart>();
+    final query = box.query(tableCart_.tableNo.equals(tableNo)).build();
+    tableCart? existingTableCart = query.findFirst();
+    query.close();
+    debugPrint("✅ Updated cart for table #$tableNo in ObjectBox. existingTableCart $existingTableCart");
+
+    // 5. If the cart is empty, remove the entry from the database
+    if (existingTableCart != null) {
+      box.remove(existingTableCart.id);
+      debugPrint("🗑️ Removed empty cart for table #$tableNo from ObjectBox.");
+    }
+  }
+
+
+  // Bluetooth connection methods
+  Future<bool> _connectToPrinter(bl.BluetoothDevice? device,{BuildContext? context}) async {
+    try {
+      if(device != null){
+        // Connect to the device
+        try{
+          await device.connect(license: bl.License.free);
+        }catch (e) {
+          await device.connect(license: bl.License.free,timeout: Duration(seconds: 10));
+        }
+        
+        // Discover services
+        // List<bl.BluetoothService> services = await device.discoverServices();
+        // debugPrint("✅ Found ${services.length} services");
+        
+        // for (int i = 0; i < services.length; i++) {
+        //   bl.BluetoothService service = services[i];
+        //   // debugPrint("--- Service $service ---");
+        //   // debugPrint("--- Service ${i + 1} ---");
+        //   // debugPrint("Service UUID: ${service.uuid}");
+        //   // debugPrint("Service UUID (full): ${service.uuid.toString()}");
+          
+        //   for (int j = 0; j < service.characteristics.length; j++) {
+        //     bl.BluetoothCharacteristic characteristic = service.characteristics[j];
+        //     debugPrint("  Characteristic ${j + 1}:");
+        //     debugPrint("    UUID: ${characteristic.uuid}");
+        //     debugPrint("    Properties: ${characteristic.properties}");
+        //     debugPrint("    Read: ${characteristic.properties.read}");
+        //     debugPrint("    Write: ${characteristic.properties.write}");
+        //     debugPrint("    WriteWithoutResponse: ${characteristic.properties.writeWithoutResponse}");
+        //     debugPrint("    Notify: ${characteristic.properties.notify}");
+        //     debugPrint("    Indicate: ${characteristic.properties.indicate}");
+        //   }
+        //   debugPrint(""); // Empty line for readability
+        // }
+        // Initialize generator
+        final prefs = await SharedPreferences.getInstance();
+        String paperSize = prefs.getString('paperSize') ?? '2';
+        debugPrint("--- paperSize $paperSize ---");
+        final list_profile = await CapabilityProfile.getAvailableProfiles();
+        for(var i in list_profile){
+          print_log("await CapabilityProfile.load() ${i}");
+        }
+
+        _generator = Generator((paperSize == "2") ? PaperSize.mm58 : (paperSize == "3") ? PaperSize.mm72 : PaperSize.mm80, await CapabilityProfile.load());
+        _connectedDevice = device;
+        
+        debugPrint("✅ Connected to printer: ${device.platformName}");
+        return true;
+      }
+      return false;
+    } catch (e) {
+      debugPrint("❌ Error connecting to printer: $e");
+      return false;
+    }
+  }
+
+  Future<bool> _isConnected({BuildContext? context}) async {
+    return _connectedDevice != null && _connectedDevice!.isConnected;
+  }
+
+  Future<void> _disconnect({BuildContext? context}) async {
+    if (_connectedDevice != null) {
+      await _connectedDevice!.disconnect();
+    }
+    _connectedDevice = null;
+    _generator = null;
+  }
+
+  Future<void> _sendToPrinter({Uint8List? imageBytes,BuildContext? context}) async {
+    if (_connectedDevice == null || !_connectedDevice!.isConnected) {
+      throw Exception("Printer not connected");
+    }
+    final prefs = await SharedPreferences.getInstance();
+    final bool miniPrinter = prefs.getBool('miniPrinter') ?? false;
+    final bool miniPrinterKOT = prefs.getBool('miniPrinterKOT') ?? false  ;
+    
+    // Discover services
+    List<bl.BluetoothService> services = await _connectedDevice!.discoverServices();
+    bl.BluetoothCharacteristic? printerCharacteristic;
+    
+    debugPrint("Error: Failed to decode PNG image. $miniPrinter && ${!miniPrinterKOT} || ($miniPrinterKOT && $KOT_Print  ${( (miniPrinter && !KOT_Print) || (miniPrinterKOT && KOT_Print))}");
+    if( (miniPrinter && !KOT_Print) || (miniPrinterKOT && KOT_Print)){
+      
+      final img.Image? originalImage = img.decodeImage(imageBytes!); //bytes ti image
+
+      if (originalImage == null) {
+        debugPrint("Error: Failed to decode PNG image.");
+        return;
+      }
+
+      final service = services.firstWhere((s) => s.uuid == CAT_PRINT_SRV);
+      printerCharacteristic = service.characteristics.firstWhere((c) => c.uuid == CAT_PRINT_TX_CHAR);
+      final printer = CatPrinter(printerCharacteristic);
+      final prefs = await SharedPreferences.getInstance();
+      final speed = prefs.getInt('speed') ?? 32;
+      final energy = prefs.getInt('energy') ?? 35000;
+      final finishFeed = 50;
+      await printer.prepare(speed, energy);
+
+      final Uint8List processedBitmap = _processImageForPrinter(
+        originalImage.buffer.asUint8List(),
+        originalImage.width,
+        originalImage.height,
+        printerWidth
+      );
+
+      final pitch = printerWidth ~/ 8; // 384 / 8 = 48 bytes per line
+      int blankLines = 0;
+      for (int y = 0; y < processedBitmap.length ~/ pitch; y++) {
+        final start = y * pitch;
+        final end = start + pitch;
+        if (end > processedBitmap.length) break;
+        final line = processedBitmap.sublist(start, end);
+        if (line.every((byte) => byte == 0)) {
+          blankLines += 1; // It's a blank line, just count it
+        } else {
+          if (blankLines > 0) {
+            await printer.feed(2);  //to increase the gap of line
+            blankLines = 0; // Reset the counter
+          }
+          await printer.draw(line);
+          await Future.delayed(const Duration(milliseconds: 1));
+        }
+      }
+      await printer.finish(finishFeed);
+      await Future.delayed(const Duration(milliseconds: 200));
+      return;
+
+    } else {
+
+      debugPrint("⚠️ bytes.length --${bytes.length}---");
+
+      for (bl.BluetoothService service in services) {
+        for (bl.BluetoothCharacteristic characteristic in service.characteristics) {
+          // Use the characteristic from Service 3 that has write capabilities
+          
+          if (characteristic.uuid.toString() == SERVICE_UUID) {
+            printerCharacteristic = characteristic;
+            // debugPrint("✅ Found printer characteristic: ${characteristic.uuid}");
+            break;
+          } 
+          
+        }
+        if (printerCharacteristic != null) break;
+      }
+   
+      if (printerCharacteristic == null) {
+        throw Exception("Printer characteristic not found");
+      }
+      // ESC @ command (Initialize printer)
+      // List<int> resetCommand = [0x1B, 0x40];
+      // bytes.insertAll(0, [0x1B, 0x40, 0x1B, 0x33, 0x00]); // ESC @ (Initialize Printer)
+      // List<int> configCommands = [
+      //   0x1B, 0x40,       // Reset
+      //   // 0x1B, 0x4D, 0x01, // Force Font B (Small)
+      //   0x1D, 0x21, 0x00, // Force Normal Size (1x1)
+      //   // 0x1B, 0x33, 0x14  // Set tight line spacing
+      // ];
+
+      // // // bytes.insertAll(0, configCommands);
+      // try {
+      //   await printerCharacteristic.write(configCommands, withoutResponse: false);
+      //   await Future.delayed(const Duration(milliseconds: 100));
+      //   // debugPrint("✅ Printer buffer cleared command sent.");
+      // } catch (e) {
+      //   debugPrint("❌ Failed to clear printer buffer: $e");
+      // }
+      // Split data into chunks to avoid exceeding maximum length
+      const int maxChunkSize = 230; // Use 200 to be safe (printer reported max 237)
+      debugPrint("📦 Sending ${bytes.length} bytes in chunks of $maxChunkSize");
+      
+      for (int i = 0; i < bytes.length; i += maxChunkSize) {
+        int end = (i + maxChunkSize < bytes.length) ? i + maxChunkSize : bytes.length;
+        List<int> chunk = bytes.sublist(i, end);
+        
+        // debugPrint("🔄 Sending chunk ${(i ~/ maxChunkSize) + 1}: ${chunk.length} bytes");
+        
+        try {
+          // Try writeWithoutResponse first (faster for thermal printers)
+          await printerCharacteristic.write(chunk, withoutResponse: true);
+          // debugPrint("✅ Chunk ${(i ~/ maxChunkSize) + 1} sent successfully");
+          
+          // Small delay between chunks to prevent overwhelming the printer
+          await Future.delayed(Duration(milliseconds: 25));
+          
+        } catch (e) {
+          debugPrint("❌ Error sending chunk ${(i ~/ maxChunkSize) + 1}: $e");
+          // Try with response if withoutResponse fails
+          try {
+            await printerCharacteristic.write(chunk, withoutResponse: false);
+            // debugPrint("✅ Chunk ${(i ~/ maxChunkSize) + 1} sent with response");
+          } catch (e2) {
+            // debugPrint("❌ Failed to send chunk ${(i ~/ maxChunkSize) + 1} with response: $e2");
+            throw Exception("Failed to send data to printer");
+          }
+        }
+        // finally{
+        //   bytes = [];
+        // }
+      }
+      // SC588 Beep Commands
+      // List<int> beepCommand = [0x1B, 0x42, 0x03, 0x05];
+      // await printerCharacteristic.write([0x1B, 0x42, 0x01, 0x02], withoutResponse: false);
+    }
+    bytes = [];
+    debugPrint("🎉 All data sent successfully to printer!");
+  }
+
+  Uint8List _processImageForPrinter(
+    Uint8List rgbaBytes, 
+    int originalWidth, 
+    int originalHeight, 
+    int targetWidth
+  ) {
+    final originalImage = img.Image.fromBytes(
+      width: originalWidth,
+      height: originalHeight,
+      bytes: rgbaBytes.buffer,
+      format: img.Format.uint8,
+      order: img.ChannelOrder.rgba,
+    );
+
+    final resizedImage = img.copyResize(
+      originalImage,
+      width: targetWidth,
+      interpolation: img.Interpolation.average,
+    );
+
+    final pitch = resizedImage.width ~/ 8;
+    final result = Uint8List(resizedImage.height * pitch);
+    int resultIndex = 0;
+
+    for (int y = 0; y < resizedImage.height; y++) {
+      for (int x_byte = 0; x_byte < pitch; x_byte++) {
+        int packedByte = 0;
+        for (int x_bit = 0; x_bit < 8; x_bit++) {
+          final x = x_byte * 8 + x_bit;
+          
+          final pixel = resizedImage.getPixel(x, y);
+          final luminance = (0.299 * pixel.r + 0.587 * pixel.g + 0.114 * pixel.b).toInt();
+          
+          if (luminance < 128) {
+            // --- THIS IS THE KEY CHANGE ---
+            // Reverses the bit order to match many common thermal printers.
+            packedByte |= (1 << x_bit); 
+          }
+        }
+        result[resultIndex++] = packedByte;
+      }
+    }
+    
+    return result;
+  }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  Future<List<int>> _setPrintQuality(PrintQuality quality,{BuildContext? context}) async {
+    try {
+      
+      
+      bytes += _generator!.reset();
+      
+      switch (quality) {
+        case PrintQuality.light:
+          // Light printing (fast, less contrast)
+          bytes += _generator!.rawBytes([0x1B, 0x37, 0x14, 0xC8, 0x96]); // Low heating
+          bytes += _generator!.rawBytes([0x1B, 0x45, 0x00]); // Emphasis off
+          break;
+          
+        case PrintQuality.normal:
+          // Normal printing (balanced)
+          bytes += _generator!.rawBytes([0x1B, 0x37, 0x1E, 0x64, 0xC8]); // Medium heating
+          bytes += _generator!.rawBytes([0x1B, 0x45, 0x00]); // Emphasis off
+          break;
+          
+        case PrintQuality.dark:
+          // Dark printing (good contrast)
+          bytes += _generator!.rawBytes([0x1B, 0x37, 0x28, 0x50, 0xFA]); // High heating
+          bytes += _generator!.rawBytes([0x1B, 0x45, 0x01]); // Emphasis on
+          bytes += _generator!.rawBytes([0x1D, 0x45, 0x01]); // High density
+          break;
+          
+        case PrintQuality.maximum:
+        debugPrint("🎛️ Setting print quality: $quality");
+          // Maximum darkness (slowest, best for images)
+          bytes += _generator!.rawBytes([0x1B, 0x37, 0x32, 0x32, 0xFA]); // Max heating
+          bytes += _generator!.rawBytes([0x1B, 0x45, 0x01]); // Emphasis on
+          bytes += _generator!.rawBytes([0x1D, 0x45, 0x02]); // Maximum density
+          // bytes += _generator!.rawBytes([0x1B, 0x2A, 0x21]); // High energy
+          // Slow down print speed for better heating
+          bytes += _generator!.rawBytes([0x1B, 0x1D, 0x03]); // Reduced speed
+          break;
+      }
+      
+      debugPrint("✅ Print quality set to: $quality");
+      return bytes;
+      
+    } catch (e) {
+      debugPrint("❌ Error setting print quality: $e");
+      return bytes;
+    }
+  }
+
+  // Rest of your methods remain the same...
+  int getNextBillNo(BuildContext context) {
+    final store = Provider.of<ObjectBoxService>(context, listen: false).store;
+    final billCounterBox = store.box<BillCounter>();
+    final existingCounters = billCounterBox.getAll();
+    debugPrint("next bill number ${existingCounters}");
+    int billNo = (existingCounters.isEmpty) ? 1 : existingCounters.first.lastBillNo;
+    debugPrint("next bill number ${billNo}");
+    return billNo;
+  }
+
+  void setNextBillNo(BuildContext context, int billNo) async {
+    final store = Provider.of<ObjectBoxService>(context, listen: false).store;
+    final billCounterBox = store.box<BillCounter>();
+
+    BillCounter? existingCounter = billCounterBox.getAll().isNotEmpty
+        ? billCounterBox.getAll().first
+        : null;
+
+    final nextBillNo = billNo + 1;
+    debugPrint("✅ Saving next Bill No to ObjectBox: $nextBillNo");
+
+    if (existingCounter != null) {
+      existingCounter.lastBillNo = existingCounter.lastBillNo + 1;
+      billCounterBox.put(existingCounter);
+    } else {
+      BillCounter newCounter = BillCounter(lastBillNo: nextBillNo);
+      billCounterBox.put(newCounter);
+    }
+
+    debugPrint("✅ BillCounter saved successfully with billNo: $nextBillNo");
+  }
+
+  Future<void> getavailabeldevice({BuildContext? context}) async {
+    final Set<bl.BluetoothDevice> discoveredDevices = {};
+    print("Starting BLE scan for 5 seconds...");
+
+    final scanSubscription = bl.FlutterBluePlus.scanResults.listen((results) {
+      for (bl.ScanResult r in results) {
+        discoveredDevices.add(r.device);
+      }
+    });
+
+    await bl.FlutterBluePlus.startScan(timeout: const Duration(seconds: 10));
+    scanSubscription.cancel();
+
+    List<String> deviceList = discoveredDevices.map((device) {
+      final deviceName = device.platformName.isNotEmpty ? device.platformName : 'Unknown Device';
+      final deviceAddress = device.remoteId.toString();
+      return '$deviceName - [$deviceAddress]';
+    }).toList();
+
+    print("\n--- Scan Complete ---");
+    if (deviceList.isNotEmpty) {
+      print("Found ${deviceList.length} unique devices:");
+      print(deviceList);
+    } else {
+      print("No devices found.");
+    }
+    print("---------------------\n");
+  }
+
+  Future<void> requestBluetoothPermissions({BuildContext? context}) async {
+    if (await Permission.bluetoothScan.request().isGranted) {
+    } else {
+      await Permission.bluetoothScan.request();
+    }
+    if (await Permission.bluetoothConnect.request().isGranted) {
+    } else {
+      await Permission.bluetoothConnect.request();
+    }
+  }
+
+  Future<void> sendDataToPrinter({
+    required BuildContext context,
+    required List<Map<String, dynamic>> cart1,
+    required int total,
+    required int billNo,
+    required Map<String, dynamic>? transactionData,
+    required int tableNumber,
+  }) async {
+    try{
+    debugPrint("recived cart to send to printer total $total and cart $cart1 billNo $billNo transactionData $transactionData");
+    List<Map<String, dynamic>> cart = cart1.map((item) => Map<String, dynamic>.from(item)).toList();
+    
+    final prefs = await SharedPreferences.getInstance();
+    
+    // 🏪 Business info
+    String businessName = prefs.getString('businessName') ?? 'Hotel Test';
+    String contactPhone = prefs.getString('contactPhone') ?? '';
+    String contactEmail = prefs.getString('contactEmail') ?? '';
+    String businessAddress = prefs.getString('businessAddress') ?? '';
+    bool marathi = prefs.getBool('marathi') ?? false;
+    bool customerName = prefs.getBool('customerName') ?? false;
+    String gst = prefs.getString('gst') ?? '';
+    String? upiId = prefs.getString('upi');
+
+    // ⚙ Printer user settings
+    bool printQr = prefs.getBool('printQR') ?? true;
+    String _qrSize = prefs.getString('qrSize') ?? "5";
+    int logoWidth = prefs.getInt('logoWidth') ?? 200;
+    int logoheight = prefs.getInt('logoheight') ?? 200;
+    String footer =  prefs.getString('footerText')?? "** Thank You **";
+    bool printName = prefs.getBool('printName') ?? true;
+    String paperSize = prefs.getString('paperSize') ?? '2';
+    bool _printQRlogo = prefs.getBool('printQRlogo') ?? true;
+    
+    int headerFontSizePref = prefs.getInt('headerFontSize') ?? 2;
+    int itemFontSizePref = (prefs.getDouble('fontSize') ?? 1).toInt();
+
+    // Get print quality from settings or use maximum
+    PrintQuality quality = PrintQuality.maximum;
+    SoundPattern sound = SoundPattern.tripleBeep;
+    final String dateTime = DateFormat('dd-MMM-yyyy hh:mm a').format(DateTime.now());
+    
+    // Convert font sizes to ESC/POS sizes
+    PosTextSize getTextSize(int size) {
+      switch (size) {
+        case 1: return PosTextSize.size1;
+        case 2: return PosTextSize.size2;
+        case 3: return PosTextSize.size3;
+        case 4: return PosTextSize.size4;
+        case 5: return PosTextSize.size5;
+        case 6: return PosTextSize.size6;
+        case 7: return PosTextSize.size7;
+        case 8: return PosTextSize.size8;
+        default: return PosTextSize.size1;
+      }
+    }
+    QRSize getQRSize(int size) {
+      switch (size) {
+        case 1: return QRSize.size1;
+        case 2: return QRSize.size2;
+        case 3: return QRSize.size3;
+        case 4: return QRSize.size4;
+        case 5: return QRSize.size5;
+        case 6: return QRSize.size6;
+        case 7: return QRSize.size7;
+        case 8: return QRSize.size8;
+        default: return QRSize.size5;
+      }
+    }
+
+    if (_generator == null) {
+      throw Exception("Printer not initialized");
+    }
+
+      // Logo
+      // debugPrint("⚠️ bytes.length --${bytes.length}---");
+      await _setPrintQuality(quality);
+      // debugPrint("⚠️ bytes.length --${bytes.length}---");
+      if (marathi){
+
+        await sendLogotoPrinter(isImg:true);
+
+        Uint8List? imageBytes = await generateReceiptImage(
+                                        cart1: cart,
+                                        total: total,
+                                        billNo: billNo,
+                                        transactionData: transactionData,
+                                        tableno:tableNumber,
+                                      );
+        if (imageBytes != null) {
+          // showDialog(
+          //   context: context,
+          //   builder: (_) => AlertDialog(
+          //     content: Image.memory(imageBytes),
+          //   ),
+          // );
+          
+          // Example: Save to file (requires path_provider package)
+          // final directory = await getDownloadsDirectory();
+          // final path = '${directory!.path}/receipt_$billNo.png';
+          // final file = File(path);
+          // await file.writeAsBytes(imageBytes);
+          // debugPrint("Receipt image saved to: $path");
+
+          img.Image? original = img.decodeImage(imageBytes);
+          if (original != null) {
+            // Resize to fit printer width
+            // final resized = img.copyResize(original, width: 300, maintainAspect: true);
+            
+            // Convert to grayscale for better thermal printing
+            final grayscale = img.grayscale(original);
+            bytes += _generator!.reset();
+            bytes += _generator!.clearStyle();
+            bytes += _generator!.image(grayscale);
+            // bytes += _generator!.feed(2);
+            // bytes += _generator!.cut();
+             
+          }
+          await _sendToPrinter(imageBytes:imageBytes);
+          bytes = [];
+        }
+
+        await sendQRtoPrinter(total);
+
+        Uint8List? imageBytes1 = await footerImage();
+        if (imageBytes1 != null) {
+          bytes = [];
+          img.Image? original = img.decodeImage(imageBytes1);
+          final grayscale = img.grayscale(original!);
+          bytes += _generator!.image(grayscale);
+          await _sendToPrinter(imageBytes:imageBytes1);
+          bytes = [];
+        }
+
+        debugPrint("before clear total $total and cart $cart");
+        // cart.clear();
+        await _disconnect(); 
+        return;
+
+      } else{
+
+        await sendLogotoPrinter();
+
+
+        // Force a new line so the printer knows we are starting fresh
+        bytes += _generator!.reset();
+        bytes += _generator!.clearStyle();
+        // bytes += _generator!.emptyLines(1);
+
+        // // Method 1A: Try Devanagari code table
+        // bytes += _generator!.setGlobalCodeTable('Devanagari');
+        // // OR Method 1B: Try Indian languages code table  
+        // bytes += _generator!.setGlobalCodeTable('Indic');
+
+        if(printName){
+          // Business header
+          bytes += _generator!.text(
+            businessName,
+            // containsChinese : true,
+            styles: PosStyles(
+              align: PosAlign.center,
+              bold: true,
+              fontType: PosFontType.fontB,
+              height: getTextSize(headerFontSizePref), // Set height to minimum
+              width: getTextSize(headerFontSizePref), // Set height to minimum
+            ),
+          );
+        }
+
+        if (contactPhone.isNotEmpty) {
+          bytes += _generator!.text(
+            "Ph: $contactPhone",
+            styles: PosStyles(
+              align: PosAlign.center,
+              fontType: PosFontType.fontA,
+              height: PosTextSize.size1, // Set height to minimum
+            ),
+          );
+        }
+        
+        if (contactEmail.isNotEmpty) {
+          bytes += _generator!.text(
+            contactEmail,
+            styles: PosStyles(
+              align: PosAlign.center,
+              fontType: PosFontType.fontA,
+              height: PosTextSize.size1, // Set height to minimum
+            ),
+          );
+        }
+        
+        if (businessAddress.isNotEmpty) {
+          bytes += _generator!.text(
+            businessAddress,
+            styles: PosStyles(
+              align: PosAlign.center,
+              fontType: PosFontType.fontA,
+              height: PosTextSize.size1, // Set height to minimum
+            ),
+          );
+        }
+        
+        if (gst.isNotEmpty) {
+          bytes += _generator!.text(
+            "GST: $gst",
+            styles: PosStyles(
+              align: PosAlign.center,
+              fontType: PosFontType.fontA,
+              height: PosTextSize.size1, // Set height to minimum
+            ),
+          );
+        }
+
+        // Bill number
+        String billtable = (tableNumber > 0) ?  "Bill No: $billNo / Table No-: $tableNumber" :  "Bill No:$billNo /OrderType:${transactionData?['orderType']}";
+        bytes += _generator!.text(
+          billtable,
+          styles: PosStyles(
+            bold: true,
+            fontType: PosFontType.fontA,
+            height: PosTextSize.size1, // Set height to minimum
+          ),
+        );
+
+        
+        bytes += _generator!.text(
+          "Time:- $dateTime",
+          styles: PosStyles(
+          fontType: PosFontType.fontA,
+          ),
+        );
+
+
+        if (customerName ) {
+          debugPrint("⚠️ check printer is connected tota --$transactionData---");
+          bytes += _generator!.hr();
+          bytes += _generator!.text(
+            "TO Customer:- ",
+            styles: PosStyles(
+              // align: PosAlign.center,
+              fontType: PosFontType.fontA,
+              height: PosTextSize.size1, // Set height to minimum
+            ),
+          );
+
+          bytes += _generator!.text(
+            "Name: ${transactionData?['customerName'] ?? " "}",
+            styles: PosStyles(
+              // align: PosAlign.center,
+              bold: true,
+              fontType: PosFontType.fontA,
+              height: PosTextSize.size1, // Set height to minimum
+              width: PosTextSize.size1,
+            ),
+          );
+
+
+          bytes += _generator!.text(
+            "Mobile NO: ${transactionData?['mobileNo'] ?? " "}",
+            styles: PosStyles(
+              // align: PosAlign.center,
+              fontType: PosFontType.fontA,
+              height: PosTextSize.size1, // Set height to minimum
+            ),
+          );
+          
+          bytes += _generator!.text(
+            "Adreess: ${transactionData?['reserved'] ?? " "}",
+            styles: PosStyles(
+              // align: PosAlign.center,
+              bold: true,
+              fontType: PosFontType.fontA,
+              height: PosTextSize.size1, // Set height to minimum
+              width: PosTextSize.size1,
+            ),
+          );
+
+          bytes += _generator!.hr();
+        }
+
+
+        // bytes += _generator!.feed(1);
+        // Item header
+        bytes += _generator!.row([
+          PosColumn(
+            text: 'Item',
+            width: 6,
+            styles: PosStyles(bold: true, fontType: PosFontType.fontA, height: PosTextSize.size1),
+          ),
+          PosColumn(
+            text: 'Qty',
+            width: 2,
+            styles: PosStyles(align: PosAlign.right, bold: true, fontType: PosFontType.fontA, height: PosTextSize.size1),
+          ),
+          PosColumn(
+            text: 'Rate',
+            width: 2,
+            styles: PosStyles(align: PosAlign.right, bold: true, fontType: PosFontType.fontA, height: PosTextSize.size1),
+          ),
+          PosColumn(
+            text: 'Sum',
+            width: 2,
+            styles: PosStyles(align: PosAlign.right, bold: false, fontType: PosFontType.fontA, height: PosTextSize.size1),
+          ),
+        ]);
+
+        bytes += _generator!.hr();
+        // bytes += _generator!.feed(1);
+
+        // Cart items
+        for (var item in cart) {
+          String name = item['name'] ?? 'Item';
+          int qty = item['qty'] ?? 0;
+          final dynamic rawPrice = item['sellPrice'];
+          final int rate = rawPrice is num
+              ? rawPrice.toInt()
+              : int.tryParse(rawPrice.toString().replaceAll(',', '')) ??
+                    double.tryParse(rawPrice.toString())?.toInt() ??
+                    0;
+          
+          // debugPrint("rate  $rate and $cart");
+          int itemTotal = qty * rate;
+
+          // Handle long item names by wrappingitem['qty']
+          // const int maxNameWidth = 25;
+          // List<String> wrapped = _wrapText(name, maxNameWidth);
+          
+          bytes += _generator!.row([
+            PosColumn(
+              text: name,
+              width: 7,
+              styles: PosStyles(fontType: PosFontType.fontA, bold: true, height: getTextSize(itemFontSizePref)),
+            ),
+            PosColumn(
+              text: qty.toString(),
+              width: 1,
+              styles: PosStyles(align: PosAlign.right,bold: true,  fontType: PosFontType.fontA, height: getTextSize(itemFontSizePref)),
+            ),
+            PosColumn(
+              text: rate.toString(),
+              width: 2,
+              styles: PosStyles(align: PosAlign.right,bold: true,  fontType: PosFontType.fontA, height: getTextSize(itemFontSizePref)),
+            ),
+            PosColumn(
+              text: itemTotal.toString(),
+              width: 2,
+              styles: PosStyles(align: PosAlign.right,bold: true,  fontType: PosFontType.fontA, height: getTextSize(itemFontSizePref)),
+            ),
+          ]);
+        }
+
+        bytes += _generator!.hr();
+
+        // Transaction data (discount, service charge)
+        if (transactionData != null) {
+          if (transactionData['discount'] != null && transactionData['discount'] > 0) {
+            // bytes += _generator!.feed(1); // Commented out to reduce gap
+            bytes += _generator!.row([
+              PosColumn(
+                text: 'Discount:',
+                width: 6,
+                styles: PosStyles(fontType: PosFontType.fontA, height: PosTextSize.size1),
+              ),
+              PosColumn(
+                text: '${transactionData['discount']}',
+                width: 6,
+                styles: PosStyles(align: PosAlign.right, fontType: PosFontType.fontA, height: PosTextSize.size1),
+              ),
+            ]);
+          }
+
+          if (transactionData['serviceCharge'] != null && transactionData['serviceCharge'] > 0) {
+            // bytes += _generator!.feed(1); // Commented out to reduce gap
+            bytes += _generator!.row([
+              PosColumn(
+                text: 'Service Charge:',
+                width: 6,
+                styles: PosStyles(fontType: PosFontType.fontA, height: PosTextSize.size1),
+              ),
+              PosColumn(
+                text: '${transactionData['serviceCharge']}',
+                width: 6,
+                styles: PosStyles(align: PosAlign.right, fontType: PosFontType.fontA, height: PosTextSize.size1),
+              ),
+            ]);
+          }
+        }
+
+        // Total
+        // bytes += _generator!.feed(1); // Commented out to reduce gap
+        bytes += _generator!.row([
+          PosColumn(
+            text: 'TOTAL:',
+            width: 5,
+            styles: PosStyles(bold: true, height: PosTextSize.size2, width: PosTextSize.size2, fontType: PosFontType.fontB),
+          ),
+          PosColumn(
+            text: 'Rs.$total',
+            width: 7,
+            styles: PosStyles(align: PosAlign.right, bold: true, height: PosTextSize.size2, width: PosTextSize.size2, fontType: PosFontType.fontB),
+          ),
+        ]);
+
+        // bytes += _generator!.feed(1); // Commented out to reduce gap
+
+        // QR Code
+        if (printQr && upiId != null && upiId.isNotEmpty) {
+          if(_printQRlogo){
+            final qrlogo = await generateQRImage(total:total);
+            if (qrlogo != null){
+              img.Image? original = img.decodeImage(qrlogo);
+              if (original != null){
+                bytes += _generator!.image(original); 
+              }
+            }
+          } else {
+            // await _printQrCode(businessName, total);
+            final String encodedBusinessName = Uri.encodeComponent(businessName);
+            String qrData = "upi://pay?pa=$upiId&pn=$encodedBusinessName&am=$total.00&cu=INR";
+            bytes += _generator!.qrcode( qrData, size : getQRSize(int.tryParse(_qrSize) ?? 5) );        //.qrCode(qrData, size: QRSize.Size4);
+            bytes += _generator!.feed(1);
+          }
+        } 
+
+        // Thank you message
+        bytes += _generator!.text(
+          footer,
+          styles: PosStyles(
+            align: PosAlign.center,
+            bold: true,
+            width: PosTextSize.size1,//getTextSize(itemFontSizePref),
+            fontType: PosFontType.fontA,
+            height: PosTextSize.size1, // Set height to minimum
+          ),
+        );
+
+        bytes += _generator!.feed(2);
+        // bytes += _generator!.cut();
+
+        debugPrint("⚠️ bytes.length --${bytes.length}---");
+        // Send to printer
+        // bytes += _generator!.beep();
+        await _sendToPrinter();
+
+        // debugPrint("before clear total $total and cart $cart");
+        cart.clear();
+        await _disconnect(); 
+        
+        // debugPrint("✅ Receipt sent to printer successfully");
+      }
+      }catch(e){
+        print_log_red("error message $e");
+      }
+
+  }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  Future<void> sendLogotoPrinter({bool isImg = false,BuildContext? context}) async {
+    final prefs = await SharedPreferences.getInstance();
+    final imagePath = prefs.getString('imagePath');
+    final _printlogo = prefs.getBool('printLogo') ?? true;
+    int logoWidth = prefs.getInt('logoWidth') ?? 200;
+    if (imagePath != null && File(imagePath).existsSync() && _printlogo ) {
+
+      try {
+        final file = File(imagePath);
+
+        if (!await file.exists()) {
+          debugPrint("❌ Logo file not found at: $imagePath");
+          return;
+        }
+
+        final imageBytes = await file.readAsBytes();
+        final img.Image? original = img.decodeImage(imageBytes);
+
+        if (original == null) {
+          debugPrint("❌ Failed to decode image at: $imagePath");
+          return;
+        }
+
+        final resized = img.copyResize(original, width: logoWidth, maintainAspect: true,);
+        final grayscale = img.grayscale(resized);
+        final Uint8List resizedBytes = img.encodePng(grayscale);
+        // final Uint8List resizedBytes1 = img.encodePng(resized);
+        
+
+        if (_generator == null) {
+          debugPrint("❌ _generator is not initialized.");
+          return;
+        }
+
+        // bytes ??= <int>[]; // Initialize if null
+        // bytes += _generator!.image(grayscale);
+        bytes += _generator!.reset();
+        bytes += _generator!.clearStyle();
+        bytes += _generator!.image(grayscale);
+        // bytes += _generator!.feed(1);
+
+        // debugPrint("🖨️ Sending logo to printer...");
+        await _sendToPrinter(imageBytes:resizedBytes);
+
+        bytes = [];
+        await Future.delayed(Duration(milliseconds: 500));
+
+
+        debugPrint("✅ Logo printed successfully.");
+      } catch (e, stack) {
+        debugPrint("❌ Error printing logo: $e");
+        debugPrint("Stack trace: $stack");
+      }
+    }
+  }
+
+
+
+  Future<void> sendQRtoPrinter(int total,{BuildContext? context}) async {
+    try {
+      bytes = [];
+      await Future.delayed(const Duration(milliseconds: 500));
+      final prefs = await SharedPreferences.getInstance();
+
+      // 1. Retrieve basic preferences
+      String paperSize = prefs.getString('paperSize') ?? '2';
+      // Define the full width of the paper in pixels
+      final int paperWidthPx = (paperSize == "2") ? 384 : (paperSize == "3") ? 512 : 576;
+
+      String? upiId = prefs.getString('upi');
+      String qrSizePref = prefs.getString('qrSize') ?? "5";
+      double qrPixelSize = getQrPixelSize(qrSizePref); // Ensure this isn't wider than paperWidthPx
+      String businessName = prefs.getString('businessName') ?? 'Hotel Test';
+      bool printQRLogo = prefs.getBool('printQRlogo') ?? true;
+      bool printQr = prefs.getBool('printQR') ?? false;
+
+      if (printQr && upiId != null && upiId.isNotEmpty) {
+        debugPrint("🖨️ Generating QR Code...");
+
+        // 2. Clean Business Name (Remove special chars that might break UPI)
+        // It is safer to keep the name simple for the UPI string
+        final cleanName = businessName.replaceAll(RegExp(r'[^\w\s]'), ''); 
+        final encodedBusinessName = Uri.encodeComponent(cleanName);
+        
+        // 3. Construct UPI URI
+        final qrData = "upi://pay?pa=$upiId&pn=$encodedBusinessName&am=$total.00&cu=INR";
+
+        // 4. Calculate Logo Size
+        final double logoWidth = (150 == qrPixelSize) ? 40 : 40 - ((80 / qrPixelSize) * 10);
+        final double logoHeight = (150 == qrPixelSize) ? 35 : 35 - ((70 / qrPixelSize) * 10);
+
+        // 5. Generate QR Image
+        final qrPainter = QrPainter(
+          data: qrData,
+          version: QrVersions.auto,
+          errorCorrectionLevel: QrErrorCorrectLevel.L,
+          gapless: true,
+
+          // eyeStyle: const QrEyeStyle(
+          //   eyeShape: QrEyeShape.square,
+          //   color: Color(0xFF000000),
+          // ),
+          // // Define style for the small data dots
+          // dataModuleStyle: const QrDataModuleStyle(
+          //   dataModuleShape: QrDataModuleShape.square,
+          //   color: Color(0xFF000000),
+          // ),
+
+          embeddedImage: printQRLogo ? await _loadLogoImage() : null,
+          embeddedImageStyle: printQRLogo
+              ? QrEmbeddedImageStyle(size: Size(logoWidth, logoHeight))
+              : null,
+        );
+
+        // Convert to Image Data
+        final ui.Image qrUiImage = await qrPainter.toImage(qrPixelSize);
+        final byteData = await qrUiImage.toByteData(format: ui.ImageByteFormat.png);
+        final Uint8List pngBytes = byteData!.buffer.asUint8List();
+        final img.Image? originalQrImage = img.decodeImage(pngBytes);
+        qrUiImage.dispose(); 
+
+        if (originalQrImage == null) {
+          debugPrint("❌ Failed to decode QR image");
+          return;
+        }
+
+        if (_generator == null) {
+          debugPrint("❌ _generator not initialized");
+          return;
+        }
+
+        // 1. Create a white canvas (Named arguments are now required)
+        int canvasHeight = originalQrImage.height; 
+        img.Image centeredCanvas = img.Image(width: paperWidthPx, height: canvasHeight,);
+        
+        // 2. Fill with white background
+        img.fill(centeredCanvas, color: img.ColorRgb8(255, 255, 255));
+
+        // 3. Calculate X offset to center the QR
+        int dstX = (paperWidthPx - originalQrImage.width) ~/ 2;
+        int dstY = 0; // 10px padding from top
+
+        // 4. Paste the QR code onto the white canvas
+        img.compositeImage(centeredCanvas, originalQrImage, dstX: dstX, dstY: dstY);
+
+        bytes += _generator!.reset();
+        bytes += _generator!.image(centeredCanvas, align: PosAlign.center);
+
+        await _sendToPrinter(imageBytes: pngBytes);
+
+        bytes = [];
+        await Future.delayed(const Duration(milliseconds: 500));
+        
+        debugPrint("✅ QR printed successfully.");
+      }
+    } catch (e, stack) {
+      debugPrint("❌ Error printing QR: $e");
+      debugPrint("Stack trace: $stack");
+    }
+  }
+
+
+
+
+
+
+  /// Prints a Kitchen Order Ticket (KOT)
   Future<void> sendKotToPrinter({
     required BuildContext context,
     required List<Map<String, dynamic>> cart,
-    int? tableNumber = 0,
+    required int tableNumber,
     int? kotNumber = 1,
     required Map<String, dynamic>? transactionData,
   }) async {
     if (_generator == null) {
       throw Exception("Printer not initialized");
+      
     }
-
     final prefs = await SharedPreferences.getInstance();
-    final String dateTime = DateFormat(
-      'dd-MMM-yyyy hh:mm a',
-    ).format(DateTime.now());
+    bool marathi = prefs.getBool('marathi') ?? false;
+    PrintQuality quality = PrintQuality.maximum;
+    final String dateTime = DateFormat('dd-MMM-yyyy hh:mm a').format(DateTime.now());
 
-    List<Map<String, dynamic>> kotCart = cart
-        .map((item) => Map<String, dynamic>.from(item))
-        .toList();
+    List<Map<String, dynamic>> kotCart = cart.map((item) => Map<String, dynamic>.from(item)).toList();
 
     try {
-      // Reset printer and clear styles
-      bytes += _generator!.reset();
-      bytes += _generator!.clearStyle();
-      bytes += _generator!.feed(1);
+      await _setPrintQuality(quality);
+      if (marathi){
+        Uint8List? imageBytes = await generateKOTImage(cart1: cart,tableNumber:tableNumber,kotNumber: transactionData?['billNo'],transactionData:transactionData);
+        if (imageBytes != null) {
 
-      // KOT Header
-      bytes += _generator!.text(
-        "KOT",
-        styles: PosStyles(
-          align: PosAlign.center,
-          bold: true,
-          height: PosTextSize.size2,
-          width: PosTextSize.size2,
-          fontType: PosFontType.fontB,
-        ),
-      );
+          // Example: Save to file (requires path_provider package)
+          final directory = await getDownloadsDirectory();
+          final path = '${directory!.path}/receipt_1.png';
+          final file = File(path);
+          await file.writeAsBytes(imageBytes);
+          debugPrint("Receipt image saved to: $path");
 
-      String kotInfo = (tableNumber == 0 || tableNumber == null)
-          ? "Bill No: ${transactionData?['billNo']} / Order Type: ${transactionData?['orderType']}"
-          : "KOT No: $kotNumber / Table No: $tableNumber";
-
-      bytes += _generator!.text(
-        kotInfo,
-        styles: PosStyles(
-          bold: true,
-          align: PosAlign.center,
-          fontType: PosFontType.fontA,
-        ),
-      );
-
-      bytes += _generator!.text(
-        "Time: $dateTime",
-        styles: PosStyles(align: PosAlign.center, fontType: PosFontType.fontA),
-      );
-
-      bytes += _generator!.hr();
-      bytes += _generator!.feed(1);
-
-      // Item header
-      bytes += _generator!.row([
-        PosColumn(
-          text: 'Item',
-          width: 8,
-          styles: PosStyles(bold: true, fontType: PosFontType.fontA),
-        ),
-        PosColumn(
-          text: 'Qty',
-          width: 4,
-          styles: PosStyles(
-            align: PosAlign.right,
-            bold: true,
-            fontType: PosFontType.fontA,
-          ),
-        ),
-      ]);
-
-      bytes += _generator!.hr();
-
-      // Item List
-      for (var item in kotCart) {
-        String name = item['name'] ?? 'Item';
-        int qty = item['qty'] ?? 0;
-        String note = item['note'] ?? '';
-
-        // Handle long item names
-        if (name.length > 20) {
-          bytes += _generator!.text(
-            name.substring(0, 20),
-            styles: PosStyles(fontType: PosFontType.fontA, bold: true),
-          );
-          if (name.length > 40) {
-            bytes += _generator!.text(
-              name.substring(20, 40),
-              styles: PosStyles(fontType: PosFontType.fontA, bold: true),
-            );
-          } else if (name.length > 20) {
-            bytes += _generator!.text(
-              name.substring(20),
-              styles: PosStyles(fontType: PosFontType.fontA, bold: true),
-            );
+          img.Image? original = img.decodeImage(imageBytes);
+          if (original != null) {
+            
+            // Convert to grayscale for better thermal printing
+            final grayscale = img.grayscale(original);
+            bytes += _generator!.image(grayscale);
+            // bytes += _generator!.feed(2);
+            // bytes += _generator!.cut();
           }
-        } else {
-          bytes += _generator!.row([
-            PosColumn(
-              text: name,
-              width: 8,
-              styles: PosStyles(fontType: PosFontType.fontA, bold: true),
-            ),
-            PosColumn(
-              text: "$qty",
-              width: 4,
-              styles: PosStyles(
-                align: PosAlign.right,
-                fontType: PosFontType.fontA,
-                bold: true,
-              ),
-            ),
-          ]);
-        }
 
-        // Add note if exists
-        if (note.isNotEmpty) {
-          bytes += _generator!.text(
-            "Note: $note",
-            styles: PosStyles(fontType: PosFontType.fontA),
-          );
+          await _sendToPrinter(imageBytes:imageBytes);
+
+          // kotCart.clear();
+          // cart.clear();
+          await _disconnect(); 
+          return;
         }
+      } else { 
+
+        // KOT Header
+        bytes += _generator!.text(
+          "KOT",
+          styles: PosStyles(
+            align: PosAlign.center,
+            bold: true,
+            height: PosTextSize.size2,
+            width: PosTextSize.size2,
+            fontType: PosFontType.fontB,
+          ),
+        );
 
         bytes += _generator!.text(
-          "------------------------",
+            (tableNumber == 0 || tableNumber == null) ? "Bill No: ${transactionData?['billNo']}/OrderType: ${transactionData?['orderType']}" : "KOT No: $kotNumber / Table No: $tableNumber",
+            styles: PosStyles(
+              bold: true,
+              align: PosAlign.center,
+              fontType: PosFontType.fontA,
+            ),
+          );
+
+
+        bytes += _generator!.text(
+          "KOT Time:- $dateTime",
           styles: PosStyles(
             align: PosAlign.center,
             fontType: PosFontType.fontA,
           ),
         );
+        
+        
+        // Item header
+        bytes += _generator!.row([
+          PosColumn(
+            text: 'Item',
+            width: 8,
+            styles: PosStyles(bold: true, fontType: PosFontType.fontA),
+          ),
+          PosColumn(
+            text: 'Note  Qty',
+            width: 4,
+            styles: PosStyles(align: PosAlign.right, bold: true, fontType: PosFontType.fontA),
+          ),
+        ]);
+
+        bytes += _generator!.hr();
+        // bytes += _generator!.feed(1);
+
+        // Item List
+        for (var item in kotCart) {
+          String name = item['name'] ?? 'Item';
+          int qty = item['qty'] ?? 0;
+          String note = item['note'] ?? ' ';
+          
+          // const int maxNameWidth = 20;
+          // List<String> wrapped = _wrapText(name, maxNameWidth);
+          
+          // for (int i = 0; i < wrapped.length; i++) {
+          //   if (i == 0) {
+              bytes += _generator!.row([
+                PosColumn(
+                  text: name,
+                  width: 7,
+                  styles: PosStyles(fontType: PosFontType.fontA,bold: true),
+                ),
+                PosColumn(
+                  text: note,
+                  width: 4,
+                  styles: PosStyles(align: PosAlign.center,fontType: PosFontType.fontA,bold: true),
+                ),
+                PosColumn(
+                  text: "$qty",
+                  width: 1,
+                  styles: PosStyles(align: PosAlign.right, fontType: PosFontType.fontA,bold: true),
+                ),
+              ]);
+        }
+
+        bytes += _generator!.hr();
+        bytes += _generator!.feed(2);
+        // bytes += _generator!.cut();
+
+        await _sendToPrinter();
+        kotCart.clear();
+        await _disconnect(); 
+        
+        debugPrint("✅ KOT for Table #$tableNumber sent to printer.");
       }
 
-      //bytes += _generator!.hr();
-      bytes += _generator!.feed(3);
-      //bytes += _generator!.cut();
-
-      await _sendToPrinter();
-      await _disconnect();
-
-      debugPrint("✅ KOT for Table #$tableNumber sent to printer.");
     } catch (e) {
       debugPrint("❌ Error printing KOT: $e");
       screen_massage(context, "❌ Error printing KOT: $e");
@@ -1099,43 +1937,69 @@ class BillPrinter {
     }
   }
 
-  // Get saved printer using blue_thermal_printer
-  Future<thermal.BluetoothDevice?> _getSavedPrinter({
-    required bool KOTmode,
-    required BuildContext context,
-  }) async {
+
+  List<String> _wrapText(String text, int width,{BuildContext? context}) {
+    List<String> lines = [];
+    List<String> words = text.split(' ');
+    String currentLine = '';
+    debugPrint("currentLine $text  $width");
+
+    for (String word in words) {
+      if ((currentLine + ' ' + word).length <= width) {
+        currentLine += (currentLine.isEmpty ? '' : ' ') + word;
+      } else {
+        if (currentLine.isNotEmpty) {
+          lines.add(currentLine);
+        }
+        currentLine = word;
+      }
+      debugPrint("currentLine $currentLine");
+    }
+    
+    if (currentLine.isNotEmpty) {
+      lines.add(currentLine);
+    }
+    debugPrint("currentLine $lines");
+    return lines;
+  }
+
+  Future<bl.BluetoothDevice?> _getSavedPrinter( {required bool KOTmode, required BuildContext context}) async {
     final prefs = await SharedPreferences.getInstance();
     String? address;
-
-    if (KOTmode) {
-      address = prefs.getString('saved_KOT_printer_address');
-    } else {
-      address = prefs.getString('saved_printer_address');
+    if(KOTmode){
+       address = prefs.getString('saved_KOT_printer_address');
+    } else{
+       address = prefs.getString('saved_printer_address');
     }
-
     debugPrint("Looking for saved printer with address: $address");
-
+    
     if (address == null) {
       screen_massage(context, "Printer Is Not Selected");
       return null;
     }
 
     try {
-      // Get bonded devices using blue_thermal_printer
-      List<thermal.BluetoothDevice> bondedDevices = await printer
-          .getBondedDevices();
+      // Method 1: Check bonded devices first (already paired)
+      List<bl.BluetoothDevice> bondedDevices = await bl.FlutterBluePlus.bondedDevices;
       debugPrint("Found ${bondedDevices.length} bonded devices");
-
+      
       for (var device in bondedDevices) {
-        debugPrint("Bonded: ${device.name} - ${device.address}");
-        if (device.address == address) {
+        debugPrint("Bonded: ${device.platformName} - ${device.remoteId}");
+        if (device.remoteId.toString() == address) {
           debugPrint("✅ Found saved printer in bonded devices!");
           return device;
         }
       }
 
-      debugPrint("❌ Printer not found in bonded devices");
-      return null;
+      // Method 2: If not bonded, create a device from address and connect
+      debugPrint("🔄 Printer not bonded, creating device from address...");
+      
+      // Create device from address
+      bl.BluetoothDevice device = bl.BluetoothDevice(remoteId: bl.DeviceIdentifier(address));
+      
+      debugPrint("✅ Created device from address: ${device.remoteId}");
+      return device;
+      
     } catch (e) {
       debugPrint("❌ Error in _getSavedPrinter: $e");
       screen_massage(context, "❌ Error in _getSavedPrinter: $e");
@@ -1143,40 +2007,28 @@ class BillPrinter {
     }
   }
 
-  // Rest of your existing methods (saveTransactionToObjectBox, updateTransactionToObjectBox, etc.)
-  // These remain the same as in your original code...
-
   Future<int> saveTransactionToObjectBox({
     required BuildContext context,
     required List<Map<String, dynamic>> cart,
     required int total,
-    int? tableNo,
+    required int tableNo,
     int? pageback,
     required String payment_mode,
     required String status,
     required Map<String, dynamic>? transactionData,
   }) async {
+    try{
     final store = Provider.of<ObjectBoxService>(context, listen: false).store;
     final box = store.box<Transaction>();
 
     final prefs = await SharedPreferences.getInstance();
-    final businessDateString =
-        prefs.getString('businessDate') ?? DateTime.now().toString();
+    final businessDateString = prefs.getString('businessDate') ?? DateTime.now().toString();
     final now = DateTime.now();
-    int cash_amount =
-        (double.tryParse(transactionData?['cashamount']?.toString() ?? '0.0') ??
-                0.0)
-            .toInt();
-    int upi_amount =
-        (double.tryParse(transactionData?['upiamount']?.toString() ?? '0.0') ??
-                0.0)
-            .toInt();
-
-    debugPrint(
-      "✅ business date from prefs ${prefs.getString('businessDate')} $payment_mode $cash_amount $upi_amount $transactionData",
-    );
-
+    int cash_amount = (double.tryParse(transactionData?['cashamount']?.toString() ?? '0.0') ?? 0.0).toInt();
+    int upi_amount = (double.tryParse(transactionData?['upiamount']?.toString() ?? '0.0') ?? 0.0).toInt();
     final businessDatePart = DateTime.parse(businessDateString);
+    debugPrint("✅ saveTransactionToObjectBox  businessDate $businessDatePart,payment_mode $payment_mode,cash_amount $cash_amount,upi_amount$upi_amount,transactionData $transactionData, tableNo- $tableNo, total-$total, pageback-$pageback, status-$status, cart-$cart, ");
+    // debugPrint("business date ${businessDatePart}");
     final fullDateTime = DateTime(
       businessDatePart.year,
       businessDatePart.month,
@@ -1185,7 +2037,8 @@ class BillPrinter {
       now.minute,
       now.second,
     );
-
+    // debugPrint("Final combined DateTime: $fullDateTime"); // Will show the correct date and current time
+    // debugPrint("now time in hhmmss: $now");
     late int createdId = 0;
 
     final tx = Transaction(
@@ -1195,54 +2048,59 @@ class BillPrinter {
       cartData: jsonEncode(cart),
       payment_mode: payment_mode,
       status: status,
-      serviceCharge: transactionData?['serviceCharge'] ?? 0.0,
-      discount: transactionData?['discount'] ?? 0.0,
-      discountPercent: transactionData?['discountpercent'] ?? 0.0,
-      billNo: transactionData?['billNo'] ?? 0,
-      customerName: transactionData?['customerName'] ?? '',
-      mobileNo: transactionData?['mobileNo'] ?? '',
+      serviceCharge: transactionData?['serviceCharge'] ?? 0.0, // 1.0
+      discount: transactionData?['discount'] ?? 0.0, // 10.0
+      discountPercent: transactionData?['discountpercent'] ?? 0.0, // 0.0
+      billNo:  transactionData?['billNo'] ?? 0,
+      customerName: transactionData?['customerName'] ?? '', // '28282'
+      mobileNo: transactionData?['mobileNo'] ?? '', // '386838'
       reserved: transactionData?['reserved'] ?? '',
       orderType: transactionData?['orderType'] ?? '',
       cashamount: cash_amount,
       upiamount: upi_amount,
+      
     );
-
     debugPrint("Transaction Data to be sent: $tx");
     createdId = box.put(tx);
     setNextBillNo(context, transactionData?['billNo']);
-
-    if (status.toLowerCase().contains("settle")) {
-      try {
+    if(status.toLowerCase().contains("settle"))
+    {
+      try{
         adjustStock(context, cart);
         debugPrint("✅ Transaction saved to ObjectBox with ID: $createdId");
-      } catch (e) {
-        print_log_red("Transaction not saved to ObjectBox with ID: $e");
-        screen_massage(
-          context,
-          "Transaction not saved to ObjectBox with ID: $e",
-        );
+      }catch(e){
+        print_log_red( "Transaction not saved to ObjectBox with ID: $e" );
+        screen_massage(context, "Transaction not saved to ObjectBox with ID: $e");
       }
     }
-
+    
     onTransactionAdded?.call();
-
-    if (pageback != null && pageback > 0) {
-      for (int i = 0; i < pageback; i++) {
-        debugPrint("save pageback1 $pageback");
-        Navigator.of(context).pop();
+    // debugPrint("🔁 Transaction added callback fired!");
+    // To go back to the very first screen (the "home" screen)
+    
+      if(pageback != null && pageback > 0){
+        for(int i =0 ;i < pageback ;i++){
+          debugPrint("save pageback1 $pageback");
+          Navigator.of(context).pop();
+        }
+      }else{
+        Navigator.of(context).popUntil((route) => route.isFirst);
       }
-    } else {
-      Navigator.of(context).popUntil((route) => route.isFirst);
-    }
-
+    
     return createdId;
+    }catch(e){
+      print_log_red("Transaction not saved to ObjectBox with ID: $e" );
+      screen_massage(context, "Transaction not saved to ObjectBox with ID: $e");
+      return 0;
+    }
   }
+
 
   Future<void> updateTransactionToObjectBox({
     required BuildContext context,
     required List<Map<String, dynamic>> cart,
     required int total,
-    int? tableNo,
+    required int tableNo,
     int? pageback,
     required String payment_mode,
     required String status,
@@ -1254,115 +2112,110 @@ class BillPrinter {
     final store = Provider.of<ObjectBoxService>(context, listen: false).store;
     final box = store.box<Transaction>();
     final prefs = await SharedPreferences.getInstance();
-    final businessDateString =
-        prefs.getString('BusinessDate') ?? DateTime.now().toString();
-    final now = DateTime.now();
-    final businessDatePart = DateTime.parse(businessDateString);
-    final fullDateTime = DateTime(
-      businessDatePart.year,
-      businessDatePart.month,
-      businessDatePart.day,
-      now.hour,
-      now.minute,
-      now.second,
-    );
+    // final businessDateString = prefs.getString('BusinessDate') ?? DateTime.now().toString();
 
+
+    // 1. Find the existing transaction by its ID
     final existingTx = box.get(transactionId);
     debugPrint("🔁 Transaction to update $existingTx ");
 
+    // 2. Check if the transaction was actually found
     if (existingTx != null) {
       if (status == 'print1') {
         debugPrint("⏩ Skipping update for print1 status");
-        return;
+        return; // Exit the function early if no update is needed
       }
 
-      debugPrint(
-        "in bill debugPrint update transactionData $transactionData $tableNo and $total and ${cart.length} and $payment_mode and $status",
+
+      
+      final businessDatePart = existingTx.time;
+      final now = DateTime.now();
+      // final businessDatePart = DateTime.parse(businessDateString);
+      final fullDateTime = DateTime(
+        businessDatePart.year,
+        businessDatePart.month,
+        businessDatePart.day,
+        now.hour,
+        now.minute,
+        now.second,
       );
 
+      debugPrint("in bill debugPrint update transactionData $transactionData $tableNo and $total and ${cart.length} and $payment_mode and $status and fullDateTime $fullDateTime");
+      // 3. Modify only the properties of the existing transaction
       existingTx.time = fullDateTime;
       existingTx.total = total;
-      existingTx.cartData = jsonEncode(cart);
-      existingTx.payment_mode = payment_mode;
+      existingTx.cartData = jsonEncode(cart); // This should be the current cart
+      existingTx.payment_mode = payment_mode; // This should be the new payment mode
       existingTx.status = status;
-      existingTx.synced = false;
-      existingTx.serviceCharge = transactionData?['serviceCharge'] ?? 0.0;
-      existingTx.discount = transactionData?['discount'] ?? 0.0;
-      existingTx.customerName = transactionData?['customerName'] ?? '';
-      existingTx.mobileNo = transactionData?['mobileNo'] ?? '';
+      existingTx.synced = false; // Mark as unsynced after modification
+      existingTx.serviceCharge = transactionData?['serviceCharge'] ?? 0.0; // 1.0
+      existingTx.discount = transactionData?['discount'] ?? 0.0; // 10.0
+      existingTx.customerName = transactionData?['customerName'] ?? ''; // '28282'
+      existingTx.mobileNo = transactionData?['mobileNo'] ?? ''; // '386838'
       existingTx.reserved = transactionData?['reserved'] ?? '';
       existingTx.orderType = transactionData?['orderType'] ?? '';
-      existingTx.cashamount =
-          (double.tryParse(
-                    transactionData?['cashamount']?.toString() ?? '0.0',
-                  ) ??
-                  0.0)
-              .toInt();
-      existingTx.upiamount =
-          (double.tryParse(
-                    transactionData?['upiamount']?.toString() ?? '0.0',
-                  ) ??
-                  0.0)
-              .toInt();
+      existingTx.cashamount = (double.tryParse(transactionData?['cashamount']?.toString() ?? '0.0') ?? 0.0).toInt();
+      existingTx.upiamount = (double.tryParse(transactionData?['upiamount']?.toString() ?? '0.0') ?? 0.0).toInt();
+      
 
+      // 4. Put the modified object back into the box
       box.put(existingTx);
-
-      if (status.toLowerCase().contains("settle")) {
+      if(status.toLowerCase().contains("settle"))
+      {
         adjustStock(context, cart);
       }
-
       debugPrint("✅ Transaction updated in ObjectBox: $existingTx");
 
-      onTransactionAdded?.call();
+      onTransactionAdded?.call(); // Fire the callback
+      debugPrint("🔁 Transaction updated callback fired!");
 
       final cartProvider = Provider.of<CartProvider>(context, listen: false);
       cartProvider.clearCart();
-
+      
+      // Navigate back
+      // To go back to the very first screen (the "home" screen)
       debugPrint(" up pageback1 $pageback");
-      if (pageback != null && pageback > 0) {
-        for (int i = 0; i < pageback; i++) {
+      if(pageback != null && pageback > 0){
+        for(int i =0 ;i < pageback ;i++){
           debugPrint(" up pageback1 $pageback");
           Navigator.of(context).pop();
         }
-      } else {
+      }else{
         Navigator.of(context).popUntil((route) => route.isFirst);
       }
+
+      
     } else {
-      debugPrint(
-        "❌ Error: Transaction with ID $transactionId not found. Cannot update.",
-      );
+      // 5. Handle the case where no transaction with that ID was found
+      debugPrint("❌ Error: Transaction with ID $transactionId not found. Cannot update.");
+      // Optionally show a message to the user
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text("Error: Could not find the transaction to update."),
-        ),
+        SnackBar(content: Text("Error: Could not find the transaction to update.")),
       );
     }
   }
 
-  Future<bool> sendTransactionToServer(Box<Transaction> box, int id) async {
+  /// Attempt to send a transaction to the server
+  Future<bool> sendTransactionToServer(Box<Transaction> box,int id,) async {
+    final prefs = await SharedPreferences.getInstance();
     try {
+
       final existingTx = box.get(id);
-      final prefs = await SharedPreferences.getInstance();
-      final isConnected = prefs.getBool('isOnline');
-
-      debugPrint("❌ isConnected $isConnected not found");
-      if (isConnected != true) {
-        return false;
-      }
-
-      debugPrint(
-        "✅ sendTransactionToServer: ${existingTx}  and ${existingTx?.payment_mode}",
-      );
-
+      
+      // final isConnected = await isDeviceConnected();
+      // final isConnected = prefs.getBool('isOnline');
+      // debugPrint("❌ isConnected $isConnected not found");
+      // if (isConnected != true) { return false;}
+      debugPrint("✅ sendTransactionToServer: ${existingTx}  and ${existingTx?.payment_mode}");
       if (existingTx == null) {
         debugPrint("❌ Transaction with ID $id not found");
         return false;
       }
 
-      String businessName = prefs.getString('businessName') ?? '';
+      // String businessName = prefs.getString('businessName') ?? 'Hotel Test';
       String login_user = prefs.getString('username') ?? 'Hotel Test';
       String cart_String = existingTx.cartData.toString().replaceAll('"', "'");
-
+      // String cart_String = jsonEncode(existingTx.cartData);
       final payload = {
         "transactions_id": id,
         "hotelName": login_user,
@@ -1371,88 +2224,76 @@ class BillPrinter {
         "cartData": cart_String,
         "payment_mode": existingTx.payment_mode,
         "time": existingTx.time.toIso8601String(),
-        "login_user": login_user,
+        "login_user":login_user,
       };
 
-      debugPrint("payload $payload ");
+      debugPrint("✅ payload $payload ");
 
-      final response = await http
-          .post(
-            Uri.parse("https://api2.nextorbitals.in/api/save_transaction.php"),
-            headers: {"Content-Type": "application/json"},
-            body: jsonEncode(payload),
-          )
-          .timeout(const Duration(seconds: 30));
+      http.Response? response = await apiCalls("t", login_user, payload);
+        if (response == null) {
+          return false;
+        }
 
       if (response.statusCode == 200) {
         existingTx.synced = true;
+        // debugPrint("✅ sendTransactionToServer: ${existingTx} and ${existingTx.synced}");
         box.put(existingTx);
         debugPrint("✅ sendTransactionToServer: ${response.body}");
+        final List<Map<String, dynamic>> responseBodyCart =
+            (jsonDecode(existingTx.cartData) as List<dynamic>)
+                .map((item) => item as Map<String, dynamic>).toList();
+        final isnonzero = areAllQuantitiesZero(responseBodyCart);
+        if(isnonzero){
+          print_log("qty check in transecion to server ${isnonzero} > 0");
+        }
         return true;
       } else {
-        debugPrint(
-          "❌ sendTransactionToServer failed: ${response.statusCode} and body ${response.body}",
-        );
+        print_log_red("❌ sendTransactionToServer failed: ${response.statusCode} and body ${response.body}");
       }
     } catch (e) {
-      debugPrint("❌ Error sending transaction: $e");
+      print_log_red("❌ Error sending transaction: $e");
+      // screen_massage(context, "❌ Error sending transaction: $e");
     }
 
     return false;
   }
 
-  void deletetablecart(int tableNo) async {
-    final box = store.box<tableCart>();
-    final query = box.query(tableCart_.tableNo.equals(tableNo)).build();
-    tableCart? existingTableCart = query.findFirst();
-    query.close();
-    debugPrint(
-      "✅ Updated cart for table #$tableNo in ObjectBox. existingTableCart $existingTableCart",
-    );
+  
+  Future<void> adjustStock(BuildContext context, List<Map<String, dynamic>> cart1) async {
+    // Clone the cart list to avoid modifying the original
+    List<Map<String, dynamic>> cart = cart1.map((item) => Map<String, dynamic>.from(item)).toList();
 
-    if (existingTableCart != null) {
-      box.remove(existingTableCart.id);
-      debugPrint("🗑️ Removed empty cart for table #$tableNo from ObjectBox.");
-    }
-  }
-
-  Future<void> adjustStock(
-    BuildContext context,
-    List<Map<String, dynamic>> cart1,
-  ) async {
-    List<Map<String, dynamic>> cart = cart1
-        .map((item) => Map<String, dynamic>.from(item))
-        .toList();
-
+    // Access ObjectBox store and MenuItem box
     final store = Provider.of<ObjectBoxService>(context, listen: false).store;
     final Box<MenuItem> menuItemBox = store.box<MenuItem>();
+
+    // Fetch all items from the database
     final List<MenuItem> allItems = menuItemBox.getAll();
 
+    // Loop through each item in the cart
     print_log("menuItem adjustStock $cart ");
-
     for (var cartItem in cart) {
       final String? cartItemId = cartItem['name'];
       final int qtyToReduce = cartItem['qty'] ?? 0;
-      print_log(
-        "menuItem adjustStock ${(cartItemId == null || qtyToReduce <= 0)} ",
-      );
-
+      print_log("menuItem adjustStock ${(cartItemId == null || qtyToReduce <= 0)} ");
       if (cartItemId == null || qtyToReduce <= 0) continue;
 
+      // Find the matching MenuItem in ObjectBox
       final MenuItem? menuItem = allItems.firstWhere(
         (item) => item.name == cartItemId,
+        // orElse: () => null,
       );
-
       print_log("menuItem adjustStock $menuItem ");
 
       if (menuItem != null) {
+        // Adjust stock safely (prevent going below 0)
         int currentStock = menuItem.adjustStock ?? 0;
-        int newStock = (currentStock - qtyToReduce)
-            .clamp(0, double.infinity)
-            .toInt();
-
+        int newStock = (currentStock - qtyToReduce).clamp(0, double.infinity).toInt();
         print_log("menuItem adjustStock $menuItem $currentStock $newStock");
+        // Update the item
         menuItem.adjustStock = newStock;
+
+        // Save back to ObjectBox
         menuItemBox.put(menuItem);
       }
     }
@@ -1460,7 +2301,1434 @@ class BillPrinter {
     debugPrint("✅ Stock adjusted successfully for ${cart.length} items.");
   }
 
-  // Print sales Report
+
+  Future<bool> isDeviceConnected() async {
+    final connectivityResult = await (Connectivity().checkConnectivity());
+    if (connectivityResult.contains(ConnectivityResult.mobile) ||
+        connectivityResult.contains(ConnectivityResult.bluetooth) ||
+        connectivityResult.contains(ConnectivityResult.wifi) ||
+        connectivityResult.contains(ConnectivityResult.ethernet)) {
+      // Now, check for actual internet access
+      debugPrint(" connectivityResult ${connectivityResult}");
+      return await InternetConnection().hasInternetAccess;
+    }
+    return false;
+  }
+
+
+
+  void listenForNetworkChanges(BuildContext context) {
+    print_log("network state changed");
+    // final objectBoxService = Provider.of<ObjectBoxService>(
+    //   context,
+    //   listen: false,
+    // );
+    // final store = objectBoxService.store;
+    // final box = store.box<Transaction>();
+
+    Connectivity().onConnectivityChanged.listen((result) async {
+      if (result != ConnectivityResult.none) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text("you are online, wite to async transections"),
+          ),
+        );
+
+        // await _syncPendingTransactions(context);
+      }
+    });
+  }
+
+  
+  Future<void> syncPendingTransactions(BuildContext context) async {
+    if (_isSyncing) {
+      return;
+    }
+    _isSyncing = true;
+    print_log("Lock sync process: $_isSyncing");
+
+    try {
+      final objectBoxService = Provider.of<ObjectBoxService>(context,listen: false,);
+      final store1 = objectBoxService.store;
+      final box = store1.box<Transaction>();
+      final List<int> unsyncedIds = box.getAll().where((tx) => !(tx.synced)).map((tx) => tx.id).toList();
+      debugPrint("Unsynced transaction IDs: $unsyncedIds");
+      // final isOnline = await isDeviceOnline();
+      // final isOnline = await isDeviceConnected();
+      // final prefs = await SharedPreferences.getInstance();
+      // final isOnline = prefs.getBool('isOnline') ?? true;
+      debugPrint(" unsyncedIds.isNotEmpty: ${unsyncedIds.isNotEmpty} both: ${unsyncedIds.isNotEmpty}");
+
+      int successfulSyncs = 0;
+      for (int i in unsyncedIds) {
+        try {
+          // Wait for 1 second before sending (except for the first one)
+          // await Future.delayed(Duration(seconds: 5));
+          final success = await sendTransactionToServer(box, i).timeout(const Duration(seconds: 5));
+          // await Future.delayed(Duration(seconds: 5));
+          if (success) {
+            successfulSyncs++;
+          }
+        } catch (e) {
+          print_log("❌ Got Exception Transaction failed ${unsyncedIds.length} $e ");
+          // break;
+        }
+      }
+
+    } catch (e) {
+      print_log("❌ Error in sync process: $e");
+    } finally {
+      _isSyncing = false;
+      print_log("Unlock sync process: $_isSyncing");
+    }
+  }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  Future<double> _drawText(
+    ui.Canvas canvas,
+    String text, {
+    required double y,
+    required double width,
+    required double fontSize,
+    FontWeight fontWeight = FontWeight.normal,
+    TextAlign align = TextAlign.left,
+  }) async {
+    final paraBuilder = ui.ParagraphBuilder(ui.ParagraphStyle(
+      textAlign: align,
+      fontSize: fontSize,
+      fontWeight: fontWeight,
+      fontFamily: 'Roboto', // Or your app's font
+    ))
+      ..pushStyle(ui.TextStyle(color: Colors.black))
+      ..addText(text);
+
+    final para = paraBuilder.build();
+    para.layout(ui.ParagraphConstraints(width: width));
+
+    canvas.drawParagraph(para, ui.Offset(0, y));
+    return para.height;
+  }
+
+  /// Helper to draw left-aligned and right-aligned text on the same line.
+  Future<double> _drawLeftRight(
+    ui.Canvas canvas,
+    String leftText,
+    String rightText, {
+    required double y,
+    required double width,
+    required double fontSize,
+    FontWeight leftFontWeight = FontWeight.normal,
+    FontWeight rightFontWeight = FontWeight.normal,
+  }) async {
+    // --- Draw Left Text ---
+    final leftParaBuilder = ui.ParagraphBuilder(ui.ParagraphStyle(
+      textAlign: TextAlign.left,
+      fontSize: fontSize,
+      fontWeight: leftFontWeight,
+    ))
+      ..pushStyle(ui.TextStyle(color: Colors.black))
+      ..addText(leftText);
+    
+    final leftPara = leftParaBuilder.build();
+    // Constrain left text to ~60% of width to avoid overlap
+    final leftWidth = width * 0.6;
+    leftPara.layout(ui.ParagraphConstraints(width: leftWidth));
+    canvas.drawParagraph(leftPara, ui.Offset(0, y));
+
+    // --- Draw Right Text ---
+    final rightParaBuilder = ui.ParagraphBuilder(ui.ParagraphStyle(
+      textAlign: TextAlign.right,
+      fontSize: fontSize,
+      fontWeight: rightFontWeight,
+    ))
+      ..pushStyle(ui.TextStyle(color: Colors.black))
+      ..addText(rightText);
+
+    final rightPara = rightParaBuilder.build();
+    // Right text can use the full width, as it's right-aligned
+    rightPara.layout(ui.ParagraphConstraints(width: width));
+    canvas.drawParagraph(rightPara, ui.Offset(0, y));
+
+    // Return the height of the taller of the two paragraphs
+    return max(leftPara.height, rightPara.height);
+  }
+
+  /// Draws a dashed line
+  Future<double> _drawDashedLine(ui.Canvas canvas, double y, double width, double fontSize) {
+    // You can also draw this with canvas.drawLine and a dashed path effect,
+    // but for thermal printers, text dashes are more authentic.
+    return _drawText(
+      canvas,
+      '---------------------------------------------------------------', // Adjust count for your width
+      y: y,
+      width: width,
+      fontSize: fontSize,
+      align: TextAlign.center,
+    );
+  }
+
+
+  Future<double> _drawLogo(ui.Canvas canvas, double y, double width) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      int logoWidth = prefs.getInt('logoWidth') ?? 200;
+      int logoheight = prefs.getInt('logoheight') ?? 200;
+
+      final imagePath = prefs.getString('imagePath');
+      final _printlogo = prefs.getBool('printLogo') ?? true;
+
+      // --- DIAGNOSTIC PRINT ---
+      // Let's check what path is being used.
+      debugPrint("Attempting to load logo from path: $imagePath");
+
+      if (imagePath != null && File(imagePath).existsSync() && _printlogo) {
+        
+        // --- File was found, proceed ---
+        debugPrint("Logo file found. Decoding...");
+
+        final file = File(imagePath);
+        final imageBytes = await file.readAsBytes();
+        
+        img.Image? original = img.decodeImage(imageBytes);
+
+        // Handle failed decode
+        if (original == null) {
+          // --- ADDED ERROR PRINT ---
+          debugPrint("Error: Could not decode logo image. Is it a valid PNG/JPG?");
+          return 0.0;
+        }
+        
+        // Resize to fit printer width
+        final resized = img.copyResize(original, width: logoWidth, maintainAspect: true);
+        final grayscale = img.grayscale(resized);
+        final Uint8List resizedBytes = img.encodePng(grayscale); // Grayscale is optional
+        
+        final codec = await ui.instantiateImageCodec(resizedBytes);
+        final frame = await codec.getNextFrame();
+        final image = frame.image;
+
+        // Scale image to fit canvas width if it's too large
+        double imageWidth = image.width.toDouble();
+        double imageHeight = image.height.toDouble();
+        if (imageWidth > width) {
+          final ratio = width / imageWidth;
+          imageWidth = width;
+          imageHeight = imageHeight * ratio;
+        }
+
+        // Center the logo
+        final xOffset = (width - imageWidth) / 2;
+        final rect = ui.Rect.fromLTWH(xOffset, y, imageWidth, imageHeight);
+        
+        canvas.drawImageRect(
+          image,
+          ui.Rect.fromLTWH(0, 0, image.width.toDouble(), image.height.toDouble()),
+          rect,
+          Paint(),
+        );
+      
+        // --- 1. FIXED THIS PRINT ---
+        // This was showing an "Error" message before, now it shows success.
+        debugPrint("Logo drawn successfully. Height: ${imageHeight + 10.0}");
+        return imageHeight + 10.0; // Return height + padding
+
+      } else {
+        // --- 2. ADDED THIS PRINT ---
+        // This is the most likely reason your logo isn't showing.
+        debugPrint("Logo not drawn. Reason: File path was null or file does not exist at path.");
+        return 0.0;
+      }
+    } catch (e) {
+      debugPrint("Error drawing logo: $e");
+      return 0.0;
+    }
+  }
+
+  Future<ui.Image?> _loadLogoImage() async {
+    try {
+      const String upiLogoPath = 'assets/images/round_logo.png';
+      final ByteData data = await rootBundle.load(upiLogoPath);
+      final Uint8List bytes = data.buffer.asUint8List();
+      
+      // Decode using image package
+      final original = img.decodeImage(bytes);
+      if (original != null) {
+        final grayscale = img.grayscale(original);
+        
+        // Convert back to ui.Image
+        final Uint8List grayscaleBytes = Uint8List.fromList(img.encodePng(grayscale));
+        final ui.Codec codec = await ui.instantiateImageCodec(grayscaleBytes);
+        final ui.FrameInfo frame = await codec.getNextFrame();
+        return frame.image;
+      }
+      return null;
+    } catch (e) {
+      print('Failed to load logo: $e');
+      return null;
+    }
+  }
+
+    double getQrPixelSize(qrSize) {
+      switch (qrSize) {
+        case "1": return 115;
+        case "2": return 130;
+        case "3": return 150;
+        case "5": return 180;
+        case "7": return 200;
+        default: return 150;
+      }
+    }
+
+  Future<double> _drawQrCode(
+    ui.Canvas canvas,
+    String businessName,
+    int total,
+    double qrPixelSize,
+    double y,
+    double width,
+    String upiId,
+  ) async {
+
+    // --- THIS IS THE FIX ---
+      // Encode the business name to handle special characters
+      final String encodedBusinessName = Uri.encodeComponent(businessName);
+      final prefs = await SharedPreferences.getInstance();
+      bool _printQRlogo = prefs.getBool('printQRlogo') ?? true;
+
+      // Now use the encoded name in the qrData string
+      String qrData = "upi://pay?pa=$upiId&pn=$encodedBusinessName&am=$total.00&cu=INR";
+      // -------------------------
+      try {
+
+        QrPainter qrPainter;
+        double logoWidth1 = (150 == qrPixelSize) ? 40 : 40 - ( (80 / (qrPixelSize)) *10);
+        double logoHeight = (150 == qrPixelSize) ? 35 : 35 - ( (70 / (qrPixelSize)) *10);
+
+        if (_printQRlogo) {
+          debugPrint("logoWidth: $logoWidth1 logoHeight :$logoHeight");
+          qrPainter = QrPainter(
+            data: qrData,
+            version: QrVersions.auto,
+            gapless: true,
+            embeddedImage: await _loadLogoImage() , 
+            embeddedImageStyle: QrEmbeddedImageStyle(
+              size: Size(logoWidth1, logoHeight), // ✅ removed const
+            ),
+          );
+        } else {
+          qrPainter = QrPainter(
+            data: qrData,
+            version: QrVersions.auto,
+            gapless: true,
+          );
+        }
+
+      // Convert QrPainter to ui.Image
+      ui.Image qrImage = await qrPainter.toImage(qrPixelSize);
+      // final qrImage = await qrPainter;
+      
+      // Center it
+      final xOffset = (width - qrImage.width) / 2.0;
+      canvas.drawImage(qrImage, ui.Offset(xOffset, y), Paint());
+      
+      return qrImage.height.toDouble(); // + padding
+    } catch (e) {
+      debugPrint("Error drawing QR code: $e");
+      return 0.0;
+    }
+  }
+
+  Future<Uint8List?> generateQRImage({required int total,}) async {
+    
+    final prefs = await SharedPreferences.getInstance();
+    
+
+    String businessName = prefs.getString('businessName') ?? 'Hotel Test';
+    bool printQr = prefs.getBool('printQR') ?? false;
+    String _qrSize = prefs.getString('qrSize') ?? "5";
+    double qrSize = getQrPixelSize(_qrSize);
+    String? upiId = prefs.getString('upi');
+    String paperSize = prefs.getString('paperSize') ?? '2';
+    final double receiptWidth = (paperSize == "2") ? 384.0 :(paperSize == "3") ? 512.0 : 576.0 ;
+
+    
+    
+    // --- 3. Setup Canvas ---
+    final ui.PictureRecorder recorder = ui.PictureRecorder();
+    // Start with a large canvas, we'll crop it later
+    final ui.Rect canvasRect = ui.Rect.fromLTWH(0, 0, receiptWidth, 20000); 
+    final ui.Canvas canvas = ui.Canvas(recorder, canvasRect);
+
+    // White background
+    canvas.drawRect(canvasRect, Paint()..color = Colors.white);
+    
+    double yOffset = 10.0; // Start with a 10px top margin
+
+    // --- 4. Draw Receipt (Translate bluetooth calls to canvas calls) ---
+    
+    try {
+
+      // QR Code
+      if (printQr && upiId != null && upiId.isNotEmpty) {
+        // **ADAPT THIS** to match your _printQrCode logic
+        yOffset += await _drawQrCode(canvas, businessName, total, qrSize, yOffset, receiptWidth, upiId);
+        yOffset += 10.0;
+      }
+      
+      
+      // Stop recording
+      final ui.Picture picture = recorder.endRecording();
+      
+      // Crop the image to the final height
+      final ui.Image finalImage = await picture.toImage(
+        receiptWidth.toInt(),
+        yOffset.toInt(), // Crop to the height we actually used
+      );
+      
+      // Encode to PNG
+      final ByteData? byteData = await finalImage.toByteData(format: ui.ImageByteFormat.png);
+      if (byteData == null) return null;
+      
+      return byteData.buffer.asUint8List();
+
+    } catch (e) {
+      debugPrint("Error generating receipt image: $e");
+      return null;
+    }
+  }
+
+
+  Future<Uint8List?> generateReceiptImage({
+    required List<Map<String, dynamic>> cart1,
+    required int total,
+    required int billNo,
+    required Map<String, dynamic>? transactionData,
+    required int tableno,
+  }) async {
+    
+    // --- 1. Configuration (MUST TWEAK THESE) ---
+    
+
+    
+    // Map your printer's font sizes (1, 2, 3) to pixel font sizes
+    final Map<int, double> fontSizes = {
+      1: 18.0, // Small (items)
+      2: 24.0, // Medium (total)
+      3: 30.0, // Large (header)
+    };
+    
+    // --- 2. Get All Data (Copied from your function) ---
+    
+    List<Map<String, dynamic>> cart = cart1.map((item) => Map<String, dynamic>.from(item)).toList();
+    final prefs = await SharedPreferences.getInstance();
+
+
+    // 🏪 Business info
+    String businessName = prefs.getString('businessName') ?? 'Hotel Test';
+    String contactPhone = prefs.getString('contactPhone') ?? '';
+    String contactEmail = prefs.getString('contactEmail') ?? '';
+    String businessAddress = prefs.getString('businessAddress') ?? '';
+    String gst = prefs.getString('gst') ?? '';
+    
+    // ⚙ Printer user settings
+    bool printQr = prefs.getBool('printQR') ?? false;
+    String _qrSize = prefs.getString('qrSize') ?? "5";
+    double qrSize = getQrPixelSize(_qrSize);
+    bool printName = prefs.getBool('printName') ?? true;
+    String footer =  prefs.getString('footerText') ?? "** Thank You **";
+    String? upiId = prefs.getString('upi');
+    bool customerName = prefs.getBool('customerName') ?? false;
+    String paperSize = prefs.getString('paperSize') ?? '2';
+    // Width in pixels. 58mm printers are ~384px. 80mm are ~576px.
+      //   if (value == PaperSize.mm58.value) {
+      //   return 384;
+      // } else if (value == PaperSize.mm72.value) {
+      //   return 512;
+      // } else {
+      //   return 576;
+      // }
+    final double receiptWidth = (paperSize == "2") ? 384.0 :(paperSize == "3") ? 512.0 : 576.0 ;
+
+    debugPrint("Receipt image savedfooter customerName $customerName $footer printName $printName businessName$businessName contactPhone$contactPhone contactEmail$contactEmail businessAddress$businessAddress");
+    
+    // Font sizes from prefs
+    double fHeader = 37;//fontSizes[headerFontSize] ?? 30.0;
+    double fItem = 21;//fontSizes[itemFontSize] ?? 18.0;
+    double fTotal = 30;//fontSizes[2] ?? 24.0; // Total/Discount size is '2' in your code
+    final String dateTime = DateFormat('dd-MMM-yyyy hh:mm a').format(DateTime.now());
+    
+    // --- 3. Setup Canvas ---
+    final ui.PictureRecorder recorder = ui.PictureRecorder();
+    // Start with a large canvas, we'll crop it later
+    final ui.Rect canvasRect = ui.Rect.fromLTWH(0, 0, receiptWidth, 20000); 
+    final ui.Canvas canvas = ui.Canvas(recorder, canvasRect);
+
+    // White background
+    canvas.drawRect(canvasRect, Paint()..color = Colors.white);
+    
+    double yOffset = 0.0; // Start with a 10px top margin
+
+    // --- 4. Draw Receipt (Translate bluetooth calls to canvas calls) ---
+    
+    try {
+      // Logo
+      // **ADAPT THIS** to match your _printLogo logic
+      // yOffset += await _drawLogo(canvas, yOffset, receiptWidth);
+      // yOffset += 1; // New line
+
+      // Business Info
+      if (printName){
+        yOffset += await _drawText(canvas, businessName, y: yOffset, width: receiptWidth, fontSize: fHeader, fontWeight: FontWeight.bold, align: TextAlign.center);
+      }
+      if (contactPhone.isNotEmpty) {
+        yOffset += await _drawText(canvas, "Ph: $contactPhone", y: yOffset, width: receiptWidth, fontSize: fItem, align: TextAlign.center);
+      }
+      if (contactEmail.isNotEmpty) {
+        yOffset += await _drawText(canvas, contactEmail, y: yOffset, width: receiptWidth, fontSize: fItem, align: TextAlign.center);
+      }
+      if (businessAddress.isNotEmpty) {
+        yOffset += await _drawText(canvas, businessAddress, y: yOffset, width: receiptWidth, fontSize: fItem, align: TextAlign.center);
+      }
+      if (gst.isNotEmpty) {
+        yOffset += await _drawText(canvas, "GST: $gst", y: yOffset, width: receiptWidth, fontSize: fItem, align: TextAlign.center);
+      }
+      // if (tableno != null) {
+      //   yOffset += await _drawText(canvas, "", y: yOffset, width: receiptWidth, fontSize: fItem, align: TextAlign.center);
+      // }
+      
+      yOffset += await _drawText(canvas, "Time:- $dateTime", y: yOffset, width: receiptWidth, fontWeight: FontWeight.bold, fontSize: fItem,);
+
+      String billtable = (tableno > 0) ?  "Bill No: $billNo / Table No-: $tableno" :  "Bill No: $billNo" ;
+      yOffset += 5; // New line
+      yOffset += await _drawText(canvas, billtable, y: yOffset, width: receiptWidth,fontWeight: FontWeight.bold, fontSize: fItem,);
+      yOffset += 5;
+
+
+      if (customerName && tableno == 0) {
+        debugPrint("⚠️ check printer is connected tota --$transactionData---");
+        yOffset += await _drawDashedLine(canvas, yOffset, receiptWidth, fItem);
+        yOffset += 10; // New line
+        
+        yOffset += await _drawText(canvas, "TO Customer:- ", y: yOffset, width: receiptWidth,fontWeight: FontWeight.bold, fontSize: fItem, ); //align: TextAlign.center
+        yOffset += 5;
+        yOffset += await _drawText(canvas, "Name: ${transactionData?['customerName'] ?? " "}", y: yOffset, width: receiptWidth,fontWeight: FontWeight.bold, fontSize : fItem * 1.3, );
+        yOffset += 2;
+        yOffset += await _drawText(canvas, "Mobile NO: ${transactionData?['mobileNo'] ?? " "}", y: yOffset, width: receiptWidth,fontWeight: FontWeight.bold, fontSize: fItem ,);
+        yOffset += 2; // New line
+        yOffset += await _drawText(canvas, "Adreess: ${transactionData?['reserved'] ?? " "}", y: yOffset, width: receiptWidth,fontWeight: FontWeight.bold, fontSize : fItem, );
+        yOffset += 4;
+          // Line
+        yOffset += await _drawDashedLine(canvas, yOffset, receiptWidth, fItem);
+        yOffset += 5; // New line
+        
+      }
+
+      // Header
+      yOffset += await _drawLeftRight(canvas, "Item", "Qty  Rate  Total", y: yOffset, width: receiptWidth, fontSize: fItem, leftFontWeight: FontWeight.bold, rightFontWeight: FontWeight.bold);
+      
+      // Line
+      yOffset += await _drawDashedLine(canvas, yOffset, receiptWidth, fItem);
+      yOffset += 5; // New line
+
+      // Cart Items
+      for (var item in cart) {
+        String name = item['name'] ?? 'Item';
+        int qty = item['qty'] ?? 0;
+        final dynamic rawPrice = item['sellPrice'];
+        final int rate = rawPrice is num
+            ? rawPrice.toInt()
+            : int.tryParse(rawPrice.toString().replaceAll(',', '')) ??
+                  double.tryParse(rawPrice.toString())?.toInt() ??
+                  0;
+        int total = qty * rate;
+        String rightText =
+            "${qty.toString().padLeft(2)}  ${rate.toString().padLeft(4)}  ${total.toString().padLeft(5)}";
+
+        // The _drawLeftRight helper handles wrapping, so we don't need your _wrapText loop
+        yOffset += await _drawLeftRight(canvas, name, rightText, y: yOffset, width: receiptWidth, fontSize: fItem,leftFontWeight: FontWeight.bold, rightFontWeight: FontWeight.bold);
+        yOffset += 4; // Small padding between items
+      }
+      
+      // Line
+      yOffset += await _drawDashedLine(canvas, yOffset, receiptWidth, fItem);
+      
+      // Totals
+      if (transactionData != null) {
+        if (transactionData['discount'] != null && transactionData['discount'] > 0) {
+          yOffset += 5; // New line
+          yOffset += await _drawLeftRight(canvas, "Discount:", "${transactionData['discount']}", y: yOffset, width: receiptWidth, fontSize: fTotal * 0.7, rightFontWeight: FontWeight.bold);
+        }
+        if (transactionData['serviceCharge'] != null && transactionData['serviceCharge'] > 0) {
+          yOffset += 5; // New line
+          yOffset += await _drawLeftRight(canvas, "Service Charge:", "${transactionData['serviceCharge']}", y: yOffset, width: receiptWidth, fontSize: fTotal *0.7, rightFontWeight: FontWeight.bold);
+        }
+      }
+      
+      yOffset += 10; // New line
+      yOffset += await _drawLeftRight(canvas, "Total:", "Rs.$total", y: yOffset, width: receiptWidth, fontSize: fTotal, leftFontWeight: FontWeight.bold, rightFontWeight: FontWeight.bold);
+      yOffset += 3; // New line
+
+      // QR Code
+      // if (printQr && upiId != null && upiId.isNotEmpty) {
+      //   // **ADAPT THIS** to match your _printQrCode logic
+      //   yOffset += await _drawQrCode(canvas, businessName, total, qrSize, yOffset, receiptWidth, upiId);
+      //   yOffset += 10;
+      // }
+      
+      // Footer
+      // yOffset += await _drawText(canvas, footer, y: yOffset, width: receiptWidth, fontSize: fItem, align: TextAlign.center);
+      // yOffset += 70; // Extra padding at the bottom
+      
+      // --- 5. Finalize and Encode Image ---
+      
+      // Stop recording
+      final ui.Picture picture = recorder.endRecording();
+      
+      // Crop the image to the final height
+      final ui.Image finalImage = await picture.toImage(
+        receiptWidth.toInt(),
+        yOffset.toInt(), // Crop to the height we actually used
+      );
+      
+      // Encode to PNG
+      final ByteData? byteData = await finalImage.toByteData(format: ui.ImageByteFormat.png);
+      if (byteData == null) return null;
+      
+      return byteData.buffer.asUint8List();
+
+    } catch (e) {
+      debugPrint("Error generating receipt image: $e");
+      return null;
+    }
+  }
+
+  Future<Uint8List?> generateGSTReceiptImage({
+      required List<Map<String, dynamic>> cart1,
+      required int total,
+      required int billNo,
+      required Map<String, dynamic>? transactionData,
+      required int tableno,
+    }) async {
+      // --- 1. Configuration ---
+      final Map<int, double> fontSizes = {
+        1: 20.0, // Small (Tax details)
+        2: 22.0, // Standard Item
+        3: 26.0, // Headers/Totals
+        4: 34.0, // Business Name
+      };
+
+      // --- 2. Get Data ---
+      List<Map<String, dynamic>> cart = cart1.map((item) => Map<String, dynamic>.from(item)).toList();
+      final prefs = await SharedPreferences.getInstance();
+
+      String businessName = prefs.getString('businessName') ?? 'SADHANA SAREES';
+      String contactPhone = prefs.getString('contactPhone') ?? '9209527188';
+      String businessAddress = prefs.getString('businessAddress') ?? 'Yogeshwar Colony, Gangakhed';
+      String gst = prefs.getString('gst') ?? '27AEBPW5940A1ZL';
+      String paperSize = prefs.getString('paperSize') ?? '2';
+
+      // Width setup
+      final double receiptWidth = (paperSize == "2") ? 384.0 : (paperSize == "3") ? 512.0 : 576.0;
+
+      // Font sizes
+      double fSmall = fontSizes[1]!;
+      double fItem = fontSizes[2]!;
+      double fHeader = fontSizes[3]!;
+      double fTitle = fontSizes[4]!;
+      
+      final String dateNow = DateFormat('dd-MMM-yyyy').format(DateTime.now());
+      final String timeNow = DateFormat('HH:mm').format(DateTime.now());
+
+      // --- 3. Setup Canvas ---
+      final ui.PictureRecorder recorder = ui.PictureRecorder();
+      final ui.Rect canvasRect = ui.Rect.fromLTWH(0, 0, receiptWidth, 20000);
+      final ui.Canvas canvas = ui.Canvas(recorder, canvasRect);
+      final Paint linePaint = Paint()..color = Colors.black..strokeWidth = 1.0;
+
+      // White background
+      canvas.drawRect(canvasRect, Paint()..color = Colors.white);
+
+      double yOffset = 10.0;
+
+      // --- HELPER: Draw Text using TextPainter for precise control ---
+      double drawText({
+        required String text,
+        required double x,
+        required double y,
+        double? width,
+        required double fontSize,
+        FontWeight fontWeight = FontWeight.normal,
+        TextAlign align = TextAlign.left,
+      }) {
+        final textStyle = TextStyle(
+          color: Colors.black,
+          fontSize: fontSize,
+          fontWeight: fontWeight,
+          fontFamily: 'Roboto', // Ensure a font is available
+        );
+        // final textSpan = TextSpan(text: text, style: textStyle);
+        final textPainter = TextPainter(
+          // text: textSpan,
+          // It's good practice to set the text direction within the TextSpan
+          text: TextSpan(text: text, style: textStyle),
+          textAlign: align,
+          // textDirection: TextDirection.LTR,
+        );
+        
+        
+        // Calculate layout width
+        double layoutWidth = width ?? (receiptWidth - x);
+        textPainter.layout(minWidth: 0, maxWidth: layoutWidth);
+        
+        // Adjust X for alignment if width is provided
+        double drawX = x;
+        if (align == TextAlign.right && width != null) {
+          // TextPainter handles internal alignment, but we assume x is left edge
+        } 
+        
+        textPainter.paint(canvas, Offset(drawX, y));
+        return textPainter.height;
+      }
+
+      // --- HELPER: Draw Horizontal Line ---
+      void drawLine(double y) {
+        canvas.drawLine(Offset(0, y), Offset(receiptWidth, y), linePaint);
+      }
+
+      try {
+        // ===========================
+        // 1. HEADER SECTION
+        // ===========================
+        
+        // Business Name (Centered, Bold, Large)
+        yOffset += drawText(text: businessName, x: 0, y: yOffset, width: receiptWidth, fontSize: fTitle, fontWeight: FontWeight.bold, align: TextAlign.center);
+        
+        // Address
+        if (businessAddress.isNotEmpty) {
+          yOffset += drawText(text: businessAddress, x: 0, y: yOffset, width: receiptWidth, fontSize: fItem, align: TextAlign.center);
+        }
+        
+        // Mobile
+        if (contactPhone.isNotEmpty) {
+          yOffset += drawText(text: "Mob no: $contactPhone", x: 0, y: yOffset, width: receiptWidth, fontSize: fItem, align: TextAlign.center);
+        }
+        
+        // GST
+        if (gst.isNotEmpty) {
+          yOffset += drawText(text: "GSTIN: $gst", x: 0, y: yOffset, width: receiptWidth, fontSize: fItem, align: TextAlign.center);
+        }
+        
+        yOffset += 10;
+        
+        // "CASH INVOICE"
+        yOffset += drawText(text: "CASH INVOICE", x: 0, y: yOffset, width: receiptWidth, fontSize: fHeader, fontWeight: FontWeight.bold, align: TextAlign.center);
+        
+        yOffset += 5;
+
+        // ===========================
+        // 2. INVOICE META DATA
+        // ===========================
+        
+        // Bill No (Centered or Prominent)
+        yOffset += drawText(text: "Bill No : $billNo", x: 0, y: yOffset, width: receiptWidth, fontSize: fHeader, fontWeight: FontWeight.bold, align: TextAlign.center);
+        
+        yOffset += 5;
+
+        // Date & Time Row
+        // Layout: "Date : 22-Oct-2025"   "Time : 07:32"
+        double halfWidth = receiptWidth / 2;
+        drawText(text: "Date : $dateNow", x: 5, y: yOffset, width: halfWidth, fontSize: fItem);
+        double h = drawText(text: "Time : $timeNow", x: halfWidth, y: yOffset, width: halfWidth, fontSize: fItem, align: TextAlign.right);
+        yOffset += h;
+
+        // Cashier / POS
+        String cashierName = "Cashier"; // Default or from prefs
+        drawText(text: cashierName, x: 5, y: yOffset, width: halfWidth, fontSize: fItem);
+        h = drawText(text: "POS : MAHARASHTRA", x: halfWidth, y: yOffset, width: halfWidth - 5, fontSize: fItem, align: TextAlign.right);
+        yOffset += h + 5;
+
+        drawLine(yOffset);
+        yOffset += 5;
+
+        // ===========================
+        // 3. TABLE COLUMNS
+        // ===========================
+        // Definition of column widths (Total = receiptWidth)
+        // ITEM (35%) | HSN (15%) | RATE (15%) | QTY (10%) | TOTAL (25%)
+        double colItem = receiptWidth * 0.35;
+        double colHsn = receiptWidth * 0.15;
+        double colRate = receiptWidth * 0.15;
+        double colQty = receiptWidth * 0.10;
+        double colTotal = receiptWidth * 0.25;
+
+        // X Coordinates
+        double xItem = 5;
+        double xHsn = xItem + colItem;
+        double xRate = xHsn + colHsn;
+        double xQty = xRate + colRate;
+        double xTotal = xQty + colQty;
+
+        // Draw Main Headers
+        double headerY = yOffset;
+        drawText(text: "ITEM", x: xItem, y: headerY, width: colItem, fontSize: fItem, fontWeight: FontWeight.bold);
+        drawText(text: "HSN", x: xHsn, y: headerY, width: colHsn, fontSize: fItem, fontWeight: FontWeight.bold, align: TextAlign.center);
+        drawText(text: "RATE", x: xRate, y: headerY, width: colRate, fontSize: fItem, fontWeight: FontWeight.bold, align: TextAlign.right);
+        drawText(text: "QTY", x: xQty, y: headerY, width: colQty, fontSize: fItem, fontWeight: FontWeight.bold, align: TextAlign.center); // "QTY" usually centered
+        double headH = drawText(text: "TOTAL", x: xTotal, y: headerY, width: colTotal - 10, fontSize: fItem, fontWeight: FontWeight.bold, align: TextAlign.right);
+        
+        yOffset += headH;
+
+        // Draw Sub Headers (CGST SGST) under ITEM
+        drawText(text: "CGST   SGST", x: xItem, y: yOffset, width: colItem, fontSize: fSmall, fontWeight: FontWeight.bold);
+        yOffset += fSmall + 5;
+
+        drawLine(yOffset);
+        yOffset += 5;
+
+        // ===========================
+        // 4. CART ITEMS
+        // ===========================
+        
+        double totalQty = 0; // To calculate for footer
+
+        for (var item in cart) {
+          String name = item['name'] ?? 'Item';
+          
+          // Handle numbers safely
+          double qty = double.tryParse(item['qty'].toString()) ?? 1.0;
+          totalQty += qty;
+          
+          double rate = double.tryParse(item['sellPrice'].toString()) ?? 0.0;
+          double lineTotal = qty * rate;
+
+          // Try to get HSN (default empty if not in map)
+          String hsn = item['hsn']?.toString() ?? " ";
+ 
+          // 1. Draw First Line: Name | HSN | Rate | Qty | Total
+          double rowStartY = yOffset;
+          
+          // Name (Left)
+          double nameH = drawText(text: name, x: xItem, y: rowStartY, width: colItem, fontSize: fItem);
+          
+          // HSN (Center)
+          drawText(text: hsn, x: xHsn, y: rowStartY, width: colHsn, fontSize: fItem, align: TextAlign.center);
+          
+          // Rate (Right)
+          drawText(text: rate.toStringAsFixed(2), x: xRate, y: rowStartY, width: colRate, fontSize: fItem, align: TextAlign.right);
+          
+          // Qty (Center/Right)
+          drawText(text: qty.toStringAsFixed(2), x: xQty, y: rowStartY, width: colQty, fontSize: fItem, align: TextAlign.center);
+          
+          // Total (Right)
+          drawText(text: lineTotal.toStringAsFixed(2), x: xTotal, y: rowStartY, width: colTotal - 10, fontSize: fItem, align: TextAlign.right);
+          
+          yOffset += nameH;
+
+          // 2. Draw Tax Breakdown Line (Below Name)
+          // logic: check if map has gst details, else assume 2.5% placeholder like image
+          // Or calculate back from item tax. 
+          // NOTE: This purely replicates the string format in the image.
+          String taxStr = "";
+          if (item.containsKey('cgst_rate') && item.containsKey('cgst_amt')) {
+            taxStr = "${item['cgst_rate']}%  ${item['cgst_amt']}   ${item['sgst_rate']}%  ${item['sgst_amt']}";
+          } else {
+            // Fallback or leave empty if your cart doesn't have this breakdown yet
+            // To match image style: "2.5%  53.57"
+            taxStr = " "; 
+          }
+          
+          if (taxStr.trim().isNotEmpty) {
+            yOffset += drawText(text: taxStr, x: xItem, y: yOffset, width: colItem + colHsn, fontSize: fSmall);
+          } else {
+            // Add small padding if no tax line to separate items
+            yOffset += 2;
+          }
+          
+          yOffset += 5; // Spacing between items
+        }
+
+        drawLine(yOffset);
+        yOffset += 5;
+
+        // ===========================
+        // 5. FOOTER / TOTALS
+        // ===========================
+        
+        // The image has "Items / Qty" on the LEFT, and Totals on the RIGHT.
+        
+        double footerStartY = yOffset;
+        
+        // LEFT SIDE: Items / Qty
+        String itemQtyStr = "Items / Qty : ${cart.length} / ${totalQty.toStringAsFixed(2)}";
+        drawText(text: itemQtyStr, x: 5, y: footerStartY + 5, width: receiptWidth * 0.6, fontSize: fItem);
+        
+        // RIGHT SIDE: Totals Stack
+        double rightX = receiptWidth * 0.5;
+        double rightW = receiptWidth * 0.5 - 10;
+        
+        double currentY = footerStartY;
+        
+        // Total
+        currentY += drawText(text: "Total :  ${total.toStringAsFixed(2)}", x: rightX, y: currentY, width: rightW, fontSize: fItem, align: TextAlign.right);
+        
+        // Discount
+        double disc = (transactionData?['discount'] ?? 0.0).toDouble();
+        currentY += drawText(text: "Disc :  ${disc.toStringAsFixed(2)}", x: rightX, y: currentY, width: rightW, fontSize: fItem, align: TextAlign.right);
+        
+        // Rounding (Rndg) - Calculated or 0.00
+        // Assuming rounding is difference between total and net, or just 0
+        double rndg = 0.00;
+        currentY += drawText(text: "Rndg :  ${rndg.toStringAsFixed(2)}", x: rightX, y: currentY, width: rightW, fontSize: fItem, align: TextAlign.right);
+        
+        // Net Amount (Bold, Large)
+        double netAmount = total - disc; // Adjust logic as per your business requirement
+        currentY += drawText(text: "Net :${netAmount.toStringAsFixed(2)}", x: rightX, y: currentY, width: rightW, fontSize: fHeader, fontWeight: FontWeight.bold, align: TextAlign.right);
+
+        // Update main yOffset to below the totals
+        yOffset = currentY + 5;
+        
+        drawLine(yOffset);
+        yOffset += 5;
+
+        // ===========================
+        // 6. PAYMENT MODE & DECLARATION
+        // ===========================
+        
+        yOffset += drawText(text: "Mode of payments :", x: 5, y: yOffset, width: receiptWidth, fontSize: fItem);
+        yOffset += drawText(text: "Cash", x: 20, y: yOffset, width: receiptWidth, fontSize: fItem, fontWeight: FontWeight.bold); // Indented
+        
+        double finalTotal = netAmount;
+        // Repeat the total on bottom right like the image "2845.00"
+        drawText(text: finalTotal.toStringAsFixed(2), x: receiptWidth/2, y: yOffset - fItem, width: receiptWidth/2 - 10, fontSize: fItem, align: TextAlign.right);
+
+        yOffset += 10;
+        
+        drawLine(yOffset);
+        yOffset += 5;
+
+        yOffset += drawText(text: "Declaration :", x: 5, y: yOffset, width: receiptWidth, fontSize: fSmall);
+        yOffset += drawText(text: "Goods once sold will not be taken back.", x: 5, y: yOffset, width: receiptWidth, fontSize: fSmall);
+        
+        yOffset += 20; // Bottom padding
+
+        // --- 4. Finalize Image ---
+        final ui.Picture picture = recorder.endRecording();
+        final ui.Image finalImage = await picture.toImage(
+          receiptWidth.toInt(),
+          yOffset.toInt(),
+        );
+
+        final ByteData? byteData = await finalImage.toByteData(format: ui.ImageByteFormat.png);
+        if (byteData == null) return null;
+
+        return byteData.buffer.asUint8List();
+
+      } catch (e) {
+        debugPrint("Error generating receipt image: $e");
+        return null;
+      }
+    }
+
+  Future<Uint8List?> generateReceiptImageToShare({
+    required List<Map<String, dynamic>> cart1,
+    required int total,
+    required int billNo,
+    required Map<String, dynamic>? transactionData,
+    required int tableno,
+  }) async {
+    
+    // --- 1. Configuration (MUST TWEAK THESE) ---
+    
+
+    
+    // Map your printer's font sizes (1, 2, 3) to pixel font sizes
+    final Map<int, double> fontSizes = {
+      1: 18.0, // Small (items)
+      2: 24.0, // Medium (total)
+      3: 30.0, // Large (header)
+    };
+    
+    // --- 2. Get All Data (Copied from your function) ---
+    
+    List<Map<String, dynamic>> cart = cart1.map((item) => Map<String, dynamic>.from(item)).toList();
+    final prefs = await SharedPreferences.getInstance();
+
+
+    // 🏪 Business info
+    String businessName = prefs.getString('businessName') ?? 'Hotel Test';
+    String contactPhone = prefs.getString('contactPhone') ?? '';
+    String contactEmail = prefs.getString('contactEmail') ?? '';
+    String businessAddress = prefs.getString('businessAddress') ?? '';
+    String gst = prefs.getString('gst') ?? '';
+    
+    // ⚙ Printer user settings
+    bool printQr = prefs.getBool('printQR') ?? false;
+    String _qrSize = prefs.getString('qrSize') ?? "5";
+    double qrSize = getQrPixelSize(_qrSize);
+    bool printName = prefs.getBool('printName') ?? true;
+    String footer =  prefs.getString('footerText') ?? "** Thank You **";
+    String? upiId = prefs.getString('upi');
+    bool customerName = prefs.getBool('customerName') ?? false;
+    String paperSize = prefs.getString('paperSize') ?? '2';
+    // Width in pixels. 58mm printers are ~384px. 80mm are ~576px.
+      //   if (value == PaperSize.mm58.value) {
+      //   return 384;
+      // } else if (value == PaperSize.mm72.value) {
+      //   return 512;
+      // } else {
+      //   return 576;
+      // }
+    final double receiptWidth = (paperSize == "2") ? 384.0 :(paperSize == "3") ? 512.0 : 576.0 ;
+
+    debugPrint("Receipt image savedfooter customerName $customerName $footer printName $printName businessName$businessName contactPhone$contactPhone contactEmail$contactEmail businessAddress$businessAddress");
+    
+    // Font sizes from prefs
+    double fHeader = 37;//fontSizes[headerFontSize] ?? 30.0;
+    double fItem = 21;//fontSizes[itemFontSize] ?? 18.0;
+    double fTotal = 30;//fontSizes[2] ?? 24.0; // Total/Discount size is '2' in your code
+    final String dateTime = DateFormat('dd-MMM-yyyy hh:mm a').format(DateTime.now());
+    
+    // --- 3. Setup Canvas ---
+    final ui.PictureRecorder recorder = ui.PictureRecorder();
+    // Start with a large canvas, we'll crop it later
+    final ui.Rect canvasRect = ui.Rect.fromLTWH(0, 0, receiptWidth, 20000); 
+    final ui.Canvas canvas = ui.Canvas(recorder, canvasRect);
+
+    // White background
+    canvas.drawRect(canvasRect, Paint()..color = Colors.white);
+
+    double yOffset = 30.0; // Start with a 10px top margin
+
+    final imagePath = prefs.getString('imagePath');
+    // final _printlogo = prefs.getBool('printLogo') ?? true;
+    int logoWidth = prefs.getInt('logoWidth') ?? 200;
+    if (imagePath != null && File(imagePath).existsSync() ) {
+        final file = File(imagePath);
+        final imageBytes = await file.readAsBytes();
+        final img.Image? original = img.decodeImage(imageBytes);
+
+        if (original != null) {
+          final resized = img.copyResize(original, width: logoWidth, maintainAspect: true,);
+          final Uint8List resizedBytes = img.encodePng(resized);
+          
+          final ui.Codec codec = await ui.instantiateImageCodec(resizedBytes);
+          final ui.FrameInfo frame = await codec.getNextFrame();
+          final ui.Image logoImage = frame.image;
+
+          double imageWidth = logoImage.width.toDouble();
+          double imageHeight = logoImage.height.toDouble();
+          double xOffset = (receiptWidth - imageWidth) / 2;
+          
+          canvas.drawImage(logoImage, Offset(xOffset, yOffset), Paint());
+          yOffset += imageHeight + 10;
+        }
+    }
+
+    // --- 4. Draw Receipt (Translate bluetooth calls to canvas calls) ---
+    
+    try {
+      // Logo
+      // **ADAPT THIS** to match your _printLogo logic
+      // yOffset += await _drawLogo(canvas, yOffset, receiptWidth);
+      // yOffset += 1; // New line
+
+      // Business Info
+      if (printName){
+        yOffset += await _drawText(canvas, businessName, y: yOffset, width: receiptWidth, fontSize: fHeader, fontWeight: FontWeight.bold, align: TextAlign.center);
+      }
+      if (contactPhone.isNotEmpty) {
+        yOffset += await _drawText(canvas, "Ph: $contactPhone", y: yOffset, width: receiptWidth, fontSize: fItem, align: TextAlign.center);
+      }
+      if (contactEmail.isNotEmpty) {
+        yOffset += await _drawText(canvas, contactEmail, y: yOffset, width: receiptWidth, fontSize: fItem, align: TextAlign.center);
+      }
+      if (businessAddress.isNotEmpty) {
+        yOffset += await _drawText(canvas, businessAddress, y: yOffset, width: receiptWidth, fontSize: fItem, align: TextAlign.center);
+      }
+      if (gst.isNotEmpty) {
+        yOffset += await _drawText(canvas, "GST: $gst", y: yOffset, width: receiptWidth, fontSize: fItem, align: TextAlign.center);
+      }
+      // if (tableno != null) {
+      //   yOffset += await _drawText(canvas, "", y: yOffset, width: receiptWidth, fontSize: fItem, align: TextAlign.center);
+      // }
+      
+      yOffset += await _drawText(canvas, "Time:- $dateTime", y: yOffset, width: receiptWidth, fontWeight: FontWeight.bold, fontSize: fItem,);
+
+      String billtable = (tableno > 0) ?  "Bill No: $billNo / Table No-: $tableno" :  "Bill No: $billNo" ;
+      yOffset += 5; // New line
+      yOffset += await _drawText(canvas, billtable, y: yOffset, width: receiptWidth,fontWeight: FontWeight.bold, fontSize: fItem,);
+      yOffset += 5;
+
+
+      if (customerName && tableno == 0) {
+        debugPrint("⚠️ check printer is connected tota --$transactionData---");
+        yOffset += await _drawDashedLine(canvas, yOffset, receiptWidth, fItem);
+        yOffset += 10; // New line
+        
+        yOffset += await _drawText(canvas, "TO Customer:- ", y: yOffset, width: receiptWidth,fontWeight: FontWeight.bold, fontSize: fItem, ); //align: TextAlign.center
+        yOffset += 5;
+        yOffset += await _drawText(canvas, "Name: ${transactionData?['customerName'] ?? " "}", y: yOffset, width: receiptWidth,fontWeight: FontWeight.bold, fontSize : fItem * 1.3, );
+        yOffset += 2;
+        yOffset += await _drawText(canvas, "Mobile NO: ${transactionData?['mobileNo'] ?? " "}", y: yOffset, width: receiptWidth,fontWeight: FontWeight.bold, fontSize: fItem ,);
+        yOffset += 2; // New line
+        yOffset += await _drawText(canvas, "Adreess: ${transactionData?['reserved'] ?? " "}", y: yOffset, width: receiptWidth,fontWeight: FontWeight.bold, fontSize : fItem, );
+        yOffset += 4;
+          // Line
+        yOffset += await _drawDashedLine(canvas, yOffset, receiptWidth, fItem);
+        yOffset += 5; // New line
+        
+      }
+
+      // Header
+      yOffset += await _drawLeftRight(canvas, "Item", "Qty  Rate  Total", y: yOffset, width: receiptWidth, fontSize: fItem, leftFontWeight: FontWeight.bold, rightFontWeight: FontWeight.bold);
+      
+      // Line
+      yOffset += await _drawDashedLine(canvas, yOffset, receiptWidth, fItem);
+      yOffset += 5; // New line
+
+      // Cart Items
+      for (var item in cart) {
+        String name = item['name'] ?? 'Item';
+        int qty = item['qty'] ?? 0;
+        final dynamic rawPrice = item['sellPrice'];
+        final int rate = rawPrice is num
+            ? rawPrice.toInt()
+            : int.tryParse(rawPrice.toString().replaceAll(',', '')) ??
+                  double.tryParse(rawPrice.toString())?.toInt() ??
+                  0;
+        int total = qty * rate;
+        String rightText =
+            "${qty.toString().padLeft(2)}  ${rate.toString().padLeft(4)}  ${total.toString().padLeft(5)}";
+
+        // The _drawLeftRight helper handles wrapping, so we don't need your _wrapText loop
+        yOffset += await _drawLeftRight(canvas, name, rightText, y: yOffset, width: receiptWidth, fontSize: fItem,leftFontWeight: FontWeight.bold, rightFontWeight: FontWeight.bold);
+        yOffset += 4; // Small padding between items
+      }
+      
+      // Line
+      yOffset += await _drawDashedLine(canvas, yOffset, receiptWidth, fItem);
+      
+      // Totals
+      if (transactionData != null) {
+        if (transactionData['discount'] != null && transactionData['discount'] > 0) {
+          yOffset += 5; // New line
+          yOffset += await _drawLeftRight(canvas, "Discount:", "${transactionData['discount']}", y: yOffset, width: receiptWidth, fontSize: fTotal * 0.7, rightFontWeight: FontWeight.bold);
+        }
+        if (transactionData['serviceCharge'] != null && transactionData['serviceCharge'] > 0) {
+          yOffset += 5; // New line
+          yOffset += await _drawLeftRight(canvas, "Service Charge:", "${transactionData['serviceCharge']}", y: yOffset, width: receiptWidth, fontSize: fTotal *0.7, rightFontWeight: FontWeight.bold);
+        }
+      }
+      
+      yOffset += 10; // New line
+      yOffset += await _drawLeftRight(canvas, "Total:", "Rs.$total", y: yOffset, width: receiptWidth, fontSize: fTotal, leftFontWeight: FontWeight.bold, rightFontWeight: FontWeight.bold);
+      yOffset += 3; // New line
+
+      // QR Code
+      if (upiId != null && upiId.isNotEmpty) {
+        // **ADAPT THIS** to match your _printQrCode logic
+        yOffset += await _drawQrCode(canvas, businessName, total, qrSize, yOffset, receiptWidth, upiId);
+        yOffset += 10;
+      }
+      
+      // Footer
+      yOffset += await _drawText(canvas, footer, y: yOffset, width: receiptWidth, fontSize: fItem, align: TextAlign.center);
+      yOffset += 70; // Extra padding at the bottom
+      
+      // --- 5. Finalize and Encode Image ---
+      
+      // Stop recording
+      final ui.Picture picture = recorder.endRecording();
+      // Crop the image to the final height
+      final ui.Image finalImage = await picture.toImage(receiptWidth.toInt(),yOffset.toInt(),);
+      // Encode to PNG
+      final ByteData? byteData = await finalImage.toByteData(format: ui.ImageByteFormat.png);
+
+      if (byteData == null) return null;
+      
+      return byteData.buffer.asUint8List();
+
+    } catch (e) {
+      debugPrint("Error generating receipt image: $e");
+      return null;
+    }
+  }
+
+
+  Future<Uint8List?> footerImage() async {
+    
+    final prefs = await SharedPreferences.getInstance();
+    String footer =  prefs.getString('footerText') ?? "** Thank You **";
+    String paperSize = prefs.getString('paperSize') ?? '2';
+    final double receiptWidth = (paperSize == "2") ? 384.0 :(paperSize == "3") ? 512.0 : 576.0 ;
+
+    double fItem = 21;//fontSizes[itemFontSize] ?? 18.0;
+    
+    // --- 3. Setup Canvas ---
+    final ui.PictureRecorder recorder = ui.PictureRecorder();
+    // Start with a large canvas, we'll crop it later
+    final ui.Rect canvasRect = ui.Rect.fromLTWH(0, 0, receiptWidth, 20000); 
+    final ui.Canvas canvas = ui.Canvas(recorder, canvasRect);
+
+    // White background
+    canvas.drawRect(canvasRect, Paint()..color = Colors.white);
+    double yOffset = 0.0; // Start with a 10px top margin
+    
+    try {
+      // Footer
+      yOffset += await _drawText(canvas, footer, y: yOffset, width: receiptWidth, fontSize: fItem, align: TextAlign.center);
+      yOffset += 50; // Extra padding at the bottom
+      
+      // Stop recording
+      final ui.Picture picture = recorder.endRecording();
+      
+      // Crop the image to the final height
+      final ui.Image finalImage = await picture.toImage(
+        receiptWidth.toInt(),
+        yOffset.toInt(), // Crop to the height we actually used
+      );
+      
+      // Encode to PNG
+      final ByteData? byteData = await finalImage.toByteData(format: ui.ImageByteFormat.png);
+      if (byteData == null) return null;
+      
+      return byteData.buffer.asUint8List();
+
+    } catch (e) {
+      debugPrint("Error generating receipt image: $e");
+      return null;
+    }
+  }
+
+
+
+  Future<Uint8List?> generateKOTImage({
+    required List<Map<String, dynamic>> cart1,
+    required int tableNumber,
+    int? kotNumber = 0,
+    required Map<String, dynamic>? transactionData,
+  }) async {
+    print_log("in  generateKOTImage function find data ${kotNumber} ${tableNumber} ${transactionData} ${cart1}");
+    // --- 1. Configuration (MUST TWEAK THESE) ---
+    
+    // Width in pixels. 58mm printers are ~384px. 80mm are ~576px.
+
+    // const double receiptWidth = 384.0;
+    
+    // Map your printer's font sizes (1, 2, 3) to pixel font sizes
+    final Map<int, double> fontSizes = {
+      1: 18.0, // Small (items)
+      2: 24.0, // Medium (total)
+      3: 30.0, // Large (header)
+    };
+    
+    // --- 2. Get All Data (Copied from your function) ---
+    
+    List<Map<String, dynamic>> cart = cart1.map((item) => Map<String, dynamic>.from(item)).toList();
+    final prefs = await SharedPreferences.getInstance();
+    
+    double getQrPixelSize(qrSize) {
+      switch (qrSize) {
+        case "3": return 150;
+        case "5": return 180;
+        case "7": return 200;
+        default: return 150;
+      }
+    }
+
+    // 🏪 Business info
+    String businessName = prefs.getString('businessName') ?? 'Hotel Test';
+      
+    String paperSize = prefs.getString('paperSize') ?? '2';
+    // Width in pixels. 58mm printers are ~384px. 80mm are ~576px.
+    final double receiptWidth = (paperSize == "2") ? 384.0 :(paperSize == "3") ? 512.0 : 576.0 ;
+
+    
+    String contactPhone = prefs.getString('contactPhone') ?? '';
+    String contactEmail = prefs.getString('contactEmail') ?? '';
+    String businessAddress = prefs.getString('businessAddress') ?? '';
+    String gst = prefs.getString('gst') ?? '';
+    
+    // ⚙ Printer user settings
+    bool printQr = prefs.getBool('printQR') ?? false;
+    String _qrSize = prefs.getString('qrSize') ?? "5";
+    double qrSize = getQrPixelSize(_qrSize);
+    bool printName = prefs.getBool('printName') ?? true;
+    String footer =  prefs.getString('footerText')?? "** Thank You **";
+    String? upiId = prefs.getString('upi');
+    
+    // int headerFontSize = prefs.getInt('headerFontSize') ?? 3;
+    // int itemFontSize = (prefs.getDouble('fontSize') ?? 1).toInt();
+    
+    // Font sizes from prefs
+    double fHeader = 37;//fontSizes[headerFontSize] ?? 30.0;
+    double fItem = 21;//fontSizes[itemFontSize] ?? 18.0;
+    double fTotal = 29;//fontSizes[2] ?? 24.0; // Total/Discount size is '2' in your code
+    
+    
+    // --- 3. Setup Canvas ---
+    final ui.PictureRecorder recorder = ui.PictureRecorder();
+    // Start with a large canvas, we'll crop it later
+    final ui.Rect canvasRect = ui.Rect.fromLTWH(0, 0, receiptWidth, 20000); 
+    final ui.Canvas canvas = ui.Canvas(recorder, canvasRect);
+
+    // White background
+    canvas.drawRect(canvasRect, Paint()..color = Colors.white);
+    
+    double yOffset = 10.0; // Start with a 10px top margin
+    final String dateTime = DateFormat('dd-MMM-yyyy hh:mm a').format(DateTime.now());
+
+    // --- 4. Draw Receipt (Translate bluetooth calls to canvas calls) ---
+    
+    try {
+      // Logo
+      // // **ADAPT THIS** to match your _printLogo logic
+      // yOffset += await _drawLogo(canvas, yOffset, receiptWidth);
+      // yOffset += 5; // New line
+
+      // Business Info
+        // yOffset += await _drawText(canvas, businessName, y: yOffset, width: receiptWidth, fontSize: fHeader, fontWeight: FontWeight.bold, align: TextAlign.center);
+
+        yOffset += await _drawText(canvas, " KOT ", y: yOffset, width: receiptWidth, fontSize: fHeader, fontWeight: FontWeight.bold, align: TextAlign.center);
+
+        yOffset += await _drawText(canvas, (tableNumber == 0 || tableNumber == null) ? "Bill No: ${transactionData?['billNo']} / Order Type: ${transactionData?['orderType']}" : "Bill No: ${transactionData?['billNo']} / Table No: $tableNumber", y: yOffset, width: receiptWidth, fontSize: fItem, fontWeight: FontWeight.bold, align: TextAlign.center);
+
+        // yOffset += await _drawText(canvas, , y: yOffset, width: receiptWidth, fontSize: fItem, align: TextAlign.center);
+
+        yOffset += await _drawText(canvas, "KOT time:- $dateTime", y: yOffset, width: receiptWidth, fontSize: fItem, align: TextAlign.center);
+
+      
+      // yOffset += 10; // New line
+      // yOffset += await _drawText(canvas, "Bill No: ${billNo ?? 0}", y: yOffset, width: receiptWidth,fontWeight: FontWeight.bold, fontSize: fItem, align: TextAlign.center);
+      // yOffset += 5;
+
+      // Header
+      yOffset += await _drawLeftRight(canvas, "Item", "Note   Qty", y: yOffset, width: receiptWidth, fontSize: fTotal, leftFontWeight: FontWeight.bold, rightFontWeight: FontWeight.bold);
+      
+      // Line
+      yOffset += await _drawDashedLine(canvas, yOffset, receiptWidth, fItem);
+      yOffset += 5; // New line
+
+      // Cart Items
+      for (var item in cart) {
+        String name = item['name'] ?? 'Item';
+        int qty = item['qty'] ?? 0;
+        String note = item['note'] ?? " ";
+        debugPrint("jhk bkxb $item");
+        // final dynamic rawPrice = item['sellPrice'];
+        // final int rate = rawPrice is num
+        //     ? rawPrice.toInt()
+        //     : int.tryParse(rawPrice.toString().replaceAll(',', '')) ??
+        //           double.tryParse(rawPrice.toString())?.toInt() ??
+        //           0;
+        // int total = qty * rate;
+        String rightText = "${note.padLeft(1)} ${qty.toString().padLeft(2)}";
+
+        // The _drawLeftRight helper handles wrapping, so we don't need your _wrapText loop
+        yOffset += await _drawLeftRight(canvas, " $name", rightText, y: yOffset, width: receiptWidth, fontSize: fTotal,leftFontWeight: FontWeight.bold, rightFontWeight: FontWeight.bold);
+        yOffset += 4; // Small padding between items
+      }
+      
+      // Line
+      yOffset += await _drawDashedLine(canvas, yOffset, receiptWidth, fItem);
+      yOffset += 60;
+      
+      // Totals
+      // if (transactionData != null) {
+      //   if (transactionData['discount'] != null && transactionData['discount'] > 0) {
+      //     yOffset += 5; // New line
+      //     yOffset += await _drawLeftRight(canvas, "Discount:", "${transactionData['discount']}", y: yOffset, width: receiptWidth, fontSize: fTotal, rightFontWeight: FontWeight.bold);
+      //   }
+      //   if (transactionData['serviceCharge'] != null && transactionData['serviceCharge'] > 0) {
+      //     yOffset += 5; // New line
+      //     yOffset += await _drawLeftRight(canvas, "Service Charge:", "${transactionData['serviceCharge']}", y: yOffset, width: receiptWidth, fontSize: fTotal, rightFontWeight: FontWeight.bold);
+      //   }
+      // }
+      
+      // yOffset += 10; // New line
+      // yOffset += await _drawLeftRight(canvas, "Total:", "Rs.$total", y: yOffset, width: receiptWidth, fontSize: fTotal, leftFontWeight: FontWeight.bold, rightFontWeight: FontWeight.bold);
+      // yOffset += 15; // New line
+
+      // QR Code
+      // if (printQr && upiId != null && upiId.isNotEmpty) {
+      //   // **ADAPT THIS** to match your _printQrCode logic
+      //   yOffset += await _drawQrCode(canvas, businessName, total, qrSize, yOffset, receiptWidth, upiId);
+      //   yOffset += 10;
+      // }
+      
+      // Footer
+      // yOffset += await _drawText(canvas, footer, y: yOffset, width: receiptWidth, fontSize: fItem, align: TextAlign.center);
+      // yOffset += 30; // Extra padding at the bottom
+      
+      // --- 5. Finalize and Encode Image ---
+      
+      // Stop recording
+      final ui.Picture picture = recorder.endRecording();
+      
+      // Crop the image to the final height
+      final ui.Image finalImage = await picture.toImage(
+        receiptWidth.toInt(),
+        yOffset.toInt(), // Crop to the height we actually used
+      );
+      
+      // Encode to PNG
+      final ByteData? byteData = await finalImage.toByteData(format: ui.ImageByteFormat.png);
+      if (byteData == null) return null;
+      
+      return byteData.buffer.asUint8List();
+
+    } catch (e) {
+      debugPrint("Error generating receipt image: $e");
+      return null;
+    }
+  }
+
+  void saveImage(imageBytes) async{
+    // Example: Save to file (requires path_provider package)
+    final directory = await getDownloadsDirectory();
+    final path = '${directory!.path}/receipt_1.png';
+    final file = File(path);
+    await file.writeAsBytes(imageBytes);
+    debugPrint("Receipt image saved to: $path");
+  }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  // Print sales Report 
   Future<void> printSalesReportSummary({
     required BuildContext context,
     required DateTime? fromDate,
@@ -1497,9 +3765,7 @@ class BillPrinter {
 
       final prefs = await SharedPreferences.getInstance();
       String businessName = prefs.getString('businessName') ?? 'Hotel Test';
-      final String dateTime = DateFormat(
-        'dd-MMM-yyyy hh:mm a',
-      ).format(DateTime.now());
+      final String dateTime = DateFormat('dd-MMM-yyyy hh:mm a').format(DateTime.now());
 
       bytes += _generator!.reset();
       bytes += _generator!.clearStyle();
@@ -1507,21 +3773,17 @@ class BillPrinter {
       // --- Header ---
       bytes += _generator!.text(
         businessName,
+        // containsChinese : true,
         styles: PosStyles(
           align: PosAlign.center,
           bold: true,
-          height: PosTextSize.size2,
-          width: PosTextSize.size2,
+          fontType: PosFontType.fontB,
+          height: PosTextSize.size2, // Set height to minimum
+          width: PosTextSize.size2, // Set height to minimum
         ),
       );
-      bytes += _generator!.text(
-        'Sales Summary Report',
-        styles: PosStyles(align: PosAlign.center, bold: true),
-      );
-      bytes += _generator!.text(
-        'Generated: $dateTime',
-        styles: PosStyles(align: PosAlign.center),
-      );
+      bytes += _generator!.text('Sales Summary Report', styles: PosStyles(align: PosAlign.center, bold: true));
+      bytes += _generator!.text('Generated: $dateTime', styles: PosStyles(align: PosAlign.center));
       bytes += _generator!.hr();
 
       // --- Date Range ---
@@ -1533,141 +3795,69 @@ class BillPrinter {
 
       // --- Sales Totals ---
       bytes += _generator!.row([
-        PosColumn(
-          text: isDateRangeSelected ? 'Range Sales:' : "Today's Sales:",
-          width: 6,
-        ),
-        PosColumn(
-          text: 'Rs. ${todayTotal.toStringAsFixed(2)}',
-          width: 6,
-          styles: PosStyles(align: PosAlign.right, bold: true),
-        ),
+        PosColumn(text: isDateRangeSelected ? 'Range Sales:' : "Today's Sales:", width: 6),
+        PosColumn(text: 'Rs. ${todayTotal.toStringAsFixed(2)}', width: 6, styles: PosStyles(align: PosAlign.right, bold: true)),
       ]);
       bytes += _generator!.row([
         PosColumn(text: 'This Week:', width: 6),
-        PosColumn(
-          text: 'Rs. ${weekTotal.toStringAsFixed(2)}',
-          width: 6,
-          styles: PosStyles(align: PosAlign.right),
-        ),
+        PosColumn(text: 'Rs. ${weekTotal.toStringAsFixed(2)}', width: 6, styles: PosStyles(align: PosAlign.right)),
       ]);
       bytes += _generator!.row([
         PosColumn(text: 'This Month:', width: 6),
-        PosColumn(
-          text: 'Rs. ${monthTotal.toStringAsFixed(2)}',
-          width: 6,
-          styles: PosStyles(align: PosAlign.right),
-        ),
+        PosColumn(text: 'Rs. ${monthTotal.toStringAsFixed(2)}', width: 6, styles: PosStyles(align: PosAlign.right)),
       ]);
       bytes += _generator!.hr();
 
       // --- Payment Modes ---
-      bytes += _generator!.text(
-        'By Payment Mode:',
-        styles: PosStyles(bold: true),
-      );
+      bytes += _generator!.text('By Payment Mode:', styles: PosStyles(bold: true));
       bytes += _generator!.row([
         PosColumn(text: 'Cash:', width: 6),
-        PosColumn(
-          text: 'Rs. ${cashTotal.toStringAsFixed(2)}',
-          width: 6,
-          styles: PosStyles(align: PosAlign.right),
-        ),
+        PosColumn(text: 'Rs. ${cashTotal.toStringAsFixed(2)}', width: 6, styles: PosStyles(align: PosAlign.right)),
       ]);
       bytes += _generator!.row([
         PosColumn(text: 'Card:', width: 6),
-        PosColumn(
-          text: 'Rs. ${cardTotal.toStringAsFixed(2)}',
-          width: 6,
-          styles: PosStyles(align: PosAlign.right),
-        ),
+        PosColumn(text: 'Rs. ${cardTotal.toStringAsFixed(2)}', width: 6, styles: PosStyles(align: PosAlign.right)),
       ]);
       bytes += _generator!.row([
         PosColumn(text: 'UPI:', width: 6),
-        PosColumn(
-          text: 'Rs. ${upiTotal.toStringAsFixed(2)}',
-          width: 6,
-          styles: PosStyles(align: PosAlign.right),
-        ),
+        PosColumn(text: 'Rs. ${upiTotal.toStringAsFixed(2)}', width: 6, styles: PosStyles(align: PosAlign.right)),
       ]);
       bytes += _generator!.row([
         PosColumn(text: 'Not Settled:', width: 6),
-        PosColumn(
-          text: 'Rs. ${otherTotal.toStringAsFixed(2)}',
-          width: 6,
-          styles: PosStyles(align: PosAlign.right),
-        ),
+        PosColumn(text: 'Rs. ${otherTotal.toStringAsFixed(2)}', width: 6, styles: PosStyles(align: PosAlign.right)),
       ]);
       bytes += _generator!.hr();
 
       // --- Udhari ---
-      bytes += _generator!.text(
-        'Udhari (Credit):',
-        styles: PosStyles(bold: true),
-      );
+      bytes += _generator!.text('Udhari (Credit):', styles: PosStyles(bold: true));
       bytes += _generator!.row([
         PosColumn(text: 'You will give:', width: 6),
-        PosColumn(
-          text: 'Rs. $giveamount',
-          width: 6,
-          styles: PosStyles(align: PosAlign.right),
-        ),
+        PosColumn(text: 'Rs. $giveamount', width: 6, styles: PosStyles(align: PosAlign.right)),
       ]);
       bytes += _generator!.row([
         PosColumn(text: 'You will get:', width: 6),
-        PosColumn(
-          text: 'Rs. $takeamount',
-          width: 6,
-          styles: PosStyles(align: PosAlign.right),
-        ),
+        PosColumn(text: 'Rs. $takeamount', width: 6, styles: PosStyles(align: PosAlign.right)),
       ]);
       bytes += _generator!.hr();
 
       // --- Expenses & Net Total ---
-      final double displayExpenses = isDateRangeSelected
-          ? expensesDateRange
-          : expensesToday;
-      final String expensesLabel = isDateRangeSelected
-          ? "Range Expenses:"
-          : "Today's Expenses:";
+      final double displayExpenses = isDateRangeSelected ? expensesDateRange : expensesToday;
+      final String expensesLabel = isDateRangeSelected ? "Range Expenses:" : "Today's Expenses:";
       bytes += _generator!.row([
         PosColumn(text: expensesLabel, width: 6, styles: PosStyles(bold: true)),
-        PosColumn(
-          text: 'Rs. ${displayExpenses.toStringAsFixed(2)}',
-          width: 6,
-          styles: PosStyles(align: PosAlign.right, bold: true),
-        ),
+        PosColumn(text: 'Rs. ${displayExpenses.toStringAsFixed(2)}', width: 6, styles: PosStyles(align: PosAlign.right, bold: true)),
       ]);
       bytes += _generator!.hr();
       bytes += _generator!.row([
-        PosColumn(
-          text: 'Net Total:',
-          width: 6,
-          styles: PosStyles(
-            bold: true,
-            height: PosTextSize.size2,
-            width: PosTextSize.size2,
-          ),
-        ),
-        PosColumn(
-          text: 'Rs. ${(todayTotal).toStringAsFixed(2)}',
-          width: 6,
-          styles: PosStyles(
-            align: PosAlign.right,
-            bold: true,
-            height: PosTextSize.size2,
-            width: PosTextSize.size2,
-          ),
-        ),
+        PosColumn(text: 'Net Total:', width: 6, styles: PosStyles(bold: true,fontType: PosFontType.fontB,height: PosTextSize.size2,width: PosTextSize.size2,)),
+        PosColumn(text: '${(todayTotal).toStringAsFixed(2)}', width: 6, styles: PosStyles(align: PosAlign.right, bold: true,fontType: PosFontType.fontB,height: PosTextSize.size2,width: PosTextSize.size2,)),
       ]);
 
       bytes += _generator!.hr();
       bytes += _generator!.feed(1);
       await _sendToPrinter();
       await _disconnect();
-      debugPrint(
-        "✅ Sales Summary Report sent to printer. Processing time: ${stopwatch.elapsedMilliseconds}ms",
-      );
+      debugPrint("✅ Sales Summary Report sent to printer. Processing time: ${stopwatch.elapsedMilliseconds}ms");
     } catch (e) {
       print_log_red("❌ Error while printing sales summary: $e");
       ScaffoldMessenger.of(context).showSnackBar(
@@ -1705,9 +3895,7 @@ class BillPrinter {
 
       final prefs = await SharedPreferences.getInstance();
       String businessName = prefs.getString('businessName') ?? 'Hotel Test';
-      final String dateTime = DateFormat(
-        'dd-MMM-yyyy hh:mm a',
-      ).format(DateTime.now());
+      final String dateTime = DateFormat('dd-MMM-yyyy hh:mm a').format(DateTime.now());
 
       bytes += _generator!.reset();
       bytes += _generator!.clearStyle();
@@ -1715,21 +3903,17 @@ class BillPrinter {
       // --- Header ---
       bytes += _generator!.text(
         businessName,
+        // containsChinese : true,
         styles: PosStyles(
           align: PosAlign.center,
           bold: true,
-          height: PosTextSize.size2,
-          width: PosTextSize.size2,
+          fontType: PosFontType.fontB,
+          height: PosTextSize.size2, // Set height to minimum
+          width: PosTextSize.size2, // Set height to minimum
         ),
       );
-      bytes += _generator!.text(
-        'Item-Wise Sales Report',
-        styles: PosStyles(align: PosAlign.center, bold: true),
-      );
-      bytes += _generator!.text(
-        'Generated: $dateTime',
-        styles: PosStyles(align: PosAlign.center),
-      );
+      bytes += _generator!.text('Item-Wise Sales Report', styles: PosStyles(align: PosAlign.center, bold: true));
+      bytes += _generator!.text('Generated: $dateTime', styles: PosStyles(align: PosAlign.center));
       bytes += _generator!.hr();
 
       // --- Date Range ---
@@ -1742,16 +3926,8 @@ class BillPrinter {
       // --- Table Header ---
       bytes += _generator!.row([
         PosColumn(text: 'Item', width: 6, styles: PosStyles(bold: true)),
-        PosColumn(
-          text: 'Qty',
-          width: 2,
-          styles: PosStyles(align: PosAlign.center, bold: true),
-        ),
-        PosColumn(
-          text: 'Total',
-          width: 4,
-          styles: PosStyles(align: PosAlign.right, bold: true),
-        ),
+        PosColumn(text: 'Qty', width: 2, styles: PosStyles(align: PosAlign.center, bold: true)),
+        PosColumn(text: 'Total', width: 4, styles: PosStyles(align: PosAlign.right, bold: true)),
       ]);
       bytes += _generator!.hr();
 
@@ -1766,16 +3942,8 @@ class BillPrinter {
 
         bytes += _generator!.row([
           PosColumn(text: itemName, width: 6),
-          PosColumn(
-            text: qty.toString(),
-            width: 2,
-            styles: PosStyles(align: PosAlign.center),
-          ),
-          PosColumn(
-            text: 'Rs. ${totalAmount.toStringAsFixed(2)}',
-            width: 4,
-            styles: PosStyles(align: PosAlign.right),
-          ),
+          PosColumn(text: qty.toString(), width: 2, styles: PosStyles(align: PosAlign.center)),
+          PosColumn(text: 'Rs. ${totalAmount.toStringAsFixed(2)}', width: 4, styles: PosStyles(align: PosAlign.right)),
         ]);
       }
 
@@ -1783,14 +3951,12 @@ class BillPrinter {
       bytes += _generator!.feed(1);
       await _sendToPrinter();
       await _disconnect();
-      debugPrint(
-        "✅ Item-Wise Sales Report sent to printer. Processing time: ${stopwatch.elapsedMilliseconds}ms",
-      );
+      debugPrint("✅ Item-Wise Sales Report sent to printer. Processing time: ${stopwatch.elapsedMilliseconds}ms");
     } catch (e) {
       print_log_red("❌ Error while printing item-wise sales report: $e");
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text("Error printing report: $e")));
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text("Error printing report: $e")),
+      );
     }
   }
 
@@ -1819,30 +3985,24 @@ class BillPrinter {
 
       final prefs = await SharedPreferences.getInstance();
       String businessName = prefs.getString('businessName') ?? 'Hotel Test';
-      final String dateTime = DateFormat(
-        'dd-MMM-yyyy hh:mm a',
-      ).format(DateTime.now());
+      final String dateTime = DateFormat('dd-MMM-yyyy hh:mm a').format(DateTime.now());
 
       bytes += _generator!.reset();
       bytes += _generator!.clearStyle();
 
       bytes += _generator!.text(
         businessName,
+        // containsChinese : true,
         styles: PosStyles(
           align: PosAlign.center,
           bold: true,
-          height: PosTextSize.size2,
-          width: PosTextSize.size2,
+          fontType: PosFontType.fontB,
+          height: PosTextSize.size2, // Set height to minimum
+          width: PosTextSize.size2, // Set height to minimum
         ),
       );
-      bytes += _generator!.text(
-        'Portion-Wise Sales Report',
-        styles: PosStyles(align: PosAlign.center, bold: true),
-      );
-      bytes += _generator!.text(
-        'Generated: $dateTime',
-        styles: PosStyles(align: PosAlign.center),
-      );
+      bytes += _generator!.text('Portion-Wise Sales Report', styles: PosStyles(align: PosAlign.center, bold: true));
+      bytes += _generator!.text('Generated: $dateTime', styles: PosStyles(align: PosAlign.center));
       bytes += _generator!.hr();
 
       bytes += _generator!.text(
@@ -1853,16 +4013,8 @@ class BillPrinter {
 
       bytes += _generator!.row([
         PosColumn(text: 'Portion', width: 6, styles: PosStyles(bold: true)),
-        PosColumn(
-          text: 'Qty',
-          width: 2,
-          styles: PosStyles(align: PosAlign.center, bold: true),
-        ),
-        PosColumn(
-          text: 'Total',
-          width: 4,
-          styles: PosStyles(align: PosAlign.right, bold: true),
-        ),
+        PosColumn(text: 'Qty', width: 2, styles: PosStyles(align: PosAlign.center, bold: true)),
+        PosColumn(text: 'Total', width: 4, styles: PosStyles(align: PosAlign.right, bold: true)),
       ]);
       bytes += _generator!.hr();
 
@@ -1876,16 +4028,8 @@ class BillPrinter {
 
         bytes += _generator!.row([
           PosColumn(text: portionName, width: 6),
-          PosColumn(
-            text: qty.toString(),
-            width: 2,
-            styles: PosStyles(align: PosAlign.center),
-          ),
-          PosColumn(
-            text: 'Rs. ${totalAmount.toStringAsFixed(2)}',
-            width: 4,
-            styles: PosStyles(align: PosAlign.right),
-          ),
+          PosColumn(text: qty.toString(), width: 2, styles: PosStyles(align: PosAlign.center)),
+          PosColumn(text: 'Rs. ${totalAmount.toStringAsFixed(2)}', width: 4, styles: PosStyles(align: PosAlign.right)),
         ]);
       }
 
@@ -1896,9 +4040,9 @@ class BillPrinter {
       debugPrint("✅ Portion-Wise Sales Report sent to printer");
     } catch (e) {
       print_log_red("❌ Error while printing portion-wise sales report: $e");
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text("Error printing report: $e")));
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text("Error printing report: $e")),
+      );
     }
   }
 
@@ -1927,30 +4071,24 @@ class BillPrinter {
 
       final prefs = await SharedPreferences.getInstance();
       String businessName = prefs.getString('businessName') ?? 'Hotel Test';
-      final String dateTime = DateFormat(
-        'dd-MMM-yyyy hh:mm a',
-      ).format(DateTime.now());
+      final String dateTime = DateFormat('dd-MMM-yyyy hh:mm a').format(DateTime.now());
 
       bytes += _generator!.reset();
       bytes += _generator!.clearStyle();
 
       bytes += _generator!.text(
         businessName,
+        // containsChinese : true,
         styles: PosStyles(
           align: PosAlign.center,
           bold: true,
-          height: PosTextSize.size2,
-          width: PosTextSize.size2,
+          fontType: PosFontType.fontB,
+          height: PosTextSize.size2, // Set height to minimum
+          width: PosTextSize.size2, // Set height to minimum
         ),
       );
-      bytes += _generator!.text(
-        'Order Type Sales Report',
-        styles: PosStyles(align: PosAlign.center, bold: true),
-      );
-      bytes += _generator!.text(
-        'Generated: $dateTime',
-        styles: PosStyles(align: PosAlign.center),
-      );
+      bytes += _generator!.text('Order Type Sales Report', styles: PosStyles(align: PosAlign.center, bold: true));
+      bytes += _generator!.text('Generated: $dateTime', styles: PosStyles(align: PosAlign.center));
       bytes += _generator!.hr();
 
       bytes += _generator!.text(
@@ -1961,16 +4099,8 @@ class BillPrinter {
 
       bytes += _generator!.row([
         PosColumn(text: 'Order Type', width: 5, styles: PosStyles(bold: true)),
-        PosColumn(
-          text: 'Count',
-          width: 3,
-          styles: PosStyles(align: PosAlign.center, bold: true),
-        ),
-        PosColumn(
-          text: 'Total',
-          width: 4,
-          styles: PosStyles(align: PosAlign.right, bold: true),
-        ),
+        PosColumn(text: 'Count', width: 3, styles: PosStyles(align: PosAlign.center, bold: true)),
+        PosColumn(text: 'Total', width: 4, styles: PosStyles(align: PosAlign.right, bold: true)),
       ]);
       bytes += _generator!.hr();
 
@@ -1984,16 +4114,8 @@ class BillPrinter {
 
         bytes += _generator!.row([
           PosColumn(text: orderType, width: 5),
-          PosColumn(
-            text: count.toString(),
-            width: 3,
-            styles: PosStyles(align: PosAlign.center),
-          ),
-          PosColumn(
-            text: 'Rs. ${totalAmount.toStringAsFixed(2)}',
-            width: 4,
-            styles: PosStyles(align: PosAlign.right),
-          ),
+          PosColumn(text: count.toString(), width: 3, styles: PosStyles(align: PosAlign.center)),
+          PosColumn(text: 'Rs. ${totalAmount.toStringAsFixed(2)}', width: 4, styles: PosStyles(align: PosAlign.right)),
         ]);
       }
 
@@ -2004,9 +4126,9 @@ class BillPrinter {
       debugPrint("✅ Order Type Sales Report sent to printer");
     } catch (e) {
       print_log_red("❌ Error while printing order type sales report: $e");
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text("Error printing report: $e")));
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text("Error printing report: $e")),
+      );
     }
   }
 
@@ -2032,39 +4154,29 @@ class BillPrinter {
 
       final prefs = await SharedPreferences.getInstance();
       String businessName = prefs.getString('businessName') ?? 'Hotel Test';
-      final String dateTime = DateFormat(
-        'dd-MMM-yyyy hh:mm a',
-      ).format(DateTime.now());
+      final String dateTime = DateFormat('dd-MMM-yyyy hh:mm a').format(DateTime.now());
 
       bytes += _generator!.reset();
       bytes += _generator!.clearStyle();
 
       bytes += _generator!.text(
         businessName,
+        // containsChinese : true,
         styles: PosStyles(
           align: PosAlign.center,
           bold: true,
-          height: PosTextSize.size2,
-          width: PosTextSize.size2,
+          fontType: PosFontType.fontB,
+          height: PosTextSize.size2, // Set height to minimum
+          width: PosTextSize.size2, // Set height to minimum
         ),
       );
-      bytes += _generator!.text(
-        'Available Stock Report',
-        styles: PosStyles(align: PosAlign.center, bold: true),
-      );
-      bytes += _generator!.text(
-        'Generated: $dateTime',
-        styles: PosStyles(align: PosAlign.center),
-      );
+      bytes += _generator!.text('Available Stock Report', styles: PosStyles(align: PosAlign.center, bold: true));
+      bytes += _generator!.text('Generated: $dateTime', styles: PosStyles(align: PosAlign.center));
       bytes += _generator!.hr();
 
       bytes += _generator!.row([
         PosColumn(text: 'Item', width: 8, styles: PosStyles(bold: true)),
-        PosColumn(
-          text: 'Stock',
-          width: 4,
-          styles: PosStyles(align: PosAlign.right, bold: true),
-        ),
+        PosColumn(text: 'Stock', width: 4, styles: PosStyles(align: PosAlign.right, bold: true)),
       ]);
       bytes += _generator!.hr();
 
@@ -2077,11 +4189,7 @@ class BillPrinter {
 
         bytes += _generator!.row([
           PosColumn(text: itemName, width: 8),
-          PosColumn(
-            text: stock.toString(),
-            width: 4,
-            styles: PosStyles(align: PosAlign.right),
-          ),
+          PosColumn(text: stock.toString(), width: 4, styles: PosStyles(align: PosAlign.right)),
         ]);
       }
 
@@ -2092,119 +4200,12 @@ class BillPrinter {
       debugPrint("✅ Stock Report sent to printer");
     } catch (e) {
       print_log_red("❌ Error while printing stock report: $e");
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text("Error printing report: $e")));
-    }
-  }
-
-  Future<void> syncPendingTransactions(BuildContext context) async {
-    try {
-      final objectBoxService = Provider.of<ObjectBoxService>(
-        context,
-        listen: false,
-      );
-      final store = objectBoxService.store;
-      final box = store.box<Transaction>();
-      final unsyncedIds = box
-          .getAll()
-          .where((tx) => !(tx.synced))
-          .map((tx) => tx.id)
-          .toList();
-      debugPrint("Unsynced transaction IDs: $unsyncedIds");
-      // final isOnline = await isDeviceOnline();
-      // final isOnline = await isDeviceConnected();
-      final prefs = await SharedPreferences.getInstance();
-      final isOnline = prefs.getBool('isOnline') ?? true;
-      debugPrint(
-        "isOnline: $isOnline unsyncedIds.isNotEmpty: ${unsyncedIds.isNotEmpty} both: ${isOnline && unsyncedIds.isNotEmpty}",
-      );
-      if (isOnline && unsyncedIds.isNotEmpty) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              "you are online, ⏳ wait to async ${unsyncedIds.length} transaction ",
-            ),
-            duration: Duration(seconds: 1),
-          ),
-        );
-      } else {
-        return;
-      }
-
-      int successfulSyncs = 0;
-      for (int i in unsyncedIds) {
-        try {
-          // Wait for 1 second before sending (except for the first one)
-          if (i > 0) {
-            await Future.delayed(Duration(milliseconds: 100));
-          }
-          final success = await sendTransactionToServer(box, i);
-          if (success) {
-            successfulSyncs++;
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: Text(
-                  "⏳ wait sending transaction ${successfulSyncs}/${unsyncedIds.length}",
-                ),
-                duration: Duration(milliseconds: 40),
-              ),
-            );
-          } else {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: Text("❌ Error sending transaction $i"),
-                duration: Duration(milliseconds: 40),
-              ),
-            );
-          }
-        } catch (e) {
-          debugPrint(
-            "❌ Got Exception Transaction failed ${unsyncedIds.length} $e ",
-          );
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(
-                "❌ Got Exception Transaction failed ${unsyncedIds.length} $e ",
-              ),
-              duration: Duration(milliseconds: 40),
-            ),
-          );
-          break;
-        }
-      }
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            "Sending Transaction Completed ${successfulSyncs}/${unsyncedIds.length}",
-          ),
-          duration: Duration(seconds: 4),
-          backgroundColor: Colors.teal,
-        ),
+        SnackBar(content: Text("Error printing report: $e")),
       );
-    } catch (e) {
-      print("❌ Error in sync process: $e");
     }
   }
 
-  Future<bool> isDeviceConnected() async {
-    final connectivityResult = await (Connectivity().checkConnectivity());
-    if (connectivityResult.contains(ConnectivityResult.mobile) ||
-        connectivityResult.contains(ConnectivityResult.bluetooth) ||
-        connectivityResult.contains(ConnectivityResult.wifi) ||
-        connectivityResult.contains(ConnectivityResult.ethernet)) {
-      // Now, check for actual internet access
-      debugPrint(" connectivityResult ${connectivityResult}");
-      return await InternetConnection().hasInternetAccess;
-    }
-    return false;
-  }
 
-  Future<Uint8List?> generateReceiptImageToShare({
-    required List<Map<String, dynamic>> cart1,
-    required int total,
-    required int billNo,
-    required Map<String, dynamic> transactionData,
-    required tableno,
-  }) async {}
+  
 }

@@ -263,8 +263,42 @@ class _AddItemPageState extends State<AddItemPage> {
 
   Future<void> _saveItem() async {
     if (_formKey.currentState!.validate()) {
-      // final isEditing = widget.item != null;
-      final menuItem = MenuItem(
+      final isEditing = widget.item != null;
+      MenuItem menuItem;
+      if(isEditing){
+        menuItem = MenuItem(
+        id: widget.item!.id,
+        name: nameController.text,
+        sellPrice: sellPriceController.text,
+        sellPriceType: sellPriceType,
+        category: selectedCategory ?? '',
+        mrp: mrpController.text,
+        purchasePrice: purchasePriceController.text,
+        acSellPrice: acSellPrice1Controller.text,
+        acSellPriceHalf:acSellPrice1ControllerHalf.text,
+        nonAcSellPrice: nonAcSellPrice1Controller.text,
+        nonAcSellPriceHalf:nonAcSellPrice1ControllerHalf.text,
+        onlineDeliveryPrice: onlineDeliveryPriceController.text,
+        onlineDeliveryPriceHalf:onlineDeliveryPriceControllerHalf.text,
+        onlineSellPrice: onlineSellPriceController.text,
+        onlineSellPriceHalf:onlineSellPriceControllerHalf.text,
+        hsnCode: hsnCodeController.text,
+        itemCode: itemCodeController.text,
+        barCode: barCodeController.text,
+        barCode2: barCode2Controller.text,
+        imagePath: _imagePath,
+        available: int.tryParse(availableController.text) ?? 1,
+        adjustStock: int.tryParse(adjustStockController.text),
+        gstRate: double.tryParse(_gstRateController.text) ?? 0.0,
+        cessRate: double.tryParse(_cessRateController.text) ?? 0.0,
+        withTax: bool.tryParse(_withTaxController.text) ?? false,
+        f_price: fullPriceController.text,
+        h_price: halfPriceController.text,
+        reserved_field : description.text,
+      );
+      }else{
+
+         menuItem = MenuItem(
         // id: isEditing ? widget.item!.id : itemCodeController.text ?? 0,
         name: nameController.text,
         sellPrice: sellPriceController.text,
@@ -294,6 +328,9 @@ class _AddItemPageState extends State<AddItemPage> {
         h_price: halfPriceController.text,
         reserved_field : description.text,
       );
+
+      }
+     
 
       final id = _menuItemBox.put(menuItem); // ✅ get actual ID from ObjectBox
       final updatedItem = _menuItemBox.get(id,); // ✅ fetch saved version from disk
