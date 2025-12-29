@@ -29,6 +29,7 @@ class AppConstants {
   static String test_version = "";
   static String app_version = "1.0.0";
   static String objectbox_path = "";
+  static String businessDateKey = 'businessDate';
   
   AppConstants._();
 
@@ -200,15 +201,14 @@ Future<String?> getDownloadFolder() async {
 
 
 
-Future<void> sleep(int time,String duration) async {
-
+void sleep(int time,String duration) {
   switch(duration){
     case "s":
-      await Future.delayed(Duration(seconds: time));
+      Future.delayed(Duration(seconds: time));
     case "m":
-      await Future.delayed(Duration(milliseconds: time));
+      Future.delayed(Duration(milliseconds: time));
     default:
-      await Future.delayed(Duration(milliseconds: time));
+      Future.delayed(Duration(milliseconds: time));
   }
   
 }
@@ -265,7 +265,7 @@ Future<http.Response?> apiCalls(
           Uri.parse("https://api2.nextorbitals.in/api/save_transaction2.php"),
           headers: {"Content-Type": "application/json"},
           body: jsonEncode(payload),
-        ).timeout(const Duration(seconds: 5));
+        ).timeout(const Duration(seconds: 300));
         return response;
       case "m":
         final response = await http
@@ -281,7 +281,7 @@ Future<http.Response?> apiCalls(
           Uri.parse('https://api2.nextorbitals.in/api/add_item.php'),
           headers: {'Content-Type': 'application/json'},
           body: jsonEncode(payload),
-        );
+        ).timeout(const Duration(seconds: 300));
         return response;
       case "l":
         final response = await http.post(
@@ -297,4 +297,24 @@ Future<http.Response?> apiCalls(
       default:
         return null;
     }
+}
+
+
+
+Future<DateTime> getBussinessDate() async {
+  final prefs = await SharedPreferences.getInstance();
+  final businessDateString = prefs.getString(AppConstants.businessDateKey) ?? DateTime.now().toString();
+  final now = DateTime.now();
+  final businessDatePart = DateTime.parse(businessDateString);
+  final fullDateTime = DateTime(
+        businessDatePart.year,
+        businessDatePart.month,
+        businessDatePart.day,
+        now.hour,
+        now.minute,
+        now.second,
+      );
+  print_log("BUsiness Date is $fullDateTime");
+  return fullDateTime;
+  
 }

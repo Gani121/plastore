@@ -331,10 +331,11 @@ class _AddItemPageState extends State<AddItemPage> {
 
       }
      
-
+      print_log("payload $menuItem");
       final id = _menuItemBox.put(menuItem); // ✅ get actual ID from ObjectBox
-      final updatedItem = _menuItemBox.get(id,); // ✅ fetch saved version from disk
-      sendItemtoServer(menuItem);
+      final updatedItem = await _menuItemBox.get(id,) ?? menuItem; // ✅ fetch saved version from disk
+      print_log("payload updatedItem $updatedItem");
+      sendItemtoServer(updatedItem);
 
 
       screen_massage(context, '✅ Item Saved');
@@ -360,6 +361,7 @@ class _AddItemPageState extends State<AddItemPage> {
 
       final payload = {
         'hotel_name': hotelName,
+        'issingle': true,
         'menuItems': [
           {
             'id': item.itemCode?.isNotEmpty == true ? item.itemCode : (item.id != 0 ? item.id.toString() : 'item_${DateTime.now().millisecondsSinceEpoch}'),
@@ -381,7 +383,10 @@ class _AddItemPageState extends State<AddItemPage> {
             'available': item.available ?? 0,
             'itemvnv': 0, // This field is not in your MenuItem model
             'description': item.reserved_field,
-            'gst': item.gstRate ?? 0.0,
+            'gst': item.gstRate ,
+            'itemCode': item.itemCode,
+            'barCode': item.barCode ,
+            'hsnCode': item.hsnCode ,
           }
         ]
       };
@@ -615,13 +620,8 @@ class _AddItemPageState extends State<AddItemPage> {
                             ),
                             ElevatedButton(
                               onPressed: () {
-                                if (newCategoryController.text
-                                    .trim()
-                                    .isNotEmpty) {
-                                  Navigator.pop(
-                                    context,
-                                    newCategoryController.text.trim(),
-                                  );
+                                if (newCategoryController.text.trim().isNotEmpty) {
+                                  Navigator.pop(context,newCategoryController.text.trim(),);
                                 }
                               },
                               style: ElevatedButton.styleFrom(

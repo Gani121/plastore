@@ -190,7 +190,7 @@ class _DostiKitchenPageState extends State<DostiKitchenPage> {
   Future<void> _initializeAndStoreBusinessDate() async {
     final prefs = await SharedPreferences.getInstance();
     final businessDate = getBusinessDate(cutoffHour: 4);
-    String? ddd = prefs.getString('businessDate');
+    String? ddd = prefs.getString(AppConstants.businessDateKey);
     print_log('✅ Business date saved: ${ddd!.split("T")[0]} != ${(businessDate.toIso8601String()).split("T")[0]} ${ddd!.split("T")[0] != (businessDate.toIso8601String()).split("T")[0]}');
     if(ddd!.split("T")[0] != (businessDate.toIso8601String()).split("T")[0]){
       ScaffoldMessenger.of(context).showSnackBar(
@@ -201,7 +201,7 @@ class _DostiKitchenPageState extends State<DostiKitchenPage> {
         ),
       );
     }
-    await prefs.setString('businessDate', businessDate.toIso8601String());
+    await prefs.setString(AppConstants.businessDateKey, businessDate.toIso8601String());
     setState(() {
       _selectedDate = businessDate;
     });
@@ -836,7 +836,7 @@ class _DostiKitchenPageState extends State<DostiKitchenPage> {
                         return _infoCard(
                           '📊 ${AppLocalizations.of(context)!.reports} \n',
                           '${AppLocalizations.of(context)!.total}: ₹ ${getTodayTotalSale()}\n' // If this also needs to be reactive, use similar approach
-                          '${AppLocalizations.of(context)!.expenses}:  ₹ ${totalExpenses.toStringAsFixed(2)}\n',
+                          '${AppLocalizations.of(context)!.expenses}:  ₹ ${totalExpenses.toStringAsFixed(0)}\n',
                         );
                       },
                     ),
@@ -1196,7 +1196,7 @@ class _LiveTimeBarState extends State<LiveTimeBar> {
   Future<void> _initializeAndStoreBusinessDate() async {
     final businessDate = getBusinessDate(cutoffHour: 4);
     final prefs = await SharedPreferences.getInstance();
-    String? ddd = prefs.getString('businessDate');
+    String? ddd = prefs.getString(AppConstants.businessDateKey);
     _date = businessDate.toIso8601String().toString().split("T")[0];
     if(ddd != businessDate.toIso8601String()){
       ScaffoldMessenger.of(context).showSnackBar(
@@ -1207,7 +1207,7 @@ class _LiveTimeBarState extends State<LiveTimeBar> {
         ),
       );
     }
-    await prefs.setString('businessDate', businessDate.toIso8601String());
+    await prefs.setString(AppConstants.businessDateKey, businessDate.toIso8601String());
     // debugPrint('✅ Business date saved: ${ddd}');
   }
 

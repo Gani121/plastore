@@ -27,7 +27,7 @@ class _ExpensesPageState extends State<ExpensesPage> {
   final _formKey = GlobalKey<FormState>();
   final _titleController = TextEditingController();
   final _amountController = TextEditingController();
-  DateTime _selectedDate = DateTime.now();
+  late DateTime _selectedDate = DateTime.now();
   String _selectedCategory = 'Food';
   File? _selectedImage; // used while adding a new expense
   String? _imagePath; // path used while adding a new expense
@@ -49,6 +49,7 @@ class _ExpensesPageState extends State<ExpensesPage> {
     super.initState();
     
     WidgetsBinding.instance.addPostFrameCallback((_) {
+      
       _loadExpenses().then((_) {
         // _printAllExpensesFromBox(); // Print after loading
       });
@@ -58,6 +59,8 @@ class _ExpensesPageState extends State<ExpensesPage> {
   // ---------- Persistence ----------
   Future<void> _loadExpenses() async {
     try {
+
+      _selectedDate = await getBussinessDate();
       final box = store.box<expences>();
       final prefs = await SharedPreferences.getInstance();
       final loadedExpenses = <Expense>[];
@@ -702,7 +705,10 @@ class _ExpensesPageState extends State<ExpensesPage> {
 
   /// ---------- Add new expense ----------
   void _addNewExpense() {
+    
     _clearForm(); // ensure form is empty
+    sleep(100,'m');
+    
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
@@ -779,14 +785,12 @@ class _ExpensesPageState extends State<ExpensesPage> {
                   ListTile(
                     leading: const Icon(Icons.calendar_today),
                     title: const Text('Select Date'),
-                    subtitle: Text(
-                      DateFormat('MMM dd, yyyy').format(_selectedDate),
-                    ),
+                    subtitle: Text(DateFormat('MMM dd, yyyy').format(_selectedDate),),
                     onTap: () async {
                       final pickedDate = await showDatePicker(
                         context: context,
                         initialDate: _selectedDate,
-                        firstDate: DateTime(2000),
+                        firstDate: DateTime(2024),
                         lastDate: DateTime.now(),
                       );
                       if (pickedDate != null)
@@ -917,10 +921,10 @@ class _ExpensesPageState extends State<ExpensesPage> {
     );
   }
 
-  void _clearForm() {
+  void _clearForm() async {
     _titleController.clear();
     _amountController.clear();
-    _selectedDate = DateTime.now();
+    _selectedDate = await getBussinessDate();
     _selectedCategory = 'Food';
     _selectedImage = null;
     _imagePath = null;

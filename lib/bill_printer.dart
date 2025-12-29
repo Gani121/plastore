@@ -321,12 +321,12 @@ Future<void> printInChunks(thermal.BlueThermalPrinter printer, Uint8List allByte
   int escStarEnd = _findEscStarEnd(allBytes);
   final headerChunk = allBytes.sublist(0, (escStarEnd + 10).clamp(0, firstChunkSize));
   await printer.writeBytes(headerChunk);
-  await sleep(delayMs, "m");
+  sleep(delayMs, "m");
   
   // First 130 bytes (must include complete header)
   final firstChunk = allBytes.sublist(0, firstChunkSize);
   await printer.writeBytes(firstChunk);
-  await sleep(delayMs, "m");
+  sleep(delayMs, "m");
   
   // Remaining raster data only
   final remaining = allBytes.sublist(firstChunkSize);
@@ -334,7 +334,7 @@ Future<void> printInChunks(thermal.BlueThermalPrinter printer, Uint8List allByte
     final end = (i + chunkSize < remaining.length) ? i + chunkSize : remaining.length;
     final chunk = remaining.sublist(i, end);
     await printer.writeBytes(Uint8List.fromList(List<int>.from(chunk)));
-    await sleep(delayMs, "m");
+    sleep(delayMs, "m");
   }
 }
 
@@ -2020,13 +2020,10 @@ Future<void> printBillWithLogo(thermal.BlueThermalPrinter bluetooth) async {
     try{
     final store = Provider.of<ObjectBoxService>(context, listen: false).store;
     final box = store.box<Transaction>();
-
-    final prefs = await SharedPreferences.getInstance();
-    final businessDateString = prefs.getString('businessDate') ?? DateTime.now().toString();
     final now = DateTime.now();
     int cash_amount = (double.tryParse(transactionData?['cashamount']?.toString() ?? '0.0') ?? 0.0).toInt();
     int upi_amount = (double.tryParse(transactionData?['upiamount']?.toString() ?? '0.0') ?? 0.0).toInt();
-    final businessDatePart = DateTime.parse(businessDateString);
+    final businessDatePart = await getBussinessDate();
     debugPrint("✅ saveTransactionToObjectBox  businessDate $businessDatePart,payment_mode $payment_mode,cash_amount $cash_amount,upi_amount$upi_amount,transactionData $transactionData, tableNo- $tableNo, total-$total, pageback-$pageback, status-$status, cart-$cart, ");
     // debugPrint("business date ${businessDatePart}");
     final fullDateTime = DateTime(
