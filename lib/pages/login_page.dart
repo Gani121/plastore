@@ -45,7 +45,7 @@ class _LoginPageState extends State<LoginPage> {
   }
 
   Future<void> _loadLoginDetails() async {
-    final savedEmail = await secureStorage.read(key: 'username');
+    final savedEmail = await secureStorage.read(key: AppConstants.usernameKey);
     final savedPassword = await secureStorage.read(key: 'password');
     final rememberStr = await secureStorage.read(key: 'remember_me');
     final remember = rememberStr == 'true';
@@ -391,7 +391,7 @@ class _LoginPageState extends State<LoginPage> {
     final email = _emailController.text.trim();
     final password = _passwordController.text.trim();
     final prefs = await SharedPreferences.getInstance();
-    await prefs.setString('username', email);
+    await prefs.setString(AppConstants.usernameKey, email);
     if (_formKey.currentState!.validate()) {
       setState(() {
         _isLoading = true; // ⏳ Start loading
@@ -493,12 +493,12 @@ class _LoginPageState extends State<LoginPage> {
               debugPrint("Expiry remaining5 ");
               if (_rememberMe) {
                 debugPrint("Expiry remaining5 ");
-                await prefs.setString('username', email);
+                await prefs.setString(AppConstants.usernameKey, email);
                 await prefs.setString('password', password);
                 await prefs.setBool('remember_me', true);
 
                 // Instead of SharedPreferences:
-                await secureStorage.write(key: 'username', value: email);
+                await secureStorage.write(key: AppConstants.usernameKey, value: email);
                 await secureStorage.write(key: 'password', value: password);
                 await secureStorage.write(key: 'remember_me',value: _rememberMe.toString(),);
                 await secureStorage.write(key: 'expiresAtStr',value: expiresAtStr,);
@@ -507,7 +507,7 @@ class _LoginPageState extends State<LoginPage> {
                 // await prefs.remove('username');
                 await prefs.remove('password');
                 await prefs.setBool('remember_me', false);
-                await secureStorage.delete(key: 'username');
+                await secureStorage.delete(key: AppConstants.usernameKey);
                 await secureStorage.delete(key: 'password');
                 await secureStorage.delete(key: 'remember_me');
                 await secureStorage.delete(key: 'expiresAtStr');

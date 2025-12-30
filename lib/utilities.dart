@@ -30,6 +30,7 @@ class AppConstants {
   static String app_version = "1.0.0";
   static String objectbox_path = "";
   static String businessDateKey = 'businessDate';
+  static String usernameKey = "username";
   
   AppConstants._();
 
@@ -300,7 +301,9 @@ Future<http.Response?> apiCalls(
 }
 
 
-
+/// 
+/// businessDateKey - 'businessDate'
+/// 
 Future<DateTime> getBussinessDate() async {
   final prefs = await SharedPreferences.getInstance();
   final businessDateString = prefs.getString(AppConstants.businessDateKey) ?? DateTime.now().toString();

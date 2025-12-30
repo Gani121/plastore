@@ -2210,7 +2210,7 @@ Future<void> printBillWithLogo(thermal.BlueThermalPrinter bluetooth) async {
       }
 
       // String businessName = prefs.getString('businessName') ?? 'Hotel Test';
-      String login_user = prefs.getString('username') ?? 'Hotel Test';
+      String login_user = prefs.getString(AppConstants.usernameKey) ?? 'Hotel Test';
       String cart_String = existingTx.cartData.toString().replaceAll('"', "'");
       // String cart_String = jsonEncode(existingTx.cartData);
       final payload = {

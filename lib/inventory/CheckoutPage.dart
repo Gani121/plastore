@@ -1,6 +1,6 @@
 // import 'package:flutter/material.dart';
 // import 'package:test1/bill_printer.dart';
-// import 'package:test1/editBillPrint/editBill.dart';
+// import 'package:test1/inventory/detailspage.dart';
 
 // import '../objectbox.g.dart';
 
@@ -29,7 +29,7 @@
 //   Widget build(BuildContext context) {
 //     return Scaffold(
 //       appBar: AppBar(
-//         title: const Text("Checkout Page"),
+//         title: const Text("Search"),
 //         backgroundColor: Colors.deepPurple,
 //         leading: Icon(Icons.arrow_back),
 //         actions: [

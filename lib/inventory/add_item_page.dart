@@ -349,7 +349,7 @@ class _AddItemPageState extends State<AddItemPage> {
     final prefs = await SharedPreferences.getInstance();
     try {
       
-      final hotelName = prefs.getString('username');
+      final hotelName = prefs.getString(AppConstants.usernameKey);
 
       if (hotelName == null) {
         print_log("Error: hotelName not found in SharedPreferences");

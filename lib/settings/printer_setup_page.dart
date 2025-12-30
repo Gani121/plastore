@@ -12,8 +12,7 @@ class PrinterSetupPage extends StatefulWidget {
   _PrinterSetupPageState createState() => _PrinterSetupPageState();
 }
 
-class _PrinterSetupPageState extends State<PrinterSetupPage>
-    with WidgetsBindingObserver {
+class _PrinterSetupPageState extends State<PrinterSetupPage> with WidgetsBindingObserver {
   List<thermal.BluetoothDevice> _devices = [];
   thermal.BluetoothDevice? _selectedDevice;
   thermal.BluetoothDevice? _selectedKOTDevice;

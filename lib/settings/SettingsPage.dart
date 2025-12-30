@@ -1,22 +1,22 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:test1/bill_settings_page.dart';
+import 'package:test1/settings/bill_settings_page.dart';
 import 'package:test1/profilepage.dart';
 import 'printer_setup_page.dart';
 import 'LanguageSelectionPage.dart';
-import './pages/BulkUploadPage.dart';
-import 'theme_setting/theme_selector.dart';
-import 'theme_setting/theme_provider.dart';
+import '../pages/BulkUploadPage.dart';
+import '../theme_setting/theme_selector.dart';
+import '../theme_setting/theme_provider.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
-import './pages/ReceiptPrintPage.dart';
+import '../pages/ReceiptPrintPage.dart';
 import 'dart:convert';
 import 'package:path_provider/path_provider.dart';
-import './objectbox.g.dart';
+import '../objectbox.g.dart';
 import 'dart:io';
 import 'dart:async';
 import 'package:objectbox/objectbox.dart';
-import 'database_Module/menu_item.dart';
+import '../database_Module/menu_item.dart';
 import 'package:archive/archive.dart';
 import 'package:test1/utilities.dart';
 
@@ -262,7 +262,7 @@ class SettingsPage extends StatelessWidget {
     if (proceed!) {
       // print("ApiCallPage started...");
       final prefs = await SharedPreferences.getInstance();
-      final username = prefs.getString('username') ?? "";
+      final username = prefs.getString(AppConstants.usernameKey) ?? "";
       final hotelName = username;
       // .split("_")
       // .sublist(0, username.split("_").length - 1)

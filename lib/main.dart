@@ -4,7 +4,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:blue_thermal_printer/blue_thermal_printer.dart';
 import 'NewOrderPage.dart';
-import 'SettingsPage.dart';
+import 'settings/SettingsPage.dart';
 import 'inventory/inventory_page.dart';
 import './objectbox.g.dart';
 import 'dart:io';
@@ -18,7 +18,7 @@ import './pages/PartyListPage.dart';
 import './pages/SalesReportPage.dart';
 import 'dart:async';
 import 'package:flutter/services.dart';
-import 'ProfilePage.dart';
+import 'settings/ProfilePage.dart';
 import 'theme_setting/theme_provider.dart';
 import 'package:objectbox/objectbox.dart';
 import 'database_Module/menu_item.dart';
@@ -974,9 +974,7 @@ class _DostiKitchenPageState extends State<DostiKitchenPage> {
                                             }
                                           }
                                         : null,
-                                      style: ElevatedButton.styleFrom(
-                                        backgroundColor: Colors.orange,
-                                      ),
+                                      style: ElevatedButton.styleFrom(backgroundColor: Colors.orange,),
                                       child: Text(AppLocalizations.of(context)!.settle),
                                     ),
                                   ],

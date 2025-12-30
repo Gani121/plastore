@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 // import 'package:video_player/video_player.dart';
-import 'main.dart'; // your next page
+import '../main.dart'; // your next page
 
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
