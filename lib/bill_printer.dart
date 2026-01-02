@@ -73,8 +73,6 @@ class BillPrinter {
   static const List<int> initCommand = [27, 64]; // ESC @
 
 
-
-
   Future<bool> printCart({
         required BuildContext context,
         required List<Map<String, dynamic>> cart1,
@@ -100,12 +98,8 @@ class BillPrinter {
 
           debugPrint("check printer is connected total $total mode $mode payment_mode $payment_mode  $transactionData billNo $billNo $cart");
 
-          
-          // return true;
-
           KOT_Print = mode.toLowerCase().contains("kot") || payment_mode.toLowerCase().contains("kot");
           
-          final device = await _getSavedPrinter(KOTmode:KOT_Print,context: context);
           bool settle_button_enabled = prefs.getBool("settle_button_enabled") ?? false;
           bool otherprinter = prefs.getBool("otherprinter") ?? false;
           if(settle_button_enabled){
@@ -123,8 +117,17 @@ class BillPrinter {
                   transactionData:transactionData,
                 );
                 return true;
-
             }
+
+          bl.BluetoothAdapterState initialState = await bl.FlutterBluePlus.adapterState.first;
+          if(initialState != bl.BluetoothAdapterState.on){
+            screen_massage(context, "Please Turn On bluetooth $initialState");
+            return true;
+          }
+
+
+          //------------------------------------Start code---------------------------------
+
 
 
           if(otherprinter){
@@ -150,6 +153,7 @@ class BillPrinter {
 
 
 
+          final device = await _getSavedPrinter(KOTmode:KOT_Print,context: context);
           if (device != null || settle_button_enabled ) {
             bool isConnected = await _isConnected();
             debugPrint("check printer is connected ${isConnected} $transactionData");
@@ -1404,7 +1408,7 @@ Future<void> printBillWithLogo(thermal.BlueThermalPrinter bluetooth) async {
             ),
           );
 
-
+          
           bytes += _generator!.text(
             "Mobile NO: ${transactionData?['mobileNo'] ?? " "}",
             styles: PosStyles(
@@ -1414,16 +1418,18 @@ Future<void> printBillWithLogo(thermal.BlueThermalPrinter bluetooth) async {
             ),
           );
           
-          bytes += _generator!.text(
-            "Adreess: ${transactionData?['reserved'] ?? " "}",
-            styles: PosStyles(
-              // align: PosAlign.center,
-              bold: true,
-              fontType: PosFontType.fontA,
-              height: PosTextSize.size1, // Set height to minimum
-              width: PosTextSize.size1,
-            ),
-          );
+          if("${transactionData?['reserved'] ?? ""}".isNotEmpty){
+            bytes += _generator!.text(
+              "Adreess: ${transactionData?['reserved'] ?? " "}",
+              styles: PosStyles(
+                // align: PosAlign.center,
+                bold: true,
+                fontType: PosFontType.fontA,
+                height: PosTextSize.size1, // Set height to minimum
+                width: PosTextSize.size1,
+              ),
+            );
+          }
 
           bytes += _generator!.hr();
         }

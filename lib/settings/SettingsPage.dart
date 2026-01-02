@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:test1/settings/bill_settings_page.dart';
-import 'package:test1/profilepage.dart';
+import 'package:test1/settings/profilepage.dart';
 import 'printer_setup_page.dart';
 import 'LanguageSelectionPage.dart';
 import '../pages/BulkUploadPage.dart';

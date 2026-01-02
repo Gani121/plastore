@@ -24,9 +24,9 @@
         android:label="orbipay">
 
         <!-- ADD THIS LINE HERE (right after opening <application> tag) -->
-        <meta-data
+        <!-- <meta-data
             android:name="io.flutter.embedding.android.EnableImpeller"
-            android:value="true" />
+            android:value="true" /> -->
 
         <activity
             android:name="io.flutter.embedding.android.FlutterActivity"

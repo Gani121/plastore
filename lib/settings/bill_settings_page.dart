@@ -48,6 +48,7 @@ const Map<String, String> switchPreferenceKeys = {
   "4.3 choose days for reminder Message":
       "4.3 choose days for reminder Message",
   "4.5 Settle Button": "settle_button_enabled",
+  "4.6 Transection Color": "transection_color",
 };
 
 class billSettingsPage extends StatefulWidget {
@@ -473,6 +474,7 @@ class _billSettingsPageState extends State<billSettingsPage> {
           toggleTile("4.3 choose days for reminder Message", ""),
           _buildDynamicDropdownTile("4.4 Order Type"),
           toggleTile("4.5 Settle Button", "Enable or disable the Settle button functionality."),
+          toggleTile("4.6 Transection Color", "set yellow color for the online order transaction."),
 
           // buildSwitchTile(
           //   title: "2.24 Always Show Previous Balance",

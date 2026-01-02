@@ -70,10 +70,9 @@ class _PrinterSetupPageState extends State<PrinterSetupPage> with WidgetsBinding
 
 
   // Initialize Bluetooth state monitoring
-  void _initializeBluetooth() async {
+  Future<bool> _initializeBluetooth() async {
     // Get initial state
-    BluetoothAdapterState initialState =
-        await FlutterBluePlus.adapterState.first;
+    BluetoothAdapterState initialState = await FlutterBluePlus.adapterState.first;
     setState(() {
       _isBluetoothOn = initialState == BluetoothAdapterState.on;
     });
@@ -89,6 +88,7 @@ class _PrinterSetupPageState extends State<PrinterSetupPage> with WidgetsBinding
         _getBondedDevices();
       }
     });
+    return _isBluetoothOn;
   }
 
   // Toggle Bluetooth on/off
@@ -310,7 +310,7 @@ Future<void> _connectPrinter() async {
       );
 
       // 2️⃣ Wait for connection to be stable
-      await Future.delayed(Duration(seconds: 2));
+      // await Future.delayed(Duration(seconds: 2));
 
       printer.printNewLine();
       printer.printCustom("✅ BILL PRINTER Test", 1, 1);

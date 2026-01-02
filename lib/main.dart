@@ -170,6 +170,9 @@ class _DostiKitchenPageState extends State<DostiKitchenPage> {
   String businessName = 'My Business';
   String contactPhone =  '';
   String imagePath = '';
+  final excludedOrderTypes = ['Parcel', 'Dine-In', 'Takeaway'];
+  bool transectionColor = false;
+
 
   @override
   void initState() {
@@ -289,6 +292,8 @@ class _DostiKitchenPageState extends State<DostiKitchenPage> {
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       final prefs = await SharedPreferences.getInstance();
       final isHoldEnabled = prefs.getBool('isHoldEnabled') ?? false;
+      
+      
 
       if (!isHoldEnabled) {
         final cartProvider = Provider.of<CartProvider>(context, listen: false);
@@ -448,16 +453,6 @@ class _DostiKitchenPageState extends State<DostiKitchenPage> {
     );
   }
 
-  Map<String, dynamic> table = {
-    "number": 5,
-    "total": 270,
-    "orders": [
-      {"name": "Veg Burger", "qty": 2, "price": 60},
-      {"name": "French Fries", "qty": 1, "price": 50},
-      {"name": "Coke", "qty": 2, "price": 50},
-    ],
-  };
-
   void _showTransactionOptionsDialog(
     BuildContext context,
     Map<String, dynamic> tx,
@@ -550,6 +545,7 @@ class _DostiKitchenPageState extends State<DostiKitchenPage> {
   Future<void> loadSelectedStyle() async {
     final prefs = await SharedPreferences.getInstance();
     setState(() {
+      transectionColor = prefs.getBool("transection_color") ?? false;
       selectedStyle = prefs.getString('selectedStyle') ?? "List Style Half Full";
     });
   }
@@ -896,14 +892,13 @@ class _DostiKitchenPageState extends State<DostiKitchenPage> {
                 final tableNo = tx['tableNo'] ?? 0;
                 final orderType = tx['orderType'] ?? 0;
 
-                final text =
-                    "${AppLocalizations.of(context)!.billNo} ${tx['billNo']} (${tx['id']}) / "
+                final text = "${AppLocalizations.of(context)!.billNo} ${tx['billNo']} (${tx['id']}) / "
                     "${tableNo == 0 ? orderType : "${AppLocalizations.of(context)!.table} $tableNo"}";
 
                 return GestureDetector(
                   onTap: () => _showTransactionOptionsDialog(context, tx),
                   child: Card(
-                    color: Colors.white,
+                    color: transectionColor && !excludedOrderTypes.contains(orderType) ? Colors.yellow[200] : Colors.white,
                     margin: const EdgeInsets.only(bottom: 10),
                     shape: RoundedRectangleBorder(
                       side: const BorderSide(color: Colors.black, width: 1),
@@ -911,6 +906,7 @@ class _DostiKitchenPageState extends State<DostiKitchenPage> {
                     ),
                     child: Padding(
                       padding: const EdgeInsets.all(10),
+                      //i want yallow color when orderType != dinein
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
