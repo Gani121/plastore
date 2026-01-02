@@ -902,10 +902,10 @@ class _DetailPageState extends State<DetailPage> {
         await file.writeAsBytes(imageBytes);
         // ShareParams params = {ShareParams.text t = "hsjahdj",};
         await SharePlus.instance.share(ShareParams(
-        files: [XFile(path)],
-        subject: 'Receipt - Bill No: $billNo',
-        text: billDetails,
-      ),);
+          files: [XFile(path)],
+          subject: 'Receipt - Bill No: $billNo',
+          text: billDetails,
+        ),);
 
         // await Share.shareXFiles([XFile(path)], text: billDetails);
         return; // Exit if sharing initiated successfully
@@ -972,6 +972,73 @@ class _DetailPageState extends State<DetailPage> {
         );
     }
   }
+
+
+  /// Launches WhatsApp with a pre-filled message.
+  Future<void> _textshareOnWhatsApp(CartProvider cartProvider) async {
+
+    // 2. Get the bill details string
+    String billDetails = await _createBillString(cartProvider);  
+
+    // 1. Get the mobile number from the controller
+    // Note: Ensure the number includes the country code (e.g., +91 for India)
+    String mobileNumber = _mobileNoController.text.trim();
+
+    if (mobileNumber.isEmpty || mobileNumber.length < 10) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Please enter a mobile number.'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
+
+     // --- EDITED: LOGIC TO ADD COUNTRY CODE ---
+    // This logic prepares the number for the WhatsApp URL.
+    // It assumes the target is an Indian mobile number.
+    mobileNumber = extractLast10Digits(mobileNumber);
+    if (mobileNumber.startsWith('+')) {
+        mobileNumber = mobileNumber.substring(1); // Remove '+'
+    }
+
+    if (mobileNumber.length == 10) {
+        // Standard 10-digit number, prepend India's country code
+        mobileNumber = '91$mobileNumber';
+    } else if (mobileNumber.length == 11 && mobileNumber.startsWith('0')) {
+        // Number starts with a 0, replace it with the country code
+        mobileNumber = '91${mobileNumber.substring(1)}';
+    }
+
+    // 3. URL-encode the message
+    String encodedMessage = Uri.encodeComponent(billDetails);
+
+    // 4. Create the WhatsApp URL
+    // The wa.me URL is the recommended universal link for WhatsApp
+    Uri whatsappUrl = Uri.parse("https://wa.me/$mobileNumber?text=$encodedMessage");
+
+    // 5. Check if the URL can be launched and launch it
+    try {
+        if (await canLaunchUrl(whatsappUrl)) {
+            await launchUrl(whatsappUrl, mode: LaunchMode.externalApplication);
+        } else {
+             ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                content: Text('Could not launch WhatsApp. Is it installed?'),
+                 backgroundColor: Colors.red,
+                ),
+            );
+        }
+    } catch (e) {
+         ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+            content: Text('An error occurred: $e'),
+            backgroundColor: Colors.red,
+            ),
+        );
+    }
+  }
+
 
 
 
@@ -1154,7 +1221,31 @@ DateTime getBusinessDate({int cutoffHour = 4}) {
                             const SizedBox(width: 12),
                             // This is the button you wanted to add
                             ElevatedButton.icon(
-                              onPressed:() => _shareOnWhatsApp(cartProvider),
+                              onPressed: () {
+                                showDialog(
+                                  context: context,
+                                  builder: (BuildContext context) {
+                                    return AlertDialog(
+                                      title: const Text("Share Bill"),
+                                      content: const Text("Select format to share:"),
+                                      actions: [
+                                        TextButton(
+                                          onPressed: () {
+                                            _textshareOnWhatsApp(cartProvider);
+                                          },
+                                          child: const Text("Text"),
+                                        ),
+                                        TextButton(
+                                          onPressed: () {
+                                            _shareOnWhatsApp(cartProvider);
+                                          },
+                                          child: const Text("Image"),
+                                        ),
+                                      ],
+                                    );
+                                  },
+                                );
+                              },
                               icon: const FaIcon(FontAwesomeIcons.whatsapp,
                                                   color: Colors.white,
                                                   size: 20.0,),

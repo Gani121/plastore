@@ -170,6 +170,15 @@ class _DostiKitchenPageState extends State<DostiKitchenPage> {
   String businessName = 'My Business';
   String contactPhone =  '';
   String imagePath = '';
+  bool hide_sales_report = false;
+  bool hide_transections =  false;
+  bool hide_total = false;
+  bool hide_udhari = false;
+  bool hide_expence = false;
+  bool hide_cash_sale = false;
+  bool hide_upi_sell =  false;
+  bool hide1 =  false;
+  bool hide2 =  false;
   final excludedOrderTypes = ['Parcel', 'Dine-In', 'Takeaway'];
   bool transectionColor = false;
 
@@ -258,9 +267,20 @@ class _DostiKitchenPageState extends State<DostiKitchenPage> {
 
   Future<void> _loadimagepath() async {
     final prefs = await SharedPreferences.getInstance();
-    businessName =prefs.getString('businessName') ?? 'My Business';
-    contactPhone = prefs.getString('contactPhone') ?? '';
-    imagePath = prefs.getString('imagePath') ?? '';
+    setState(() {
+      businessName =prefs.getString('businessName') ?? 'My Business';
+      contactPhone = prefs.getString('contactPhone') ?? '';
+      imagePath = prefs.getString('imagePath') ?? '';
+      hide_sales_report = prefs.getBool('hide_sales_report') ?? false;
+      hide_transections = prefs.getBool('hide_transections') ?? false;
+      hide_total = prefs.getBool('hide_total') ?? false;
+      hide_udhari = prefs.getBool('hide_udhari') ?? false;
+      hide_expence = prefs.getBool('hide_expence') ?? false;
+      hide_cash_sale = prefs.getBool('hide_cash_sale') ?? false;
+      hide_upi_sell = prefs.getBool('hide_upi_sell') ?? false;
+      hide1 = prefs.getBool('hide1') ?? false;
+      hide2 = prefs.getBool('hide2') ?? false;
+    });
     print_log("imagePath $imagePath  businessName $businessName contactPhone $contactPhone");
   }
 
@@ -552,6 +572,7 @@ class _DostiKitchenPageState extends State<DostiKitchenPage> {
 
   @override
   Widget build(BuildContext context) {
+    
     final themeProvider = Provider.of<ThemeProvider>(context);
     return Scaffold(
       key: _scaffoldKey,
@@ -569,6 +590,7 @@ class _DostiKitchenPageState extends State<DostiKitchenPage> {
             String _businessName =prefs.getString('businessName') ?? businessName;
             String _contactPhone = prefs.getString('contactPhone') ?? contactPhone;
             String _imagePath = prefs.getString('imagePath') ?? imagePath;
+            hide_sales_report = prefs.getBool('hide_sales_report') ?? false;
             print_log("_imagePath $_imagePath businessName $_businessName contactPhone $_contactPhone");
 
             return ListView(
@@ -710,6 +732,8 @@ class _DostiKitchenPageState extends State<DostiKitchenPage> {
                     Navigator.push(
                       context,
                       MaterialPageRoute(builder: (context) => SettingsPage(menuItemBox: menuItemBox)),
+                    ).then(
+                     (value) => _loadimagepath(),
                     );
                   },
                 ),
@@ -727,6 +751,11 @@ class _DostiKitchenPageState extends State<DostiKitchenPage> {
                   leading: Icon(Icons.person),
                   title: Text(AppLocalizations.of(context)!.sales_report),
                   onTap: () {
+                    if(hide_sales_report){
+                      screen_massage(context, "Access Denied");
+                      return;
+                    }
+
                     Navigator.push(
                       context,
                       MaterialPageRoute(
@@ -819,6 +848,10 @@ class _DostiKitchenPageState extends State<DostiKitchenPage> {
                 Expanded(
                   child: GestureDetector(
                     onTap: () {
+                      if(hide_sales_report){
+                      screen_massage(context, "Access Denied");
+                      return;
+                    }
                       Navigator.push(
                         context,
                         MaterialPageRoute(
@@ -831,8 +864,8 @@ class _DostiKitchenPageState extends State<DostiKitchenPage> {
                       builder: (context, totalExpenses, child) {
                         return _infoCard(
                           '📊 ${AppLocalizations.of(context)!.reports} \n',
-                          '${AppLocalizations.of(context)!.total}: ₹ ${getTodayTotalSale()}\n' // If this also needs to be reactive, use similar approach
-                          '${AppLocalizations.of(context)!.expenses}:  ₹ ${totalExpenses.toStringAsFixed(0)}\n',
+                          '${AppLocalizations.of(context)!.total}: ₹ ${(hide_total) ? 0 : getTodayTotalSale()}\n' // If this also needs to be reactive, use similar approach
+                          '${AppLocalizations.of(context)!.expenses}:  ₹ ${totalExpenses.toStringAsFixed(0)}',
                         );
                       },
                     ),
@@ -842,9 +875,9 @@ class _DostiKitchenPageState extends State<DostiKitchenPage> {
                 Expanded(
                   child: _infoCard(
                     '💰 ${AppLocalizations.of(context)!.saleFor}( ${DateFormat('dd/MM').format(_selectedDate)} )',
-                    'Cash: ₹ ${getSelectedDateCashSale()}\n'
-                    'UPI: ₹ ${getSelectedDateUpiSale()}\n'
-                    '${AppLocalizations.of(context)!.total}: ₹ ${getSelectedDateTotalSale()}\n',
+                    'Cash: ₹ ${(hide_cash_sale) ? 0 : getSelectedDateCashSale()}\n'
+                    'UPI: ₹ ${(hide_upi_sell) ? 0 : getSelectedDateUpiSale()}\n'
+                    '${AppLocalizations.of(context)!.total}: ₹ ${(hide_total) ? 0 : getSelectedDateTotalSale()}',
                   ),
                 ),
               ],

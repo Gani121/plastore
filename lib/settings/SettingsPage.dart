@@ -19,6 +19,7 @@ import 'package:objectbox/objectbox.dart';
 import '../database_Module/menu_item.dart';
 import 'package:archive/archive.dart';
 import 'package:test1/utilities.dart';
+import 'package:test1/settings/hideData.dart';
 
 
 
@@ -43,11 +44,12 @@ class SettingsPage extends StatelessWidget {
     "DEMO MODE",
     "SYNC MENU",
     "APP PASSWORD SETUP",
+    "PAGES",
   ];
 
   Future<String?> getSavedPassword() async {
     final prefs = await SharedPreferences.getInstance();
-    return prefs.getString('app_password'); // 🔑 key for password
+    return prefs.getString(AppConstants.appPasswordKey); // 🔑 key for password
   }
 
   Future<bool> _askPassword(BuildContext context) async {
@@ -427,6 +429,16 @@ class SettingsPage extends StatelessWidget {
                         Navigator.push(
                           context,
                           MaterialPageRoute(
+                            builder: (context) => hideData(),
+                          ),
+                        );
+                      }
+
+
+                      if (index == 14) {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
                             builder: (context) => ReceiptPage(),
                           ),
                         );
@@ -506,7 +518,7 @@ void showChangePasswordDialog(BuildContext context) {
               ElevatedButton(
                 onPressed: () async {
                   final prefs = await SharedPreferences.getInstance();
-                  final savedPwd = prefs.getString('app_password') ?? "1234";
+                  final savedPwd = prefs.getString(AppConstants.appPasswordKey) ?? "1234";
 
                   if (_oldPwdController.text != savedPwd) {
                     setState(() {
@@ -522,10 +534,7 @@ void showChangePasswordDialog(BuildContext context) {
                     return;
                   }
 
-                  await prefs.setString(
-                    'app_password',
-                    _newPwdController.text.trim(),
-                  );
+                  await prefs.setString(AppConstants.appPasswordKey,_newPwdController.text.trim(),);
 
                   Navigator.pop(ctx); // close dialog
                   ScaffoldMessenger.of(context).showSnackBar(

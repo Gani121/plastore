@@ -31,6 +31,7 @@ class AppConstants {
   static String objectbox_path = "";
   static String businessDateKey = 'businessDate';
   static String usernameKey = "username";
+  static String appPasswordKey = "app_password";
   
   AppConstants._();
 
@@ -321,3 +322,6 @@ Future<DateTime> getBussinessDate() async {
   return fullDateTime;
   
 }
+
+
+
