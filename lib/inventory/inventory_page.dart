@@ -11,6 +11,9 @@ import 'package:provider/provider.dart';
 import '../theme_setting/theme_provider.dart';
 import 'package:test1/l10n/app_localizations.dart';
 import '../utilities.dart';
+import 'package:http/http.dart' as http;
+import 'dart:convert';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class InventoryPage extends StatefulWidget {
   //final Store store;
@@ -185,6 +188,7 @@ class _InventoryPageState extends State<InventoryPage> {
                     // Save to database
                     menuItemBox.put(item);
                     print_log("✅ Stock updated in $item");
+                    await sendItemtoServer(item);
 
                     Navigator.pop(context); // Close dialog
 
@@ -202,6 +206,64 @@ class _InventoryPageState extends State<InventoryPage> {
         );
       },
     );
+  }
+    Future<void> sendItemtoServer(MenuItem item) async {
+    final prefs = await SharedPreferences.getInstance();
+    try {
+      
+      final hotelName = prefs.getString(AppConstants.usernameKey);
+
+      if (hotelName == null) {
+        print_log("Error: hotelName not found in SharedPreferences");
+        if (mounted) {
+          screen_massage(context, 'Error: Could not find hotel name for API call.');
+        }
+        return;
+      }
+
+      final payload = {
+        'hotel_name': hotelName,
+        'issingle': true,
+        'menuItems': [
+          {
+            // 'id': item.itemCode?.isNotEmpty == true ? item.itemCode : (item.id != 0 ? item.id.toString() : 'item_${DateTime.now().millisecondsSinceEpoch}'),
+            'menu': item.category,
+            'submenu': item.name,
+            'h_price': double.tryParse(item.h_price ?? '0') ?? 0.0,
+            'f_price': double.tryParse(item.f_price ?? '0') ?? 0.0,
+            'ac_price': double.tryParse(item.acSellPrice ?? '0') ?? 0.0,
+            'ac_price_half': double.tryParse(item.acSellPriceHalf ?? '0') ?? 0.0,
+            'nonac_price': double.tryParse(item.nonAcSellPrice ?? '0') ?? 0.0,
+            'nonac_price_half': double.tryParse(item.nonAcSellPriceHalf ?? '0') ?? 0.0,
+            'online_price': double.tryParse(item.onlineSellPrice ?? '0') ?? 0.0,
+            'online_price_half': double.tryParse(item.onlineSellPriceHalf ?? '0') ?? 0.0,
+            'parcel_price': double.tryParse(item.onlineDeliveryPrice ?? '0') ?? 0.0,
+            'parcel_price_half': double.tryParse(item.onlineDeliveryPriceHalf ?? '0') ?? 0.0,
+            'purchaseprice': double.tryParse(item.purchasePrice ?? '0') ?? 0.0,
+            'mrp': double.tryParse(item.mrp ?? '0') ?? 0.0,
+            'stock': item.adjustStock ?? 0,
+            'available': item.available ?? 0,
+            'itemvnv': 0, // This field is not in your MenuItem model
+            'description': item.reserved_field,
+            'gst': item.gstRate ,
+            'itemCode': item.itemCode,
+            'barCode': item.barCode ,
+            'hsnCode': item.hsnCode ,
+          }
+        ]
+      };
+
+      print_log("Payload to send to server: ${jsonEncode(payload)}");
+
+      http.Response? response = await apiCalls("a", hotelName, payload);
+        if (response == null) {
+          return;
+        }
+
+      print_log('Server Response: ${response.statusCode} ${response.body}');
+    } catch (e) {
+      print_log_red('Error sending item to server: $e');
+    }
   }
 
   @override
@@ -386,8 +448,7 @@ class _InventoryPageState extends State<InventoryPage> {
                                         const SizedBox(height: 6),
                                         ElevatedButton(
                                           onPressed: () async {
-                                            await _showAdjustStockDialog(
-                                                context, item);
+                                            await _showAdjustStockDialog(context, item);
                                           },
                                           style: ElevatedButton.styleFrom(
                                             backgroundColor: Colors.blue.shade600,

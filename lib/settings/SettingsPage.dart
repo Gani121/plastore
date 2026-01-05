@@ -216,8 +216,8 @@ class SettingsPage extends StatelessWidget {
       // ✅ Insert fresh items
       for (int i = 0; i < menuItems.length; i++) {
         final item = menuItems[i];
+        debugPrint('💾 Saved item: ${item}');
         _menuItemBox.put(item);
-        // debugPrint('💾 Saved item: ${item}');
       }
     }else{
       debugPrint("found _menuItemBox is null in setting");
@@ -296,9 +296,9 @@ class SettingsPage extends StatelessWidget {
           debugPrint('HTTP Error: ${response.statusCode}: ${response.reasonPhrase}');
         }
       } catch (error) {
-        if (error is SocketException){
-          screen_massage(context, "Device Not Connected");
-        }
+
+          screen_massage(context, "Device Not Connected ${error}");
+        
         debugPrint("❌ Error in ApiCallPage: $error");
       }
     }

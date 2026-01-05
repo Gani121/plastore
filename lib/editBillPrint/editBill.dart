@@ -1195,9 +1195,9 @@ DateTime getBusinessDate({int cutoffHour = 4}) {
                         controller: _customerAdreessController,
                         onChanged: (value) {
                           transaction['reserved'] =  value;
-                          setState(() {
-                            _customerAdreessController.text = value;
-                          });
+                          // setState(() {
+                          //   _customerAdreessController.text = value;
+                          // });
                         },
                       ),
                       const SizedBox(height: 10),
@@ -1211,10 +1211,10 @@ DateTime getBusinessDate({int cutoffHour = 4}) {
                                 controller: _mobileNoController,
                                 onChanged: (value) {
                                   transaction['mobileNo'] =  value;
-                                  setState(() {
-                                    _transaction['mobileNo'] = value;
-                                    _mobileNoController.text = value;
-                                  });
+                                  // setState(() {
+                                  //   _transaction['mobileNo'] = value;
+                                  //   // _mobileNoController.text = value;
+                                  // });
                                 },
                               ),
                             ),
@@ -1603,6 +1603,8 @@ class __BottomBarState extends State<_BottomBar> {
   late Store store = Provider.of<ObjectBoxService>(context, listen: false).store;
   List<String> deliveryTypes = [];
   BillPrinter printer = BillPrinter();
+  TextEditingController _receivedAmountController = TextEditingController();
+  late int recivedamount = 0;
   
   
   @override
@@ -1613,6 +1615,12 @@ class __BottomBarState extends State<_BottomBar> {
     _orderType = widget.ordertype ?? 'Dine-In';
     print_log("Controller text set to:- $_orderType  / ${widget.ordertype}");
 
+  }
+
+  @override
+  void dispose() {
+    _receivedAmountController.dispose();
+    super.dispose();
   }
 
 
@@ -1979,6 +1987,16 @@ class __BottomBarState extends State<_BottomBar> {
                   // final total = (cartProvider!.total + serviceCharge - discount).clamp(0,double.infinity,);
                   // debugPrint("Transaction Data to be sent:$total $subtotal + $serviceCharge - $discount ${widget.subtotalNotifier.value} ${widget.serviceChargeNotifier.value} ${widget.discountNotifier.value}");
                   final total = ((widget.cartProvider?.total ?? 0) + serviceCharge - discount).clamp(0,double.infinity,);
+                  transactiondata['udhari'] = !_isChecked;
+                  if (_isChecked) {
+                    transactiondata['recivedamount'] = total;
+                    transactiondata['pendingamount'] = 0.0;
+                  } else {
+                    // double received = double.tryParse(_receivedAmountController.text) ?? 0.0;
+                    transactiondata['recivedamount'] = recivedamount;
+                    transactiondata['pendingamount'] = total - recivedamount;
+                  }
+
                   return Column(
                     mainAxisSize: MainAxisSize.min,
                     children: [
@@ -2037,12 +2055,45 @@ class __BottomBarState extends State<_BottomBar> {
                               });
                             },
                           ),
-                          Expanded(
-                            child: Text(
-                              "Received: ₹${total.toStringAsFixed(2)}",
-                              style: TextStyle(fontSize: 13),
+                          if (_isChecked)
+                            Expanded(
+                              child: Text(
+                                "Received: ₹${total.toStringAsFixed(2)}",
+                                style: TextStyle(fontSize: 13),
+                              ),
+                            )
+                          else
+                            Expanded(
+                              child: Padding(
+                                padding: const EdgeInsets.symmetric(horizontal: 4.0),
+                                child: SizedBox(
+                                  height: 35,
+                                  child: TextField(
+                                    controller: _receivedAmountController,
+                                    keyboardType: TextInputType.number,
+                                    decoration: InputDecoration(
+                                      labelText: 'Received',
+                                      border: OutlineInputBorder(),
+                                      contentPadding: EdgeInsets.symmetric(horizontal: 8, vertical: 0),
+                                    ),
+                                    onChanged: (val) {
+                                      final _recivedamount = int.tryParse(val) ?? 0;
+                                      if(_recivedamount <= total){
+                                        recivedamount = _recivedamount;
+                                        transactiondata['recivedamount'] = recivedamount;
+                                        transactiondata['pendingamount'] = total - recivedamount;
+                                      }else{
+                                        _receivedAmountController.text = total.toStringAsFixed(0);
+                                        recivedamount = int.tryParse(total.toString()) ?? 0;
+                                        transactiondata['recivedamount'] = recivedamount;
+                                        transactiondata['pendingamount'] = total - recivedamount;
+                                      }
+                                      transactiondata['udhari'] = !_isChecked;
+                                    },
+                                  ),
+                                ),
+                              ),
                             ),
-                          ),
                           if (_forudhari)
                             Padding(
                               padding: const EdgeInsets.only(top: 2.0, left: 4.0),
@@ -2297,7 +2348,8 @@ class __BottomBarState extends State<_BottomBar> {
                                       debugPrint("!_isChecked going to udhari${!_forudhari} ${!_isChecked}-${(_customermobile.isEmpty)}-${(_cusomername.isEmpty)}");
                                       String descriptionController = "Bill No- ${widget.billno} on date- ${DateTime.now()}";
                                       debugPrint("currentCustomer $descriptionController");
-                                      saveEntry(widget.name ?? "" , widget.mobileNo ?? "" ,widget.adreess ?? "", total.toStringAsFixed(0), descriptionController);
+
+                                      saveEntry(widget.name ?? "" , widget.mobileNo ?? "" ,widget.adreess ?? "", (total - recivedamount).toStringAsFixed(0), descriptionController);
                                     }
                                     
                                   } finally {

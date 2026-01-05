@@ -364,7 +364,7 @@ class _AddItemPageState extends State<AddItemPage> {
         'issingle': true,
         'menuItems': [
           {
-            'id': item.itemCode?.isNotEmpty == true ? item.itemCode : (item.id != 0 ? item.id.toString() : 'item_${DateTime.now().millisecondsSinceEpoch}'),
+            // 'id': (item.id != 0 ? item.id : DateTime.now().millisecondsSinceEpoch),
             'menu': item.category,
             'submenu': item.name,
             'h_price': double.tryParse(item.h_price ?? '0') ?? 0.0,
@@ -379,7 +379,7 @@ class _AddItemPageState extends State<AddItemPage> {
             'parcel_price_half': double.tryParse(item.onlineDeliveryPriceHalf ?? '0') ?? 0.0,
             'purchaseprice': double.tryParse(item.purchasePrice ?? '0') ?? 0.0,
             'mrp': double.tryParse(item.mrp ?? '0') ?? 0.0,
-            'stock': (item.adjustStock ?? 0).toString(),
+            'stock': item.adjustStock ?? 0,
             'available': item.available ?? 0,
             'itemvnv': 0, // This field is not in your MenuItem model
             'description': item.reserved_field,

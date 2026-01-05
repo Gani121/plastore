@@ -33,8 +33,6 @@ import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
 import 'database_Module/tableCart.dart';
 
-
-
   enum PrintQuality {
     light,
     normal, 
@@ -62,7 +60,7 @@ class BillPrinter {
   StreamSubscription<List<bl.ScanResult>>? _scanSubscription;
   static const String SERVICE_UUID1 = "0000ff00-0000-1000-8000-00805f9b34fb";
   static const String CHARACTERISTIC_UUID = "0000ff02-0000-1000-8000-00805f9b34fb";
-  static const String SERVICE_UUID = "49535343-8841-43f4-a8d4-ecbe34729bb3";
+  static String SERVICE_UUID = "49535343-8841-43f4-a8d4-ecbe34729bb3";
   late List<int> bytes = [];
   final int printerWidth = 384;
   late bool KOT_Print = false;
@@ -71,6 +69,7 @@ class BillPrinter {
   String dashLine = "------------------------------------";
   static const List<int> resetBuffer = [0x1B, 0x40]; // ESC @
   static const List<int> initCommand = [27, 64]; // ESC @
+  int maxChunkSize = 200;
 
 
   Future<bool> printCart({
@@ -90,6 +89,8 @@ class BillPrinter {
           final cart =  (oldcart1 != null) ? oldcart1 : cart1;
           final _tableno = tableNo ?? 0;
           final prefs = await SharedPreferences.getInstance();
+          SERVICE_UUID = prefs.getString('selected_printer_uuid') ?? "49535343-8841-43f4-a8d4-ecbe34729bb3";
+          maxChunkSize =  prefs.getInt('chunkSize') ?? 200;
           final int billNo = (transactionData?['billNo'] == null) ? getNextBillNo(context) : transactionData?['billNo'];
           final box = store.box<Transaction>();
           int pageback1 = 0;
@@ -127,8 +128,6 @@ class BillPrinter {
 
 
           //------------------------------------Start code---------------------------------
-
-
 
           if(otherprinter){
             await printnewprinter(context: context, cart1:cart, total:total, billNo: billNo,tableNumber: _tableno,transactionData:transactionData);
@@ -832,7 +831,9 @@ Future<void> printBillWithLogo(thermal.BlueThermalPrinter bluetooth) async {
     _generator = null;
   }
 
-  Future<void> _sendToPrinter({Uint8List? imageBytes,BuildContext? context}) async {
+  Future<void> _sendToPrinter({Uint8List? imageBytes, required BuildContext context}) async {
+    
+    // List< bl.BluetoothCharacteristic> writuuid = [];
     if (_connectedDevice == null || !_connectedDevice!.isConnected) {
       throw Exception("Printer not connected");
     }
@@ -844,34 +845,66 @@ Future<void> printBillWithLogo(thermal.BlueThermalPrinter bluetooth) async {
     List<bl.BluetoothService> services = await _connectedDevice!.discoverServices();
     bl.BluetoothCharacteristic? printerCharacteristic;
     
-    debugPrint("Error: Failed to decode PNG image. $miniPrinter && ${!miniPrinterKOT} || ($miniPrinterKOT && $KOT_Print  ${( (miniPrinter && !KOT_Print) || (miniPrinterKOT && KOT_Print))}");
+    debugPrint("Data for printer miniPrinter-$miniPrinter && miniPrinterKOT-${!miniPrinterKOT} || (miniPrinterKOT-$miniPrinterKOT && KOT_Print-$KOT_Print  miniPrinter-${( (miniPrinter && !KOT_Print) || (miniPrinterKOT && KOT_Print))}");
     if( (miniPrinter && !KOT_Print) || (miniPrinterKOT && KOT_Print)){
       
-      final img.Image? originalImage = img.decodeImage(imageBytes!); //bytes ti image
-
-      if (originalImage == null) {
-        debugPrint("Error: Failed to decode PNG image.");
-        return;
+      print_log("in mini printer");
+      for (bl.BluetoothService service in services) {
+        // printerCharacteristic = service.characteristics.firstWhere((c) => c.uuid.toString() == SERVICE_UUID);
+        for (bl.BluetoothCharacteristic characteristic in service.characteristics) {
+          print_log("🔍 finding printer characteristic in miniPrinter: ${characteristic.uuid.toString()} characteristic ${characteristic}");
+          // break;
+        }
       }
+      for (bl.BluetoothService service in services) {
+        for (bl.BluetoothCharacteristic characteristic in service.characteristics) {
+          // Use the characteristic from Service 3 that has write capabilities
+          print_log("🔍 finding printer characteristic:${characteristic.uuid.toString()} ==  $SERVICE_UUID");
+          print_log("   finding printer characteristic ${characteristic}");
+          
+          if (characteristic.uuid.toString() == SERVICE_UUID) {
+            printerCharacteristic = characteristic;
+            print_log("✅ Found printer characteristic: ${characteristic.uuid}");
+            break;
+          } 
+          
+        }
+        if (printerCharacteristic != null) break;
+      }
+      print_log("in mini printer2");
+      // final bl.Guid CAT_PRINT_SRV = bl.Guid("0000ae30-0000-1000-8000-00805f9b34fb");
+      // final bl.Guid CAT_PRINT_TX_CHAR = bl.Guid("0000ae01-0000-1000-8000-00805f9b34fb");
 
-      final service = services.firstWhere((s) => s.uuid == CAT_PRINT_SRV);
-      printerCharacteristic = service.characteristics.firstWhere((c) => c.uuid == CAT_PRINT_TX_CHAR);
-      final printer = CatPrinter(printerCharacteristic);
+      // final service = services.firstWhere((s) => s.uuid == CAT_PRINT_SRV);
+      // print_log("service in print$service");
+      // printerCharacteristic = service.characteristics.firstWhere((c) => c.uuid.toString() == CAT_PRINT_TX_CHAR);
+      // print_log("service in print ${printerCharacteristic.uuid}");
+      if (printerCharacteristic == null) print_log("printerCharacteristic in print ${printerCharacteristic}");
+      final printer = CatPrinter(printerCharacteristic!);
       final prefs = await SharedPreferences.getInstance();
       final speed = prefs.getInt('speed') ?? 32;
       final energy = prefs.getInt('energy') ?? 35000;
       final finishFeed = 50;
       await printer.prepare(speed, energy);
+    print_log("in mini printer3");
 
-      final Uint8List processedBitmap = _processImageForPrinter(
-        originalImage.buffer.asUint8List(),
-        originalImage.width,
-        originalImage.height,
-        printerWidth
-      );
-
+      final img.Image? originalImage = await img.decodeImage(imageBytes!); //bytes ti image
+      print_log("massage");
+      Uint8List processedBitmap;
+      if (originalImage != null) {
+        processedBitmap = _processImageForPrinter(
+          originalImage.buffer.asUint8List(),
+          originalImage.width,
+          originalImage.height,
+          printerWidth
+        );
+      }else{
+        debugPrint("Error: Failed to decode PNG image.");
+        return;
+      }
       final pitch = printerWidth ~/ 8; // 384 / 8 = 48 bytes per line
       int blankLines = 0;
+      print_log("in mini printer4");
       for (int y = 0; y < processedBitmap.length ~/ pitch; y++) {
         final start = y * pitch;
         final end = start + pitch;
@@ -884,25 +917,54 @@ Future<void> printBillWithLogo(thermal.BlueThermalPrinter bluetooth) async {
             await printer.feed(2);  //to increase the gap of line
             blankLines = 0; // Reset the counter
           }
+          print_log("in mini printer5");
           await printer.draw(line);
           await Future.delayed(const Duration(milliseconds: 1));
         }
       }
       await printer.finish(finishFeed);
+      print_log("in mini printer6");
       await Future.delayed(const Duration(milliseconds: 200));
-      return;
+      // return;
 
     } else {
 
-      debugPrint("⚠️ bytes.length --${bytes.length}---");
+
+
+      print_log("⚠️ bytes.length --${bytes.length}---");
+      
+      // for (bl.BluetoothService service in services) {
+      //   for (bl.BluetoothCharacteristic characteristic in service.characteristics) {
+      //     // print_log("🔍 Checking characteristic: ${characteristic.uuid.toString()}");
+      //     // print_log("   Full info: $characteristic");
+      //     print_log("🔍 finding printer characteristic:${characteristic.uuid.toString()} -- characteristic ${characteristic}");
+      //     final properties = characteristic.properties;
+          
+      //     // final properties = characteristic.properties;
+      //     if (properties.write || properties.writeWithoutResponse) {
+      //       // print_log("✅ Found writable characteristic: ${characteristic.uuid}");
+      //       print_log("   Properties: Write: ${properties.write}, WriteWithoutResponse: ${properties.writeWithoutResponse} For ${characteristic.uuid}");
+
+      //       if(characteristic.uuid.toString() == SERVICE_UUID){
+            
+      //       writuuid.add(characteristic);
+            
+      //       }
+      //     }
+      //   }
+      // }
+
+
 
       for (bl.BluetoothService service in services) {
         for (bl.BluetoothCharacteristic characteristic in service.characteristics) {
           // Use the characteristic from Service 3 that has write capabilities
+          print_log("🔍 finding printer characteristic:${characteristic.uuid.toString()} ==  $SERVICE_UUID");
+          print_log("   finding printer characteristic ${characteristic}");
           
           if (characteristic.uuid.toString() == SERVICE_UUID) {
             printerCharacteristic = characteristic;
-            // debugPrint("✅ Found printer characteristic: ${characteristic.uuid}");
+            print_log("✅ Found printer characteristic: ${characteristic.uuid}");
             break;
           } 
           
@@ -910,67 +972,119 @@ Future<void> printBillWithLogo(thermal.BlueThermalPrinter bluetooth) async {
         if (printerCharacteristic != null) break;
       }
    
-      if (printerCharacteristic == null) {
-        throw Exception("Printer characteristic not found");
-      }
-      // ESC @ command (Initialize printer)
-      // List<int> resetCommand = [0x1B, 0x40];
-      // bytes.insertAll(0, [0x1B, 0x40, 0x1B, 0x33, 0x00]); // ESC @ (Initialize Printer)
-      // List<int> configCommands = [
-      //   0x1B, 0x40,       // Reset
-      //   // 0x1B, 0x4D, 0x01, // Force Font B (Small)
-      //   0x1D, 0x21, 0x00, // Force Normal Size (1x1)
-      //   // 0x1B, 0x33, 0x14  // Set tight line spacing
-      // ];
+      if (printerCharacteristic != null) {
 
-      // // // bytes.insertAll(0, configCommands);
-      // try {
-      //   await printerCharacteristic.write(configCommands, withoutResponse: false);
-      //   await Future.delayed(const Duration(milliseconds: 100));
-      //   // debugPrint("✅ Printer buffer cleared command sent.");
-      // } catch (e) {
-      //   debugPrint("❌ Failed to clear printer buffer: $e");
-      // }
-      // Split data into chunks to avoid exceeding maximum length
-      const int maxChunkSize = 230; // Use 200 to be safe (printer reported max 237)
-      debugPrint("📦 Sending ${bytes.length} bytes in chunks of $maxChunkSize");
-      
-      for (int i = 0; i < bytes.length; i += maxChunkSize) {
-        int end = (i + maxChunkSize < bytes.length) ? i + maxChunkSize : bytes.length;
-        List<int> chunk = bytes.sublist(i, end);
         
-        // debugPrint("🔄 Sending chunk ${(i ~/ maxChunkSize) + 1}: ${chunk.length} bytes");
-        
-        try {
-          // Try writeWithoutResponse first (faster for thermal printers)
-          await printerCharacteristic.write(chunk, withoutResponse: true);
-          // debugPrint("✅ Chunk ${(i ~/ maxChunkSize) + 1} sent successfully");
-          
-          // Small delay between chunks to prevent overwhelming the printer
-          await Future.delayed(Duration(milliseconds: 25));
-          
-        } catch (e) {
-          debugPrint("❌ Error sending chunk ${(i ~/ maxChunkSize) + 1}: $e");
-          // Try with response if withoutResponse fails
-          try {
-            await printerCharacteristic.write(chunk, withoutResponse: false);
-            // debugPrint("✅ Chunk ${(i ~/ maxChunkSize) + 1} sent with response");
-          } catch (e2) {
-            // debugPrint("❌ Failed to send chunk ${(i ~/ maxChunkSize) + 1} with response: $e2");
-            throw Exception("Failed to send data to printer");
-          }
-        }
-        // finally{
-        //   bytes = [];
+        // print_log("writuuod == $writuuid");
+
+        // ESC @ command (Initialize printer)
+        // List<int> resetCommand = [0x1B, 0x40];
+        // bytes.insertAll(0, [0x1B, 0x40, 0x1B, 0x33, 0x00]); // ESC @ (Initialize Printer)
+        // List<int> configCommands = [
+        //   0x1B, 0x40,       // Reset
+        //   // 0x1B, 0x4D, 0x01, // Force Font B (Small)
+        //   0x1D, 0x21, 0x00, // Force Normal Size (1x1)
+        //   // 0x1B, 0x33, 0x14  // Set tight line spacing
+        // ];
+
+        // // bytes.insertAll(0, configCommands);
+        // try {
+        //   await printerCharacteristic.write(configCommands, withoutResponse: false);
+        //   await Future.delayed(const Duration(milliseconds: 100));
+        //   // debugPrint("✅ Printer buffer cleared command sent.");
+        // } catch (e) {
+        //   debugPrint("❌ Failed to clear printer buffer: $e");
         // }
+        // Split data into chunks to avoid exceeding maximum length
+
+      
+        // const int maxChunkSize = 200; // Use 200 to be safe (printer reported max 237)
+        print_log_red("Sending data by using UUID --${printerCharacteristic.uuid} ");
+        print_log("📦 Sending ${bytes.length} bytes in chunks of $maxChunkSize");
+        
+        for (int i = 0; i < bytes.length; i += maxChunkSize) {
+          int end = (i + maxChunkSize < bytes.length) ? i + maxChunkSize : bytes.length;
+          List<int> chunk = bytes.sublist(i, end);
+          
+          // debugPrint("🔄 Sending chunk ${(i ~/ maxChunkSize) + 1}: ${chunk.length} bytes");
+          
+          try {
+            // Try writeWithoutResponse first (faster for thermal printers)
+            await printerCharacteristic.write(chunk,withoutResponse:true);
+            // debugPrint("✅ Chunk ${(i ~/ maxChunkSize) + 1} sent successfully");
+            
+            // Small delay between chunks to prevent overwhelming the printer
+            await Future.delayed(Duration(milliseconds: 30));
+            
+          } catch (e) {
+            debugPrint("❌ Error sending chunk ${(i ~/ maxChunkSize) + 1}: $e");
+            // Try with response if withoutResponse fails
+            try {
+              await printerCharacteristic.write(chunk, withoutResponse: false);
+              // debugPrint("✅ Chunk ${(i ~/ maxChunkSize) + 1} sent with response");
+            } catch (e2) {
+              print_log_red("❌ Failed to send data by using UUID ${(i ~/ maxChunkSize) + 1} by uiid ${printerCharacteristic.uuid} with response: $e2");
+              // throw Exception("Failed to send data to printer");
+            }
+          }
+          // finally{
+          //   bytes = [];
+          // }
+        }
+      } else{
+        screen_massage(context, "❌ Printer characteristic not found");
+        print_log_red("❌ Printer characteristic not found");
+        // throw Exception("Printer characteristic not found");
       }
+
+
       // SC588 Beep Commands
       // List<int> beepCommand = [0x1B, 0x42, 0x03, 0x05];
       // await printerCharacteristic.write([0x1B, 0x42, 0x01, 0x02], withoutResponse: false);
+    
+    
     }
     bytes = [];
     debugPrint("🎉 All data sent successfully to printer!");
   }
+
+  void printByUUID(bl.BluetoothCharacteristic printerCharacteristics) async{
+    const int maxChunkSize = 200; // Use 200 to be safe (printer reported max 237)
+    print_log_red("Sending data by using UUID --${printerCharacteristics.uuid} ");
+    print_log("📦 Sending ${bytes.length} bytes in chunks of $maxChunkSize");
+    
+    for (int i = 0; i < bytes.length; i += maxChunkSize) {
+      int end = (i + maxChunkSize < bytes.length) ? i + maxChunkSize : bytes.length;
+      List<int> chunk = bytes.sublist(i, end);
+      
+      debugPrint("🔄 Sending chunk ${(i ~/ maxChunkSize) + 1}: ${chunk.length} bytes");
+      
+      try {
+        // Try writeWithoutResponse first (faster for thermal printers)
+        await printerCharacteristics.write(chunk,withoutResponse:true);
+        debugPrint("✅ Chunk ${(i ~/ maxChunkSize) + 1} sent successfully");
+        
+        // Small delay between chunks to prevent overwhelming the printer
+        await Future.delayed(Duration(milliseconds: 30));
+        
+      } catch (e) {
+        debugPrint("❌ Error sending chunk ${(i ~/ maxChunkSize) + 1}: $e");
+        // Try with response if withoutResponse fails
+        try {
+          await printerCharacteristics.write(chunk, withoutResponse: false);
+          // debugPrint("✅ Chunk ${(i ~/ maxChunkSize) + 1} sent with response");
+        } catch (e2) {
+          print_log_red("❌ Failed to send data by using UUID ${(i ~/ maxChunkSize) + 1} by uiid ${printerCharacteristics.uuid} with response: $e2");
+          // throw Exception("Failed to send data to printer");
+        }
+      }
+      // finally{
+      //   bytes = [];
+      // }
+    }
+  }
+
+
 
   Uint8List _processImageForPrinter(
     Uint8List rgbaBytes, 
@@ -1232,7 +1346,7 @@ Future<void> printBillWithLogo(thermal.BlueThermalPrinter bluetooth) async {
       // debugPrint("⚠️ bytes.length --${bytes.length}---");
       if (marathi){
 
-        await sendLogotoPrinter(isImg:true);
+        await sendLogotoPrinter(isImg:true,context: context);
 
         Uint8List? imageBytes = await generateReceiptImage(
                                         cart1: cart,
@@ -1270,11 +1384,11 @@ Future<void> printBillWithLogo(thermal.BlueThermalPrinter bluetooth) async {
             // bytes += _generator!.cut();
              
           }
-          await _sendToPrinter(imageBytes:imageBytes);
+          await _sendToPrinter(imageBytes:imageBytes,context: context);
           bytes = [];
         }
 
-        await sendQRtoPrinter(total);
+        await sendQRtoPrinter(total,context: context);
 
         Uint8List? imageBytes1 = await footerImage();
         if (imageBytes1 != null) {
@@ -1282,7 +1396,7 @@ Future<void> printBillWithLogo(thermal.BlueThermalPrinter bluetooth) async {
           img.Image? original = img.decodeImage(imageBytes1);
           final grayscale = img.grayscale(original!);
           bytes += _generator!.image(grayscale);
-          await _sendToPrinter(imageBytes:imageBytes1);
+          await _sendToPrinter(imageBytes:imageBytes1,context: context);
           bytes = [];
         }
 
@@ -1293,7 +1407,7 @@ Future<void> printBillWithLogo(thermal.BlueThermalPrinter bluetooth) async {
 
       } else{
 
-        await sendLogotoPrinter();
+        await sendLogotoPrinter(context: context);
 
 
         // Force a new line so the printer knows we are starting fresh
@@ -1556,6 +1670,32 @@ Future<void> printBillWithLogo(thermal.BlueThermalPrinter bluetooth) async {
             styles: PosStyles(align: PosAlign.right, bold: true, height: PosTextSize.size2, width: PosTextSize.size2, fontType: PosFontType.fontB),
           ),
         ]);
+        if(transactionData!['udhari']){
+          bytes += _generator!.row([
+            PosColumn(
+              text: 'Recived',
+              width: 5,
+              styles: PosStyles(bold: true, height: PosTextSize.size2, width: PosTextSize.size2, fontType: PosFontType.fontB),
+            ),
+            PosColumn(
+              text: 'Rs.${transactionData['recivedamount'] ?? 0}',
+              width: 7,
+              styles: PosStyles(align: PosAlign.right, bold: true, height: PosTextSize.size2, width: PosTextSize.size2, fontType: PosFontType.fontB),
+            ),
+          ]);
+          bytes += _generator!.row([
+            PosColumn(
+              text: 'Pending',
+              width: 5,
+              styles: PosStyles(bold: true, height: PosTextSize.size2, width: PosTextSize.size2, fontType: PosFontType.fontB),
+            ),
+            PosColumn(
+              text: 'Rs.${transactionData['pendingamount']?? 0}',
+              width: 7,
+              styles: PosStyles(align: PosAlign.right, bold: true, height: PosTextSize.size2, width: PosTextSize.size2, fontType: PosFontType.fontB),
+            ),
+          ]);
+        }
 
         // bytes += _generator!.feed(1); // Commented out to reduce gap
 
@@ -1596,7 +1736,7 @@ Future<void> printBillWithLogo(thermal.BlueThermalPrinter bluetooth) async {
         debugPrint("⚠️ bytes.length --${bytes.length}---");
         // Send to printer
         // bytes += _generator!.beep();
-        await _sendToPrinter();
+        await _sendToPrinter(context: context);
 
         // debugPrint("before clear total $total and cart $cart");
         cart.clear();
@@ -1630,7 +1770,7 @@ Future<void> printBillWithLogo(thermal.BlueThermalPrinter bluetooth) async {
 
 
 
-  Future<void> sendLogotoPrinter({bool isImg = false,BuildContext? context}) async {
+  Future<void> sendLogotoPrinter({bool isImg = false, required BuildContext context}) async {
     final prefs = await SharedPreferences.getInstance();
     final imagePath = prefs.getString('imagePath');
     final _printlogo = prefs.getBool('printLogo') ?? true;
@@ -1672,7 +1812,7 @@ Future<void> printBillWithLogo(thermal.BlueThermalPrinter bluetooth) async {
         // bytes += _generator!.feed(1);
 
         // debugPrint("🖨️ Sending logo to printer...");
-        await _sendToPrinter(imageBytes:resizedBytes);
+        await _sendToPrinter(imageBytes:resizedBytes,context: context);
 
         bytes = [];
         await Future.delayed(Duration(milliseconds: 500));
@@ -1688,7 +1828,7 @@ Future<void> printBillWithLogo(thermal.BlueThermalPrinter bluetooth) async {
 
 
 
-  Future<void> sendQRtoPrinter(int total,{BuildContext? context}) async {
+  Future<void> sendQRtoPrinter(int total,{ required BuildContext context}) async {
     try {
       bytes = [];
       await Future.delayed(const Duration(milliseconds: 500));
@@ -1778,7 +1918,7 @@ Future<void> printBillWithLogo(thermal.BlueThermalPrinter bluetooth) async {
         bytes += _generator!.reset();
         bytes += _generator!.image(centeredCanvas, align: PosAlign.center);
 
-        await _sendToPrinter(imageBytes: pngBytes);
+        await _sendToPrinter(imageBytes: pngBytes,context: context);
 
         bytes = [];
         await Future.delayed(const Duration(milliseconds: 500));
@@ -1838,7 +1978,7 @@ Future<void> printBillWithLogo(thermal.BlueThermalPrinter bluetooth) async {
             // bytes += _generator!.cut();
           }
 
-          await _sendToPrinter(imageBytes:imageBytes);
+          await _sendToPrinter(imageBytes:imageBytes,context: context);
 
           // kotCart.clear();
           // cart.clear();
@@ -1929,7 +2069,7 @@ Future<void> printBillWithLogo(thermal.BlueThermalPrinter bluetooth) async {
         bytes += _generator!.feed(2);
         // bytes += _generator!.cut();
 
-        await _sendToPrinter();
+        await _sendToPrinter(context: context);
         kotCart.clear();
         await _disconnect(); 
         
@@ -2888,6 +3028,10 @@ Future<void> printBillWithLogo(thermal.BlueThermalPrinter bluetooth) async {
       yOffset += 10; // New line
       yOffset += await _drawLeftRight(canvas, "Total:", "Rs.$total", y: yOffset, width: receiptWidth, fontSize: fTotal, leftFontWeight: FontWeight.bold, rightFontWeight: FontWeight.bold);
       yOffset += 3; // New line
+      if(transactionData!['udhari']){
+        yOffset += await _drawLeftRight(canvas, "Recived:", "Rs.${transactionData['recivedamount'] ?? 0}", y: yOffset, width: receiptWidth, fontSize: fTotal, leftFontWeight: FontWeight.bold, rightFontWeight: FontWeight.bold);
+        yOffset += await _drawLeftRight(canvas, "Pending:", "Rs.${transactionData['pendingamount']?? 0}", y: yOffset, width: receiptWidth, fontSize: fTotal, leftFontWeight: FontWeight.bold, rightFontWeight: FontWeight.bold);
+      }
 
       // QR Code
       // if (printQr && upiId != null && upiId.isNotEmpty) {
@@ -3443,6 +3587,10 @@ Future<void> printBillWithLogo(thermal.BlueThermalPrinter bluetooth) async {
       
       yOffset += 10; // New line
       yOffset += await _drawLeftRight(canvas, "Total:", "Rs.$total", y: yOffset, width: receiptWidth, fontSize: fTotal, leftFontWeight: FontWeight.bold, rightFontWeight: FontWeight.bold);
+      yOffset += 1; // New line
+      yOffset += await _drawLeftRight(canvas, "Recived:", "Rs.${transactionData!['recivedamount'] ?? 0}", y: yOffset, width: receiptWidth, fontSize: fTotal, leftFontWeight: FontWeight.bold, rightFontWeight: FontWeight.bold);
+      yOffset += 1; // New line
+      yOffset += await _drawLeftRight(canvas, "Pending:", "Rs.${transactionData!['pendingamount']?? 0}", y: yOffset, width: receiptWidth, fontSize: fTotal, leftFontWeight: FontWeight.bold, rightFontWeight: FontWeight.bold);
       yOffset += 3; // New line
 
       // QR Code
@@ -3858,7 +4006,7 @@ Future<void> printBillWithLogo(thermal.BlueThermalPrinter bluetooth) async {
 
       bytes += _generator!.hr();
       bytes += _generator!.feed(1);
-      await _sendToPrinter();
+      await _sendToPrinter(context: context);
       await _disconnect();
       debugPrint("✅ Sales Summary Report sent to printer. Processing time: ${stopwatch.elapsedMilliseconds}ms");
     } catch (e) {
@@ -3952,7 +4100,7 @@ Future<void> printBillWithLogo(thermal.BlueThermalPrinter bluetooth) async {
 
       bytes += _generator!.hr();
       bytes += _generator!.feed(1);
-      await _sendToPrinter();
+      await _sendToPrinter(context: context);
       await _disconnect();
       debugPrint("✅ Item-Wise Sales Report sent to printer. Processing time: ${stopwatch.elapsedMilliseconds}ms");
     } catch (e) {
@@ -4038,7 +4186,7 @@ Future<void> printBillWithLogo(thermal.BlueThermalPrinter bluetooth) async {
 
       bytes += _generator!.hr();
       bytes += _generator!.feed(1);
-      await _sendToPrinter();
+      await _sendToPrinter(context: context);
       await _disconnect();
       debugPrint("✅ Portion-Wise Sales Report sent to printer");
     } catch (e) {
@@ -4124,7 +4272,7 @@ Future<void> printBillWithLogo(thermal.BlueThermalPrinter bluetooth) async {
 
       bytes += _generator!.hr();
       bytes += _generator!.feed(1);
-      await _sendToPrinter();
+      await _sendToPrinter(context: context);
       await _disconnect();
       debugPrint("✅ Order Type Sales Report sent to printer");
     } catch (e) {
@@ -4198,7 +4346,7 @@ Future<void> printBillWithLogo(thermal.BlueThermalPrinter bluetooth) async {
 
       bytes += _generator!.hr();
       bytes += _generator!.feed(1);
-      await _sendToPrinter();
+      await _sendToPrinter(context: context);
       await _disconnect();
       debugPrint("✅ Stock Report sent to printer");
     } catch (e) {

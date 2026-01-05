@@ -2,8 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:blue_thermal_printer/blue_thermal_printer.dart' as thermal;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:android_intent_plus/android_intent.dart';
-import 'package:flutter_blue_plus/flutter_blue_plus.dart';
+// import 'package:flutter_blue_plus/flutter_blue_plus.dart';
 import 'dart:async';
+import 'package:flutter_blue_plus/flutter_blue_plus.dart' as bl;
+import 'package:test1/utilities.dart';
 
 class PrinterSetupPage extends StatefulWidget {
   const PrinterSetupPage({super.key});
@@ -24,9 +26,14 @@ class _PrinterSetupPageState extends State<PrinterSetupPage> with WidgetsBinding
   bool _isConnected = false;
   bool _isTesting = false; // ✨ ADD This
 
+  // UUID Selection
+  bool _isScanningUUIDs = false;
+  List<String> _availableUUIDs = [];
+  String _selectedUUID = "49535343-8841-43f4-a8d4-ecbe34729bb3";
+
   // Bluetooth state
   bool _isBluetoothOn = false;
-  StreamSubscription<BluetoothAdapterState>? _bluetoothStateSubscription;
+  StreamSubscription<bl.BluetoothAdapterState>? _bluetoothStateSubscription;
 
   // Printer settings
   bool _printQR = true;
@@ -42,6 +49,7 @@ class _PrinterSetupPageState extends State<PrinterSetupPage> with WidgetsBinding
   double _fontSize = 1; // 1 = small, 2 = medium, 3 = large
   int _charsPerLine = 32; // default width
   int _logoWidth = 200; // default width
+  int _chunkSize = 200; // default width
   int _logoheight = 200; // default width
   String _qrSize = "5";
   String _paperSize = "2";
@@ -72,19 +80,19 @@ class _PrinterSetupPageState extends State<PrinterSetupPage> with WidgetsBinding
   // Initialize Bluetooth state monitoring
   Future<bool> _initializeBluetooth() async {
     // Get initial state
-    BluetoothAdapterState initialState = await FlutterBluePlus.adapterState.first;
+    bl.BluetoothAdapterState initialState = await bl.FlutterBluePlus.adapterState.first;
     setState(() {
-      _isBluetoothOn = initialState == BluetoothAdapterState.on;
+      _isBluetoothOn = initialState == bl.BluetoothAdapterState.on;
     });
 
     // Listen for state changes
-    _bluetoothStateSubscription = FlutterBluePlus.adapterState.listen((state) {
+    _bluetoothStateSubscription = bl.FlutterBluePlus.adapterState.listen((state) {
       setState(() {
-        _isBluetoothOn = state == BluetoothAdapterState.on;
+        _isBluetoothOn = state == bl.BluetoothAdapterState.on;
       });
 
       // If Bluetooth was turned on, refresh devices
-      if (state == BluetoothAdapterState.on) {
+      if (state == bl.BluetoothAdapterState.on) {
         _getBondedDevices();
       }
     });
@@ -95,9 +103,9 @@ class _PrinterSetupPageState extends State<PrinterSetupPage> with WidgetsBinding
   Future<void> _toggleBluetooth() async {
     try {
       if (_isBluetoothOn) {
-        await FlutterBluePlus.turnOff();
+        await bl.FlutterBluePlus.turnOff();
       } else {
-        await FlutterBluePlus.turnOn();
+        await bl.FlutterBluePlus.turnOn();
       }
     } catch (e) {
       print("❌ Error toggling Bluetooth: $e");
@@ -199,8 +207,14 @@ class _PrinterSetupPageState extends State<PrinterSetupPage> with WidgetsBinding
       _otherPrnter = prefs.getBool('otherprinter') ?? false;
       _isgst = prefs.getBool('isgst') ?? false;
       _logoWidth =  prefs.getInt('logoWidth')?? 200;
+      _chunkSize =  prefs.getInt('chunkSize')?? 200;
       _logoheight =  prefs.getInt('logoheight')?? 200;
        _footerController = TextEditingController(text: prefs.getString('footerText')?? "** thank you **");
+
+      _selectedUUID = prefs.getString('selected_printer_uuid') ?? "49535343-8841-43f4-a8d4-ecbe34729bb3";
+      if (_selectedUUID != null) {
+        _availableUUIDs = [_selectedUUID];
+      }
     });
   }
 
@@ -223,6 +237,9 @@ class _PrinterSetupPageState extends State<PrinterSetupPage> with WidgetsBinding
     await prefs.setInt('logoWidth', _logoWidth);
     await prefs.setInt('logoheight', _logoheight);
     await prefs.setString('paperSize', _paperSize);
+    await prefs.setInt('chunkSize', _chunkSize);
+    await prefs.setString('selected_printer_uuid', _selectedUUID);
+    
     
 
     // Show a subtle feedback that settings are saved
@@ -253,7 +270,11 @@ class _PrinterSetupPageState extends State<PrinterSetupPage> with WidgetsBinding
     await prefs.setBool('isgst', _isgst);
     await prefs.setString('footerText', _footerController.text);
     await prefs.setInt('logoWidth', _logoWidth);
+    await prefs.setInt('chunkSize', _chunkSize);
     await prefs.setInt('logoheight', _logoheight);
+    if (_selectedUUID != null) {
+      await prefs.setString('selected_printer_uuid', _selectedUUID!);
+    }
 
     ScaffoldMessenger.of(
       context,
@@ -397,6 +418,64 @@ Future<void> _connectKOTPrinter() async {
     }
   }
 
+  Future<void> _scanForUUIDs() async {
+    String? address = _selectedDevice?.address ?? _savedDeviceAddress;
+    if (address == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text("⚠️ Please select/save a Bill Printer first")),
+      );
+      return;
+    }
+
+    setState(() {
+      _isScanningUUIDs = true;
+    });
+
+    try {
+      bl.BluetoothDevice device = bl.BluetoothDevice(remoteId: bl.DeviceIdentifier(address));
+      
+      try {
+        await device.connect(license:bl.License.free);
+      } catch (e) {
+        print("Connect error (might be ignored): $e");
+      }
+
+      List<bl.BluetoothService> services = await device.discoverServices();
+      Set<String> uuids = {};
+
+      for (var service in services) {
+        for (var c in service.characteristics) {
+          print_log("🔍 finding printer characteristic:${c.uuid.toString()}");
+          print_log("   finding printer characteristic ${c.properties}");
+          print_log("   finding printer characteristic ${c}");
+          if (c.properties.write || c.properties.writeWithoutResponse) {
+            uuids.add(c.uuid.toString());
+          }
+        }
+      }
+
+      await device.disconnect();
+
+      setState(() {
+        _availableUUIDs = uuids.toList();
+        if (_availableUUIDs.isNotEmpty) {
+           if (_selectedUUID == null || !_availableUUIDs.contains(_selectedUUID)) {
+             _selectedUUID = _availableUUIDs.last;
+             _autoSaveSettings();
+           }
+        }
+      });
+      
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("✅ Found ${_availableUUIDs.length} writable UUIDs")));
+    } catch (e) {
+      print("❌ Error scanning UUIDs: $e");
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("❌ Error scanning UUIDs: $e")));
+    } finally {
+      setState(() {
+        _isScanningUUIDs = false;
+      });
+    }
+  }
 
 @override
   Widget build(BuildContext context) {
@@ -610,6 +689,94 @@ Future<void> _connectKOTPrinter() async {
             SizedBox(height: 20),
             Divider(),
             Text("⚙️ Printer Settings", style: TextStyle(fontSize: 16)),
+
+            // UUID Selection Card
+            Card(
+              child: Padding(
+                padding: const EdgeInsets.all(8.0),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text("2. Printer UUID", style: TextStyle(fontSize: 16)),
+                        if (_isScanningUUIDs)
+                          SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2))
+                        else
+                          IconButton(
+                            icon: Icon(Icons.refresh),
+                            onPressed: _scanForUUIDs,
+                            tooltip: "Scan UUIDs",
+                          ),
+                      ],
+                    ),
+                    DropdownButton<String>(
+                      isExpanded: true,
+                      hint: Text("Select Write Characteristic UUID"),
+                      value: _availableUUIDs.contains(_selectedUUID) ? _selectedUUID : null,
+                      items: _availableUUIDs.map((String uuid) {
+                        return DropdownMenuItem<String>(
+                          value: uuid,
+                          child: Text(uuid, style: TextStyle(fontSize: 12)),
+                        );
+                      }).toList(),
+                      onChanged: (String? newValue) {
+                        setState(() {
+                          _selectedUUID = newValue ?? "49535343-8841-43f4-a8d4-ecbe34729bb3";
+                        });
+                        _autoSaveSettings();
+                      },
+                    ),
+                    if (_selectedUUID != null)
+                      Padding(
+                        padding: const EdgeInsets.only(top: 4.0),
+                        child: Text("Selected: $_selectedUUID", style: TextStyle(fontSize: 10, color: Colors.grey)),
+                      ),
+                  ],
+                ),
+              ),
+            ),
+            Padding(
+              // Add padding to mimic the spacing of a ListTile
+              padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0), 
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.center, // Vertically center the text and field
+                children: [
+                  // The "name" or label
+                  Expanded(
+                    child: Text(
+                      "2.1 Chunk Size",
+                      style: TextStyle(fontSize: 16.0), // Optional: style to match title
+                    ),
+                  ),
+                  SizedBox(width: 16.0), // Add some spacing
+                  
+                  // The "selection type" or input field
+                  SizedBox(
+                    width: 100.0, // Give the TextField a fixed width
+                    child: TextField(
+                      // ✨ NEW: Set controller to display the loaded value
+                      controller: TextEditingController(text: _chunkSize.toString()),
+                      keyboardType: TextInputType.number,
+                      textAlign: TextAlign.center, // Center the number
+                      decoration: InputDecoration(
+                        hintText: "e.g. 100 - 500",
+                        border: OutlineInputBorder(),
+                        isDense: true, // Makes the field more compact
+                        contentPadding: EdgeInsets.all(12.0), // Adjust internal padding
+                      ),
+                      onChanged: (val) {
+                        setState(() {
+                          _chunkSize = int.tryParse(val) ?? 200;
+                        });
+                        _autoSaveSettings(); // Auto-save when changed
+                      },
+                    ),
+                  ),
+                ],
+              ),
+            ),
 
             // ... (All your settings Toggles, Sliders, and TextFields remain here)
             // ... (Card for "Print QR Code")
