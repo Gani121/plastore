@@ -73,172 +73,111 @@ class BillPrinter {
 
 
   Future<bool> printCart({
-        required BuildContext context,
-        required List<Map<String, dynamic>> cart1,
-        required int total,
-        required String mode,
-        required String payment_mode,
-        List<Map<String, dynamic>>? oldcart1,
-        int? tableNo,
-        Map<String, dynamic>? transactionData,
-      }) async {
-        try {
-          store = Provider.of<ObjectBoxService>(context, listen: false).store;
-          bytes = [];
-          final stopwatch = Stopwatch()..start();
-          final cart =  (oldcart1 != null) ? oldcart1 : cart1;
-          final _tableno = tableNo ?? 0;
-          final prefs = await SharedPreferences.getInstance();
-          SERVICE_UUID = prefs.getString('selected_printer_uuid') ?? "49535343-8841-43f4-a8d4-ecbe34729bb3";
-          maxChunkSize =  prefs.getInt('chunkSize') ?? 200;
-          final int billNo = (transactionData?['billNo'] == null) ? getNextBillNo(context) : transactionData?['billNo'];
-          final box = store.box<Transaction>();
-          int pageback1 = 0;
-          // if (mode == "settle1") pageback1 = 2;
-          if (_tableno > 0) pageback1 = 1;
+    required BuildContext context,
+    required List<Map<String, dynamic>> cart1,
+    required int total,
+    required String mode,
+    required String payment_mode,
+    List<Map<String, dynamic>>? oldcart1,
+    int? tableNo,
+    Map<String, dynamic>? transactionData,
+  }) async {
+    try {
+      store = Provider.of<ObjectBoxService>(context, listen: false).store;
+      bytes = [];
+      final stopwatch = Stopwatch()..start();
+      final cart =  (oldcart1 != null) ? oldcart1 : cart1;
+      final _tableno = tableNo ?? 0;
+      final prefs = await SharedPreferences.getInstance();
+      SERVICE_UUID = prefs.getString('selected_printer_uuid') ?? "49535343-8841-43f4-a8d4-ecbe34729bb3";
+      maxChunkSize =  prefs.getInt('chunkSize') ?? 200;
+      final int billNo = (transactionData?['billNo'] == null) ? getNextBillNo(context) : transactionData?['billNo'];
+      final box = store.box<Transaction>();
+      int pageback1 = 0;
+      // if (mode == "settle1") pageback1 = 2;
+      if (_tableno > 0) pageback1 = 1;
 
-          debugPrint("check printer is connected total $total mode $mode payment_mode $payment_mode  $transactionData billNo $billNo $cart");
+      debugPrint("check printer is connected total $total mode $mode payment_mode $payment_mode  $transactionData billNo $billNo $cart");
 
-          KOT_Print = mode.toLowerCase().contains("kot") || payment_mode.toLowerCase().contains("kot");
-          
-          bool settle_button_enabled = prefs.getBool("settle_button_enabled") ?? false;
-          bool otherprinter = prefs.getBool("otherprinter") ?? false;
-          if(settle_button_enabled){
-              await settel_update(
-                  context: context,
-                  prefs: prefs,
-                  box: box,
-                  cart: cart,
-                  oldcart1: oldcart1,
-                  total: total,
-                  tableNo: _tableno,
-                  pageback: pageback1,
-                  payment_mode: payment_mode,
-                  mode: mode,
-                  transactionData:transactionData,
-                );
-                return true;
-            }
-
-          bl.BluetoothAdapterState initialState = await bl.FlutterBluePlus.adapterState.first;
-          if(initialState != bl.BluetoothAdapterState.on){
-            screen_massage(context, "Please Turn On bluetooth $initialState");
+      KOT_Print = mode.toLowerCase().contains("kot") || payment_mode.toLowerCase().contains("kot");
+      
+      bool settle_button_enabled = prefs.getBool("settle_button_enabled") ?? false;
+      bool otherprinter = prefs.getBool("otherprinter") ?? false;
+      if(settle_button_enabled){
+          await settel_update(
+              context: context,
+              prefs: prefs,
+              box: box,
+              cart: cart,
+              oldcart1: oldcart1,
+              total: total,
+              tableNo: _tableno,
+              pageback: pageback1,
+              payment_mode: payment_mode,
+              mode: mode,
+              transactionData:transactionData,
+            );
             return true;
+        }
+
+      bl.BluetoothAdapterState initialState = await bl.FlutterBluePlus.adapterState.first;
+      if(initialState != bl.BluetoothAdapterState.on){
+        screen_massage(context, "Please Turn On bluetooth $initialState");
+        return true;
+      }
+
+
+      //------------------------------------Start code---------------------------------
+
+      if(otherprinter){
+        await printnewprinter(context: context, cart1:cart, total:total, billNo: billNo,tableNumber: _tableno,transactionData:transactionData);
+
+        await settel_update(
+            context: context,
+            prefs: prefs,
+            box: box,
+            cart: cart,
+            oldcart1: oldcart1,
+            total: total,
+            tableNo: _tableno,
+            pageback: pageback1,
+            payment_mode: payment_mode,
+            mode: mode,
+            transactionData:transactionData,
+          );
+          return true;
+
+        }
+
+
+
+
+      final device = await _getSavedPrinter(KOTmode:KOT_Print,context: context);
+      if (device != null || settle_button_enabled ) {
+        bool isConnected = await _isConnected();
+        debugPrint("check printer is connected ${isConnected} $transactionData");
+
+        if (!isConnected || settle_button_enabled ) {
+          bytes = [];
+
+          print_log("settle_button_enabled mode ${isConnected}  payment_mode $payment_mode settle_button_enabled $settle_button_enabled");
+
+          bool isconnected =  await _connectToPrinter(device);
+          if(!isconnected){
+          return false;
           }
 
-
-          //------------------------------------Start code---------------------------------
-
-          if(otherprinter){
-            await printnewprinter(context: context, cart1:cart, total:total, billNo: billNo,tableNumber: _tableno,transactionData:transactionData);
-
-            await settel_update(
-                context: context,
-                prefs: prefs,
-                box: box,
-                cart: cart,
-                oldcart1: oldcart1,
-                total: total,
-                tableNo: _tableno,
-                pageback: pageback1,
-                payment_mode: payment_mode,
-                mode: mode,
-                transactionData:transactionData,
-              );
+          switch (mode.toLowerCase()) {
+            case "only_kot":
+              await sendKotToPrinter(context: context,cart:cart,tableNumber: _tableno, kotNumber:  transactionData?['billNo'],transactionData:transactionData);
               return true;
-
-            }
-
-
-
-
-          final device = await _getSavedPrinter(KOTmode:KOT_Print,context: context);
-          if (device != null || settle_button_enabled ) {
-            bool isConnected = await _isConnected();
-            debugPrint("check printer is connected ${isConnected} $transactionData");
-
-            if (!isConnected || settle_button_enabled ) {
-              bytes = [];
-
-              print_log("settle_button_enabled mode ${isConnected}  payment_mode $payment_mode settle_button_enabled $settle_button_enabled");
-
-              bool isconnected =  await _connectToPrinter(device);
-              if(!isconnected){
-              return false;
-              }
-
-              switch (mode.toLowerCase()) {
-                case "only_kot":
-                  await sendKotToPrinter(context: context,cart:cart,tableNumber: _tableno, kotNumber:  transactionData?['billNo'],transactionData:transactionData);
-                  return true;
-                case "onlyprint":
-                  await sendDataToPrinter(context: context, cart1:cart, total:total, billNo: billNo,tableNumber: _tableno ,transactionData:transactionData);
-                  return true;
-                case "onlysettle":
-                  await _disconnect();
-                  
-                  final ttid = prefs.getInt("tt$tableNo");
-                  final isnonzero = areAllQuantitiesZero(cart);
-                  print_log("qty check  ${isnonzero} > 0");
-                  if(isnonzero){
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                        content: Text("Please ckeck the cart"),
-                        duration: Duration(seconds: 1),
-                      ),
-                    );
-                    return false;
-                  }
-                  int id;
-                  if(ttid != null){
-                    id = ttid;
-                    await updateTransactionToObjectBox(
-                      context: context,
-                      cart: cart,
-                      total: total,
-                      tableNo: _tableno,
-                      pageback: pageback1,
-                      payment_mode: payment_mode,
-                      status: mode,
-                      id: ttid.toString(),
-                      transactionData:transactionData,
-                    );
-                    // int gotId = int.parse(ttid.toString());
-                    sendTransactionToServer(box, ttid);
-                  } else {
-
-                    id  = await saveTransactionToObjectBox(
-                      context: context,
-                      cart: cart,
-                      total: total,
-                      tableNo: _tableno,
-                      pageback: pageback1,
-                      payment_mode: payment_mode,
-                      status: mode,
-                      transactionData:transactionData
-                    );
-                  }
-                  
-                  final key = "table${tableNo}";
-                  final message = 'clear table cart data $key';
-                  print_log_red('$message');
-                  // prefs.remove(key);
-                  deletetablecart(_tableno);
-                  debugPrint("saveTransactionToObjectBox with id - $id  table $key ");
-                  sendTransactionToServer(box, id);
-                  prefs.remove("tt$tableNo",);
-                  return true;
-              }
-
-              if(payment_mode.toLowerCase().contains("kot")){
-
-                await sendKotToPrinter(context: context,cart:cart,tableNumber: _tableno,kotNumber: transactionData?['billNo'],transactionData:transactionData);
-              }else{
-
-                await sendDataToPrinter(context: context, cart1:cart, total:total, billNo: billNo,tableNumber: _tableno,transactionData:transactionData);
-              }
+            case "onlyprint":
+              await sendDataToPrinter(context: context, cart1:cart, total:total, billNo: billNo,tableNumber: _tableno ,transactionData:transactionData);
+              return true;
+            case "onlysettle":
+              await _disconnect();
               
-              late final String id;
+              final ttid = prefs.getInt("tt$tableNo");
               final isnonzero = areAllQuantitiesZero(cart);
               print_log("qty check  ${isnonzero} > 0");
               if(isnonzero){
@@ -250,27 +189,10 @@ class BillPrinter {
                 );
                 return false;
               }
-              if (payment_mode.contains("_")) {
-                List pm = payment_mode.split("_");
-                String paymentMode = pm[0];
-                id = pm[1];
-                debugPrint("updateTransactionToObjectBox ID is $id and mode $payment_mode");
+              int id;
+              if(ttid != null){
+                id = ttid;
                 await updateTransactionToObjectBox(
-                  context: context,
-                  cart: cart,
-                  total: total,
-                  tableNo: _tableno,
-                  pageback: pageback1,
-                  payment_mode: paymentMode,
-                  status: mode,
-                  id: id,
-                  transactionData:transactionData,
-                );
-                int gotId = int.parse(id);
-                sendTransactionToServer(box, gotId);
-                
-              } else {
-                int id  = await saveTransactionToObjectBox(
                   context: context,
                   cart: cart,
                   total: total,
@@ -278,35 +200,113 @@ class BillPrinter {
                   pageback: pageback1,
                   payment_mode: payment_mode,
                   status: mode,
+                  id: ttid.toString(),
                   transactionData:transactionData,
                 );
+                // int gotId = int.parse(ttid.toString());
+                sendTransactionToServer(box, ttid);
+              } else {
 
-                debugPrint("saveTransactionToObjectBox with id - $id ");
-                sendTransactionToServer(box, id);
-                if (_tableno > 0){
-                  prefs.setInt("tt$tableNo", id);
-                }
+                id  = await saveTransactionToObjectBox(
+                  context: context,
+                  cart: cart,
+                  total: total,
+                  tableNo: _tableno,
+                  pageback: pageback1,
+                  payment_mode: payment_mode,
+                  status: mode,
+                  transactionData:transactionData
+                );
               }
+              
+              final key = "table${tableNo}";
+              final message = 'clear table cart data $key';
+              print_log_red('$message');
+              // prefs.remove(key);
+              deletetablecart(_tableno);
+              debugPrint("saveTransactionToObjectBox with id - $id  table $key ");
+              sendTransactionToServer(box, id);
+              prefs.remove("tt$tableNo",);
+              return true;
+          }
 
-              stopwatch.stop();
-              debugPrint("send print function Processing time: ${stopwatch.elapsedMilliseconds}ms and ${stopwatch.elapsedMilliseconds/1000} s");
-            } else {
-              await _disconnect(); 
+          if(payment_mode.toLowerCase().contains("kot")){
+
+            await sendKotToPrinter(context: context,cart:cart,tableNumber: _tableno,kotNumber: transactionData?['billNo'],transactionData:transactionData);
+          }else{
+
+            await sendDataToPrinter(context: context, cart1:cart, total:total, billNo: billNo,tableNumber: _tableno,transactionData:transactionData);
+          }
+          
+          late final String id;
+          final isnonzero = areAllQuantitiesZero(cart);
+          print_log("qty check  ${isnonzero} > 0");
+          if(isnonzero){
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text("Please ckeck the cart"),
+                duration: Duration(seconds: 1),
+              ),
+            );
+            return false;
+          }
+          if (payment_mode.contains("_")) {
+            List pm = payment_mode.split("_");
+            String paymentMode = pm[0];
+            id = pm[1];
+            debugPrint("updateTransactionToObjectBox ID is $id and mode $payment_mode");
+            await updateTransactionToObjectBox(
+              context: context,
+              cart: cart,
+              total: total,
+              tableNo: _tableno,
+              pageback: pageback1,
+              payment_mode: paymentMode,
+              status: mode,
+              id: id,
+              transactionData:transactionData,
+            );
+            int gotId = int.parse(id);
+            sendTransactionToServer(box, gotId);
+            
+          } else {
+            int id  = await saveTransactionToObjectBox(
+              context: context,
+              cart: cart,
+              total: total,
+              tableNo: _tableno,
+              pageback: pageback1,
+              payment_mode: payment_mode,
+              status: mode,
+              transactionData:transactionData,
+            );
+
+            debugPrint("saveTransactionToObjectBox with id - $id ");
+            sendTransactionToServer(box, id);
+            if (_tableno > 0){
+              prefs.setInt("tt$tableNo", id);
             }
           }
-        } catch (e) {
-          print_log_red("❌ Error while printing in printCart: $e");
-          Navigator.pop(context);
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text("Printer Is Not Connected, Please Restart the Printer"),
-              duration: Duration(seconds: 5),
-            ),
-          );
-        } 
 
-        return true;
+          stopwatch.stop();
+          debugPrint("send print function Processing time: ${stopwatch.elapsedMilliseconds}ms and ${stopwatch.elapsedMilliseconds/1000} s");
+        } else {
+          await _disconnect(); 
+        }
       }
+    } catch (e) {
+      print_log_red("❌ Error while printing in printCart: $e");
+      Navigator.pop(context);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text("Printer Is Not Connected, Please Restart the Printer"),
+          duration: Duration(seconds: 5),
+        ),
+      );
+    } 
+
+    return true;
+  }
 
 
 Future<void> printInChunks(thermal.BlueThermalPrinter printer, Uint8List allBytes) async {
@@ -1479,6 +1479,18 @@ Future<void> printBillWithLogo(thermal.BlueThermalPrinter bluetooth) async {
           );
         }
 
+        if(transactionData?['reserved_field'] != null){
+          if(("${transactionData?['reserved_field']}").isNotEmpty){
+            bytes += _generator!.text(
+              "Order ID - ${transactionData?['reserved_field']}",
+              styles: PosStyles(
+                bold: true,
+                fontType: PosFontType.fontA,
+                height: PosTextSize.size1, // Set height to minimum
+              ),
+            );
+          }
+        }
         // Bill number
         String billtable = (tableNumber > 0) ?  "Bill No: $billNo / Table No-: $tableNumber" :  "Bill No:$billNo /OrderType:${transactionData?['orderType']}";
         bytes += _generator!.text(
@@ -1999,6 +2011,18 @@ Future<void> printBillWithLogo(thermal.BlueThermalPrinter bluetooth) async {
           ),
         );
 
+        if(transactionData?['reserved_field'] != null){
+          if(("${transactionData?['reserved_field']}").isNotEmpty){
+            bytes += _generator!.text(
+              "Order ID - ${transactionData?['reserved_field']}",
+              styles: PosStyles(
+                bold: true,
+                fontType: PosFontType.fontA,
+                height: PosTextSize.size1, // Set height to minimum
+              ),
+            );
+          }
+        }
         bytes += _generator!.text(
             (tableNumber == 0 || tableNumber == null) ? "Bill No: ${transactionData?['billNo']}/OrderType: ${transactionData?['orderType']}" : "KOT No: $kotNumber / Table No: $tableNumber",
             styles: PosStyles(
@@ -2201,6 +2225,7 @@ Future<void> printBillWithLogo(thermal.BlueThermalPrinter bluetooth) async {
       orderType: transactionData?['orderType'] ?? '',
       cashamount: cash_amount,
       upiamount: upi_amount,
+      reserved_field: transactionData?['reserved_field'] ?? '',
       
     );
     debugPrint("Transaction Data to be sent: $tx");
@@ -2953,17 +2978,17 @@ Future<void> printBillWithLogo(thermal.BlueThermalPrinter bluetooth) async {
       if (gst.isNotEmpty) {
         yOffset += await _drawText(canvas, "GST: $gst", y: yOffset, width: receiptWidth, fontSize: fItem, align: TextAlign.center);
       }
-      // if (tableno != null) {
-      //   yOffset += await _drawText(canvas, "", y: yOffset, width: receiptWidth, fontSize: fItem, align: TextAlign.center);
-      // }
-      
-      yOffset += await _drawText(canvas, "Time:- $dateTime", y: yOffset, width: receiptWidth, fontWeight: FontWeight.bold, fontSize: fItem,);
-
+      if(transactionData?['orderType'] != null){
+        if(("${transactionData?['orderType']}").isNotEmpty){
+          yOffset += await _drawText(canvas, "Order ID - ${transactionData?['reserved_field']}", y: yOffset, width: receiptWidth,fontWeight: FontWeight.bold, fontSize: fItem,);
+        }
+      }
       String billtable = (tableno > 0) ?  "Bill No: $billNo / Table No-: $tableno" :  "Bill No: $billNo" ;
       yOffset += 5; // New line
       yOffset += await _drawText(canvas, billtable, y: yOffset, width: receiptWidth,fontWeight: FontWeight.bold, fontSize: fItem,);
       yOffset += 5;
-
+      yOffset += await _drawText(canvas, "Time:- $dateTime", y: yOffset, width: receiptWidth, fontWeight: FontWeight.bold, fontSize: fItem,);
+      yOffset += 5;
 
       if (customerName && tableno == 0) {
         debugPrint("⚠️ check printer is connected tota --$transactionData---");
@@ -3759,6 +3784,8 @@ Future<void> printBillWithLogo(thermal.BlueThermalPrinter bluetooth) async {
         // yOffset += await _drawText(canvas, businessName, y: yOffset, width: receiptWidth, fontSize: fHeader, fontWeight: FontWeight.bold, align: TextAlign.center);
 
         yOffset += await _drawText(canvas, " KOT ", y: yOffset, width: receiptWidth, fontSize: fHeader, fontWeight: FontWeight.bold, align: TextAlign.center);
+
+        yOffset += await _drawText(canvas, "Order ID - ${transactionData?['reserved_field']}", y: yOffset, width: receiptWidth,fontWeight: FontWeight.bold, fontSize: fItem,);
 
         yOffset += await _drawText(canvas, (tableNumber == 0 || tableNumber == null) ? "Bill No: ${transactionData?['billNo']} / Order Type: ${transactionData?['orderType']}" : "Bill No: ${transactionData?['billNo']} / Table No: $tableNumber", y: yOffset, width: receiptWidth, fontSize: fItem, fontWeight: FontWeight.bold, align: TextAlign.center);
 

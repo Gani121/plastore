@@ -50,6 +50,7 @@ class _DetailPageState extends State<DetailPage> {
   late final TextEditingController _serviceChargeAmountController = TextEditingController();
   late final TextEditingController _serviceChargePercentController = TextEditingController();
   late final TextEditingController _billNoController = TextEditingController();
+  late final TextEditingController _orderIdController = TextEditingController();
 
   String someValueFromServer = "";
   double _discountPercentController1 = 0;
@@ -131,6 +132,9 @@ class _DetailPageState extends State<DetailPage> {
           billNo = transaction['billNo'] ?? 0;
           fetchData(_billNoController, billNo.toString());
 
+          final orderId = transaction['reserved_field'] ?? '';
+          fetchData(_orderIdController, orderId.toString());
+
           final customerName = transaction['customerName'] ?? '';
           fetchData(_customerNameController, customerName);
 
@@ -181,6 +185,7 @@ class _DetailPageState extends State<DetailPage> {
     serviceChargeNotifier.dispose();
     _debounceTimer?.cancel();
     _billNoController.dispose(); // ✅ Dispose it
+    _orderIdController.dispose();
     super.dispose();
   }
 
@@ -1080,16 +1085,38 @@ DateTime getBusinessDate({int cutoffHour = 4}) {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Padding(
-                    padding: const EdgeInsets.only(bottom: 12),
-                    child: TextFormField(
-                      controller: _billNoController, // Use the controller
-                      readOnly: true,        // Make it non-editable
-                      decoration: InputDecoration(
-                        labelText: 'Bill No',
-                        border: const OutlineInputBorder(),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Padding(
+                          padding: const EdgeInsets.only(bottom: 12, right: 5),
+                          child: TextFormField(
+                            controller: _billNoController, // Use the controller
+                            readOnly: true,        // Make it non-editable
+                            decoration: InputDecoration(
+                              labelText: 'Bill No',
+                              border: const OutlineInputBorder(),
+                            ),
+                          ),
+                        ),
                       ),
-                    ),
+                      Expanded(
+                        child: Padding(
+                          padding: const EdgeInsets.only(bottom: 12, left: 5),
+                          child: TextFormField(
+                            controller: _orderIdController, // Use the controller
+                            // readOnly: true,        // Make it editable
+                            onChanged: (value) {
+                              transaction['reserved_field'] = value;
+                            },
+                            decoration: InputDecoration(
+                              labelText: 'Online Order ID',
+                              border: const OutlineInputBorder(),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
                   _buildTextFieldNormal("Bill Date",DateFormat('dd/MMM/yyyy').format(getBusinessDate()),),
                   // _buildDropdown("Billing Term"),
@@ -1098,9 +1125,6 @@ DateTime getBusinessDate({int cutoffHour = 4}) {
                   // _buildTextFieldNormal("Customer/Supplier Mobile no","0123456789"),
                   Column(
                     children: [
-
-
-
                       Padding(
                         padding: const EdgeInsets.only(bottom: 12),
                         child: Autocomplete<udhariCustomer>(

@@ -4,7 +4,7 @@ import 'package:test1/settings/bill_settings_page.dart';
 import 'package:test1/settings/profilepage.dart';
 import 'printer_setup_page.dart';
 import 'LanguageSelectionPage.dart';
-import '../pages/BulkUploadPage.dart';
+import 'BulkUploadPage.dart';
 import '../theme_setting/theme_selector.dart';
 import '../theme_setting/theme_provider.dart';
 import 'package:http/http.dart' as http;
