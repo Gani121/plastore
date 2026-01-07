@@ -22,6 +22,7 @@ import '../database_Module/tableCart.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:test1/bill_printer.dart';
+import 'package:telephony_sms/telephony_sms.dart';
 
 class DetailPage extends StatefulWidget {
   final List<Map<String, dynamic>>? cart1;
@@ -1629,6 +1630,7 @@ class __BottomBarState extends State<_BottomBar> {
   BillPrinter printer = BillPrinter();
   TextEditingController _receivedAmountController = TextEditingController();
   late int recivedamount = 0;
+  final _telephonySMS = TelephonySMS();
   
   
   @override
@@ -1974,6 +1976,32 @@ class __BottomBarState extends State<_BottomBar> {
 
     // Send SMS right after saving
     // _sendTransactionSms(currentCustomer, newTransaction);
+  }
+
+    void _sendTransactionSms(String no,String total,String recived,String pending) async {
+    final pref = await SharedPreferences.getInstance();
+    final bool SmsEnabled = pref.getBool('SmsEnabled') ?? false;
+    if (!SmsEnabled || no.isEmpty) return;
+
+    String businessName = pref.getString('businessName') ?? 'Store';
+    String customerName = (widget.name != null && widget.name!.isNotEmpty) ? widget.name! : "Customer";
+    final message = "Hi $customerName, Thank you for visiting $businessName! Your Bill Amount is $total. Received: $recived. Balance: $pending. Have a nice day!";
+
+    try {
+      await _telephonySMS.requestPermission();
+      final pho_nu = "+91${extractLast10Digits((no).toString())}";
+      await _telephonySMS.sendSMS(phone: pho_nu, message: message);
+    } catch (error) {
+      debugPrint("Error sending SMS: $error");
+    }
+  }
+
+  String extractLast10Digits(String phone) {
+    String digitsOnly = phone.replaceAll(RegExp(r'[^0-9]'), '');
+    if (digitsOnly.length > 10) {
+      return digitsOnly.substring(digitsOnly.length - 10);
+    }
+    return digitsOnly;
   }
 
 
@@ -2375,6 +2403,8 @@ class __BottomBarState extends State<_BottomBar> {
 
                                       saveEntry(widget.name ?? "" , widget.mobileNo ?? "" ,widget.adreess ?? "", (total - recivedamount).toStringAsFixed(0), descriptionController);
                                     }
+                                    
+                                    _sendTransactionSms(widget.mobileNo ?? "", total.toStringAsFixed(2), recivedamount.toStringAsFixed(2), (total - recivedamount).toStringAsFixed(2));
                                     
                                   } finally {
                                     if (mounted) { 

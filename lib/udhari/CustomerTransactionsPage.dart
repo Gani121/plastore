@@ -48,7 +48,7 @@ class _CustomerTransactionsPageState extends State<CustomerTransactionsPage> {
   Future<void> _saveSmsPreference(bool value) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setBool('sms_enabled_${widget.customer.id}', value);
-    _telephonySMS.requestPermission();
+    await _telephonySMS.requestPermission();
   }
 
   void _sendTransactionSms(udhariCustomer customer, TransactionUdhari newTransaction) async {

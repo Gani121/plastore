@@ -2978,8 +2978,9 @@ Future<void> printBillWithLogo(thermal.BlueThermalPrinter bluetooth) async {
       if (gst.isNotEmpty) {
         yOffset += await _drawText(canvas, "GST: $gst", y: yOffset, width: receiptWidth, fontSize: fItem, align: TextAlign.center);
       }
-      if(transactionData?['orderType'] != null){
-        if(("${transactionData?['orderType']}").isNotEmpty){
+
+      if(transactionData?['reserved_field'] != null){
+        if(("${transactionData?['reserved_field']}").isNotEmpty){
           yOffset += await _drawText(canvas, "Order ID - ${transactionData?['reserved_field']}", y: yOffset, width: receiptWidth,fontWeight: FontWeight.bold, fontSize: fItem,);
         }
       }

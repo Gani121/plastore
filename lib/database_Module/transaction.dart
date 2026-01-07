@@ -60,7 +60,7 @@ class Transaction {
 
   @override
   String toString() {
-    return 'Transaction(id: $id, time: $time, tableNo: $tableNo, total: $total, status : $status, payment_mode: $payment_mode, synced: $synced, orderType: $orderType, mobileNo:$mobileNo, customerName: $customerName billNo :$billNo, discountPercent: $discountPercent discount: $discount  serviceCharge:$serviceCharge reserved :$reserved, cartData: $cartData, upiamount $upiamount cashamount $cashamount)';
+    return 'Transaction(id: $id, time: $time, tableNo: $tableNo, total: $total, status : $status, payment_mode: $payment_mode, synced: $synced, orderType: $orderType, mobileNo:$mobileNo, customerName: $customerName billNo :$billNo, discountPercent: $discountPercent discount: $discount  serviceCharge:$serviceCharge reserved :$reserved,reserved_field:$reserved_field,reserved_field1:$reserved_field1,reserved_field2:$reserved_field2,reserved_field3:$reserved_field3,reserved_field4:$reserved_field4,reserved_field5:$reserved_field5 cartData: $cartData, upiamount $upiamount cashamount $cashamount)';
   }
 
   List<Map<String, dynamic>> get decodedCart =>

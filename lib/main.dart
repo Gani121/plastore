@@ -33,6 +33,9 @@ import 'table_selection/table_view.dart';
 import 'package:test1/l10n/app_localizations.dart';
 import 'package:test1/cartprovier/locale_provider.dart';
 import '../utilities.dart';
+import 'package:test1/firebase/fcm_service.dart'; 
+import 'package:firebase_core/firebase_core.dart';
+
 
 final printer = BillPrinter();
 String selectedStyle = "";
@@ -54,6 +57,16 @@ void main() async {
   await objectBoxService.init();
   HttpOverrides.global = MyHttpOverrides();
   final cartProvider = CartProvider();
+    WidgetsFlutterBinding.ensureInitialized();
+  
+  // 1. Initialize Firebase
+  // If you have firebase_options.dart:
+  // await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
+  // If not, just:
+  await Firebase.initializeApp();
+
+  // 2. Initialize FCM Service
+  await FcmService().initialize();
   // await cartProvider.loadCart(); //
   runApp(
     MultiProvider(

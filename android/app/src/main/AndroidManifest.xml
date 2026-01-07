@@ -13,9 +13,15 @@
     <uses-permission android:name="android.permission.BLUETOOTH" android:maxSdkVersion="30" />
     <uses-permission android:name="android.permission.BLUETOOTH_ADMIN" android:maxSdkVersion="30" />
     <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
+    <uses-permission android:name="android.permission.SEND_SMS" />
     <!-- <uses-permission android:name="android.permission.READ_CONTACTS" />
     <uses-permission android:name="android.permission.WRITE_CONTACTS" />
     <uses-permission android:name="android.permission.SEND_SMS" /> -->
+    <!-- Permissions for Wake Up / CallKit -->
+    <uses-permission android:name="android.permission.VIBRATE"/>
+    <uses-permission android:name="android.permission.WAKE_LOCK"/>
+    <uses-permission android:name="android.permission.USE_FULL_SCREEN_INTENT"/>
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE"/>
 
     <application
         android:requestLegacyExternalStorage="true"
@@ -23,10 +29,35 @@
         android:icon="@mipmap/ic_launcher"
         android:label="orbipay">
 
-        <!-- ADD THIS LINE HERE (right after opening <application> tag) -->
-        <!-- <meta-data
-            android:name="io.flutter.embedding.android.EnableImpeller"
-            android:value="true" /> -->
+        <!-- Add this for Flutter CallKit Incoming -->
+        <activity
+            android:name="com.hiennv.flutter_callkit_incoming.CallkitIncomingActivity"
+            android:theme="@style/Theme.AppCompat.Light.NoActionBar"
+            android:launchMode="singleTask"
+            android:excludeFromRecents="true"
+            android:exported="true"
+            android:screenOrientation="portrait"
+            android:showWhenLocked="true"
+            android:turnScreenOn="true"
+            android:showOnLockScreen="true"
+        />
+        
+        <!-- Receiver for CallKit actions -->
+        <receiver
+            android:name="com.hiennv.flutter_callkit_incoming.CallkitIncomingBroadcastReceiver"
+            android:exported="true"
+            android:enabled="true">
+            <intent-filter>
+                <action android:name="com.hiennv.flutter_callkit_incoming.ACTION_CALL_INCOMING"/>
+                <action android:name="com.hiennv.flutter_callkit_incoming.ACTION_CALL_START"/>
+                <action android:name="com.hiennv.flutter_callkit_incoming.ACTION_CALL_ACCEPT"/>
+                <action android:name="com.hiennv.flutter_callkit_incoming.ACTION_CALL_DECLINE"/>
+                <action android:name="com.hiennv.flutter_callkit_incoming.ACTION_CALL_ENDED"/>
+                <action android:name="com.hiennv.flutter_callkit_incoming.ACTION_CALL_TIMEOUT"/>
+                <action android:name="com.hiennv.flutter_callkit_incoming.ACTION_CALL_CALLBACK"/>
+            </intent-filter>
+        </receiver>
+
 
         <activity
             android:name="io.flutter.embedding.android.FlutterActivity"
