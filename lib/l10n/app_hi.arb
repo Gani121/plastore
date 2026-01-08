@@ -10,5 +10,6 @@
   "profile": "प्रोफ़ाइल",
   "sales_report": "बिक्री रिपोर्ट",
   "logout": "लॉग आउट",
-  "language": "भाषा"
+  "language": "भाषा",
+  "access_denied": "Access Denied"
 }

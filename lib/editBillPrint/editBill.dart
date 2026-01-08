@@ -24,6 +24,9 @@ import 'package:share_plus/share_plus.dart';
 import 'package:test1/bill_printer.dart';
 import 'package:telephony_sms/telephony_sms.dart';
 
+import 'package:http/http.dart' as http;
+import 'dart:convert';
+
 class DetailPage extends StatefulWidget {
   final List<Map<String, dynamic>>? cart1;
   final String? mode;
@@ -2004,6 +2007,185 @@ class __BottomBarState extends State<_BottomBar> {
     return digitsOnly;
   }
 
+    
+    Future<String?> _getUserRole() async {
+      final prefs = await SharedPreferences.getInstance();
+      return prefs.getString('role');
+    }
+
+    Future<void> _sendsettleFcmNotification() async {
+      try {
+        // // Generate order ID
+        // String orderId = "ORD${DateTime.now().millisecondsSinceEpoch}";
+
+        // Get table name
+        String tableName = widget.table != null
+            ? "${widget.table!['kot']}"
+            : "Takeaway";
+
+        if (tableName == "Takeaway") {
+          return;
+        }
+
+        final prefs = await SharedPreferences.getInstance();
+        final hotelname = prefs.getString("username") ?? '';
+
+        // Prepare the request data
+        Map<String, dynamic> requestData = {
+          "hotel": hotelname,
+          "data": {
+            "printData":
+                "settle-$tableName", // Convert cart items to JSON string
+          },
+        };
+
+        debugPrint(
+          "Sending FCM notification to all: ${json.encode(requestData)}",
+        );
+
+        // Make API call
+        final response = await http.post(
+          Uri.parse('https://api2.nextorbitals.in/api/sent_fcm1.php'),
+          headers: {'Content-Type': 'application/json'},
+          body: json.encode(requestData),
+        );
+
+        if (response.statusCode == 200) {
+          debugPrint("FCM notification sent successfully to all");
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text("Order sent to kitchen successfully"),
+              backgroundColor: Colors.green,
+              duration: Duration(seconds: 2),
+            ),
+          );
+        } else {
+          debugPrint("Failed to send FCM notification: ${response.statusCode}");
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text("Failed to send order to kitchen"),
+              backgroundColor: Colors.red,
+              duration: Duration(seconds: 2),
+            ),
+          );
+        }
+      } catch (e) {
+        debugPrint("Error sending FCM notification: $e");
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text("Error sending order to kitchen: $e"),
+            backgroundColor: Colors.red,
+            duration: Duration(seconds: 2),
+          ),
+        );
+      }
+    }
+    // debugPrint("!_isChecked && (widget.mobileNo ?? "").isEmpty && (widget.name ?? "").isEmpty ${!_isChecked} && ${(widget.mobileNo ?? "").isEmpty} && ${(widget.name ?? "").isEmpty}");
+
+    Future<void> _sendFcmNotification(
+      List<Map<String, dynamic>> cartItems,
+    ) async {
+      try {
+        // // Generate order ID
+        // String orderId = "ORD${DateTime.now().millisecondsSinceEpoch}";
+
+        // Get table name
+        String tableName = widget.table != null
+            ? "${widget.table!['kot']}"
+            : "Takeaway";
+
+        debugPrint("sentfcm trigger through eitbill $tableName");
+
+        if (tableName == "Takeaway") {
+          return;
+        }
+
+        final prefs = await SharedPreferences.getInstance();
+        final deviceId = prefs.getString('device_id') ?? 'unknown';
+        final captain_name = prefs.getString("captain_name") ?? '';
+        final role = prefs.getString("role") ?? '';
+        final hotelname = prefs.getString("username") ?? '';
+
+        if (hotelname == '') {
+          debugPrint("Fail to sent ");
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text("Failed to send order for hotel $hotelname"),
+              backgroundColor: Colors.green,
+              duration: Duration(seconds: 2),
+            ),
+          );
+          return;
+        }
+
+        var order_tpe = '';
+
+        if (role == "captain") {
+          order_tpe = "KOT";
+        } else {
+          order_tpe = "OTHER";
+        }
+
+        List<Map<String, dynamic>> updatedCart = cartItems.map((item) {
+          return {
+            ...item,
+            "tableno": tableName, // 🔥 insert table name
+            "datafor": "ALL",
+            "sender_device": deviceId, // 🔥 ADD sender device ID
+            "captain_name": captain_name,
+            "type": order_tpe,
+          };
+        }).toList();
+
+        // Prepare the request data
+        Map<String, dynamic> requestData = {
+          "hotel": hotelname,
+          "data": {
+            "printData": json.encode(
+              updatedCart,
+            ), // Convert cart items to JSON string
+          },
+        };
+
+        debugPrint("Sending FCM notification: ${json.encode(requestData)}");
+
+        // Make API call
+        final response = await http.post(
+          Uri.parse('https://api2.nextorbitals.in/api/sent_fcm1.php'),
+          headers: {'Content-Type': 'application/json'},
+          body: json.encode(requestData),
+        );
+
+        if (response.statusCode == 200) {
+          debugPrint("FCM notification sent successfully");
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text("Order sent to kitchen successfully"),
+              backgroundColor: Colors.green,
+              duration: Duration(seconds: 2),
+            ),
+          );
+        } else {
+          debugPrint("Failed to send FCM notification: ${response.statusCode}");
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text("Failed to send order to kitchen"),
+              backgroundColor: Colors.red,
+              duration: Duration(seconds: 2),
+            ),
+          );
+        }
+      } catch (e) {
+        debugPrint("Error sending FCM notification: $e");
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text("Error sending order to kitchen: $e"),
+            backgroundColor: Colors.red,
+            duration: Duration(seconds: 2),
+          ),
+        );
+      }
+    }
 
 
 
@@ -2164,6 +2346,7 @@ class __BottomBarState extends State<_BottomBar> {
                             ),
                         ],
                       ),
+                      
                       Padding(
                         padding: const EdgeInsets.symmetric(horizontal: 5), // Adjust the value as needed
                         child: Row(
@@ -2184,7 +2367,21 @@ class __BottomBarState extends State<_BottomBar> {
                                   setState(() {
                                     _isPrinting = true;
                                   });
+
+
                                   try {
+                                    // Get user role from SharedPreferences
+                                    final prefs =
+                                        await SharedPreferences.getInstance();
+                                    final role = prefs.getString('role');
+
+                                    // If role is captain, send FCM notification
+                                    if (role == 'captain') {
+                                      await _sendFcmNotification(
+                                        newItemsForKot,
+                                      );
+                                      Navigator.of(context).pop(context);
+                                    } else {
                                      if( tableno > 0){
                                         debugPrint("PrinterCart ${tableno} and transactiondata ${transactiondata} newItemsForKot $newItemsForKot");
                                         await printer.printCart(
@@ -2213,7 +2410,7 @@ class __BottomBarState extends State<_BottomBar> {
                                           payment_mode: (widget.mode == 'edit') ? 'kot_${transactiondata['id']}' : 'kot',
                                         );
                                       }
-                                    
+                                    }
                                   } finally {
                                     // ✅ 4. Stop the loading indicator, even if an error occurs
                                     if (mounted) { // Check if the widget is still in the tree
@@ -2240,13 +2437,26 @@ class __BottomBarState extends State<_BottomBar> {
                                   ),
                                 ),
                             const SizedBox(width: 6),
-                            Expanded(
-                              flex: 2,
-                              child: ElevatedButton(
+
+                            // Print Button - Only show if role is not captain
+                            FutureBuilder<String?>(
+                              future: _getUserRole(),
+                              builder: (context, snapshot) {
+                                if (snapshot.connectionState == ConnectionState.waiting) {
+                                  return const SizedBox.shrink(); // Hide button while loading role
+                                }
+
+                                final role = snapshot.data;
+                                if (role == 'captain') {
+                                  return const SizedBox.shrink(); // Hide for captain
+                                }                            
+                              return Expanded(
+                                flex: 2,
+                                child: ElevatedButton(
                                 style: ElevatedButton.styleFrom(
-                                  backgroundColor: Colors.blue,
-                                  padding: const EdgeInsets.symmetric(vertical: 14),
-                                ),
+                                    backgroundColor: Colors.blue,
+                                    padding: const EdgeInsets.symmetric(vertical: 14),
+                                 ),
                                 // ✅ 1. Disable the button when printing
                                 onPressed: _isPrinting ? null : () async {
                                   setState(() {
@@ -2304,9 +2514,40 @@ class __BottomBarState extends State<_BottomBar> {
                                       style: const TextStyle(color: Colors.white),
                                     ),
                                   ),
-                                ),
-                            const SizedBox(width: 6),
-                            Expanded(
+                                );
+                              }
+                            ),
+                                                        // Add SizedBox only if Print button is visible
+                            FutureBuilder<String?>(
+                              future: _getUserRole(),
+                              builder: (context, snapshot) {
+                                if (snapshot.connectionState ==
+                                    ConnectionState.waiting) {
+                                  return const SizedBox.shrink();
+                                }
+
+                                final role = snapshot.data;
+                                if (role == 'captain') {
+                                  return const SizedBox.shrink();
+                                }
+
+                                return const SizedBox(width: 6);
+                              },
+                            ),
+                                                        // Settle Button - Only show if role is not captain
+                            FutureBuilder<String?>(
+                              future: _getUserRole(),
+                              builder: (context, snapshot) {
+                                if (snapshot.connectionState ==
+                                    ConnectionState.waiting) {
+                                  return const SizedBox.shrink(); // Hide button while loading role
+                                }
+
+                                final role = snapshot.data;
+                                if (role == 'captain') {
+                                  return const SizedBox.shrink(); // Hide for captain
+                                }
+                            return Expanded(
                               flex: 2,
                               child: ElevatedButton(
                                 style: ElevatedButton.styleFrom(
@@ -2429,10 +2670,40 @@ class __BottomBarState extends State<_BottomBar> {
                                       style: const TextStyle(color: Colors.white),
                                     ),
                                   ),
-                                ),
-                            const SizedBox(width: 6),
-                            if (tableno > 0)
-                              Expanded(
+                                );
+                              }
+                            ),
+                            // Add SizedBox only if Print button is visible
+                            FutureBuilder<String?>(
+                              future: _getUserRole(),
+                              builder: (context, snapshot) {
+                                if (snapshot.connectionState ==
+                                    ConnectionState.waiting) {
+                                  return const SizedBox.shrink();
+                                }
+
+                                final role = snapshot.data;
+                                if (role == 'captain') {
+                                  return const SizedBox.shrink();
+                                }
+
+                                return const SizedBox(width: 6);
+                              },
+                            ),
+                            if (tableno > 0 )
+                              FutureBuilder<String?>(
+                              future: _getUserRole(),
+                              builder: (context, snapshot) {
+                                if (snapshot.connectionState ==
+                                    ConnectionState.waiting) {
+                                  return const SizedBox.shrink();
+                                }
+
+                                final role = snapshot.data;
+                                if (role == 'captain') {
+                                  return const SizedBox.shrink();
+                                }
+                              return Expanded(
                                 flex: 2,
                                 child: ElevatedButton(
                                   style: ElevatedButton.styleFrom(
@@ -2478,7 +2749,9 @@ class __BottomBarState extends State<_BottomBar> {
                                         style: const TextStyle(color: Colors.white),
                                       ),
                                     ),
-                                  ),
+                                  );
+                              }
+                            ),
                           ],
                         ),
                       )

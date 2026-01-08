@@ -453,6 +453,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Recent Transactions'**
   String get recent_tran;
+
+  /// No description provided for @access_denied.
+  ///
+  /// In en, this message translates to:
+  /// **'Access Denied'**
+  String get access_denied;
 }
 
 class _AppLocalizationsDelegate

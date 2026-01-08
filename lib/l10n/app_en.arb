@@ -58,5 +58,6 @@
   "edit":"Edit",
   "enter_qty_add":"Enter quantity to add",
   "enter_valid_number":"Enter a valid number",
-  "recent_tran":"Recent Transactions"
+  "recent_tran":"Recent Transactions",
+  "access_denied": "Access Denied"
 }

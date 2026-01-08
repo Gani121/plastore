@@ -184,4 +184,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get recent_tran => 'Recent Transactions';
+
+  @override
+  String get access_denied => 'Access Denied';
 }

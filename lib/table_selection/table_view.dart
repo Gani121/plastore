@@ -18,6 +18,14 @@ import '../database_Module/transaction.dart';
 import '../database_Module/tableCart.dart';
 import '../objectbox.g.dart';
 
+import '../settings/SettingsPage.dart';
+import '../database_Module/menu_item.dart';
+import 'dart:io'; // Add this for File class
+import 'package:path_provider/path_provider.dart'; // Add this for getApplicationDocumentsDirectory
+import 'package:crypto/crypto.dart';
+import 'package:http/http.dart' as http;
+import 'package:test1/utility_captain.dart';
+
 class TableView extends StatefulWidget {
   const TableView({Key? key}) : super(key: key);
 
@@ -30,6 +38,16 @@ class _TableViewState extends State<TableView> {
   late Box<Active_Table_view> _tablesList;
   List<Active_Table_view> activeTables = [];
   String selectedStyle = "List Style Half Full"; // Default
+  late Box<MenuItem> menuItemBox = store.box<MenuItem>();
+
+  
+  late StreamSubscription<FileSystemEvent>? _kotWatcher;
+  late StreamSubscription<FileSystemEvent>? _settleWatcher;
+  String lastKotHash = "";
+  String lastSettleHash = "";
+  Timer? _debounce;
+  Timer? _settleDebounce;
+
 
   @override
   void initState() {
@@ -41,6 +59,9 @@ class _TableViewState extends State<TableView> {
     // Load initial data
     _loadTables();
     loadSelectedStyle();
+
+    watchKOTFile();
+    watchSettleFile();
   }
 
   /// Fetches all tables from ObjectBox and updates the UI.
@@ -59,6 +80,629 @@ class _TableViewState extends State<TableView> {
       selectedStyle = prefs.getString('selectedStyle') ?? "List Style Half Full";
     });
   }
+
+
+
+
+String getMd5(String input) {
+  return md5.convert(utf8.encode(input)).toString();
+}
+
+
+void watchKOTFile() async {
+  final prefs = await SharedPreferences.getInstance();
+  final role = prefs.getString('role') ?? '';
+  final deviceId = prefs.getString('device_id') ?? ''; // Add device ID
+
+  final dir = await getApplicationSupportDirectory();
+  final kotFile = File('${dir.path}/pending_kot.json');
+
+  if (!await kotFile.exists()) {
+    await kotFile.writeAsString("[]");
+    debugPrint("🆕 Created pending_kot.json");
+  }
+
+  _kotWatcher =
+      kotFile.watch(events: FileSystemEvent.modify).listen((event) async {
+    if (event.type != FileSystemEvent.modify) return;
+
+    final text = await kotFile.readAsString();
+    final currentHash = getMd5(text);
+
+    if (currentHash == lastKotHash) {
+      debugPrint("⛔ No change in KOT file → ignoring");
+      return;
+    }
+
+    lastKotHash = currentHash;
+
+    _debounce?.cancel();
+    _debounce = Timer(const Duration(milliseconds: 600), () async {
+      debugPrint("🔄 KOT file updated → checking role/device...");
+
+      try {
+        final List decoded = jsonDecode(text);
+
+        if (decoded.isNotEmpty &&
+            decoded[0]["items"] != null &&
+            decoded[0]["items"].isNotEmpty) {
+          
+          final item = decoded[0]["items"][0];
+          final dataFor = item["datafor"]?.toString() ?? "";
+           final type = item["type"]?.toString() ?? "";
+          final senderDevice = item["sender_device"]?.toString() ?? ""; // Add sender device field
+
+          debugPrint("🔍 File datafor = $dataFor | User role = $role | Sender device = $senderDevice | deviceId = $deviceId");
+
+          // 🔥 CRITICAL FIX: Check if this update came from THIS device
+          if (senderDevice == deviceId) {
+            debugPrint("⏭️ Update came from this device → ignoring to prevent duplicate");
+            await kotFile.writeAsString("[]"); // Clear the file
+            return;
+          }
+
+          if (dataFor == "ALL" || dataFor == role) {
+            debugPrint("✅ ROLE MATCH → Processing KOT");
+            if(type == "KOT")
+            {
+               await readAndSaveToPrefsforkot();
+
+            }else{
+            await readAndSaveToPrefs();
+            }
+            
+            if (mounted) setState(() => _loadTables());
+            debugPrint("✅ Sync complete");
+          } else {
+            debugPrint("⛔ ROLE MISMATCH → Ignoring KOT");
+            await kotFile.writeAsString("[]");
+            debugPrint("⛔ ROLE MISMATCH → Ignoring KOT & file cleared");
+          }
+        }
+      } catch (e) {
+        debugPrint("❌ JSON parse error: $e");
+      }
+    });
+  });
+}
+
+void watchSettleFile() async {
+  final dir = await getApplicationSupportDirectory();
+  final settleFile = File('${dir.path}/pending_settle.json');
+
+  // Ensure file exists
+  if (!await settleFile.exists()) {
+    await settleFile.writeAsString("[]");
+  }
+
+  debugPrint("SETTLE → watching directory: ${dir.path}");
+
+  _settleWatcher = dir.watch().listen((event) async {
+    if (!event.path.endsWith("pending_settle.json")) return;
+    if (event.type != FileSystemEvent.modify) return;
+
+    final text = await settleFile.readAsString();
+    final currentHash = getMd5(text);
+
+    if (currentHash == lastSettleHash) {
+      debugPrint("⛔ No real change");
+      return;
+    }
+
+    lastSettleHash = currentHash;
+
+    _settleDebounce?.cancel();
+    _settleDebounce = Timer(const Duration(milliseconds: 600), () async {
+      debugPrint("🔄 SETTLE updated → syncing...");
+      await processSettleTables();
+      if (mounted) setState(() => _loadTables());
+      debugPrint("✅ SETTLE Sync complete");
+    });
+  });
+}
+
+// @override
+// void dispose() {
+//   _kotWatcher!.cancel(); // Cancel the watcher
+//   super.dispose();
+// }
+
+  Future<void> sendFcmNotification( BuildContext context, List<Map<String, dynamic>> cartItems ,int tablenumber) async {
+  try {
+    // // Generate order ID
+    // String orderId = "ORD${DateTime.now().millisecondsSinceEpoch}";
+    
+    // Get table name
+    String tableName = tablenumber.toString();
+
+     final prefs = await SharedPreferences.getInstance();
+    final deviceId = prefs.getString('device_id') ?? 'unknown';
+
+     final captain_name = prefs.getString('captain_name') ?? '';
+
+     final role = prefs.getString("role")?? '';
+     
+      final hotelname = prefs.getString("username")?? '';
+
+    if(hotelname =='')
+    {
+      debugPrint("Failed to send order for hotel $hotelname");
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text("Failed to send order for hotel $hotelname"),
+          backgroundColor: Colors.green,
+          duration: Duration(seconds: 2),
+        ),
+      );
+      return;
+    }
+
+
+    var order_tpe = '';
+
+    debugPrint("sentfcm trigger through table_view $tableName");
+
+    if(tableName=="Takeaway")
+    {
+      return;
+    }
+
+    if(role=="captain")
+    {
+      order_tpe= "KOT";
+    }else{
+      order_tpe= "OTHER";
+    }
+
+
+
+ 
+ 
+  List<Map<String, dynamic>> updatedCart = cartItems.map((item) {
+          return {
+            ...item,
+            "tableno": tableName,   // 🔥 insert table name
+            "datafor": "captain", 
+            "sender_device": deviceId, // 🔥 ADD sender device ID
+           "type":order_tpe,
+          };
+        }).toList();
+
+    
+    // Prepare the request data
+    Map<String, dynamic> requestData = {
+      "hotel": hotelname,
+      "data": {
+                  // 🔥 added here
+        "printData": json.encode(updatedCart),
+      }
+    };
+
+    
+    debugPrint("Sending FCM notification after table price upate: ${json.encode(requestData)}");
+    
+    // Make API call
+    final response = await http.post(
+      Uri.parse('https://api2.nextorbitals.in/api/sent_fcm1.php'),
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: json.encode(requestData),
+    );
+    
+    if (response.statusCode == 200) {
+      debugPrint("FCM notification sent successfully");
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text("Order sent to kitchen successfully"),
+          backgroundColor: Colors.green,
+          duration: Duration(seconds: 2),
+        ),
+      );
+
+      // After sending FCM, update the table to reflect the cart
+    final store = Provider.of<ObjectBoxService>(context, listen: false).store;
+    final activeBox = store.box<Active_Table_view>();
+    final tQuery = activeBox.query(Active_Table_view_.number.equals(tablenumber)).build();
+    final tableList = tQuery.find();
+    tQuery.close();
+    
+    if (tableList.isNotEmpty) {
+      // 🔥 Update with skipFcm: true to prevent another FCM
+      // updateTableTotal(tableList.first, cartItems, skipFcm: true);
+      Active_Table_view table = tableList.first;
+      double newTotal = 0.0;
+      for (final item in cartItems) {
+        final int quantity = int.parse(item['qty'].toString());
+        final double price = double.parse(item['sellPrice'].toString());
+        newTotal += price * quantity;
+      }
+      table.total = newTotal;
+      activeBox.put(table);
+    } else {
+      debugPrint("Failed to send FCM notification: ${response.statusCode}");
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text("Failed to send order to kitchen"),
+          backgroundColor: Colors.red,
+          duration: Duration(seconds: 2),
+        ),
+      );
+    }
+    }
+  } catch (e) {
+    debugPrint("Error sending FCM notification: $e");
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text("Error sending order to kitchen: $e"),
+        backgroundColor: Colors.red,
+        duration: Duration(seconds: 2),
+      ),
+    );
+  }
+}
+
+
+
+  
+Future<void> processSettleTables() async {
+  try {
+    final dir = await getApplicationSupportDirectory();
+    final file = File("${dir.path}/pending_settle.json");
+
+    if (!file.existsSync()) {
+      debugPrint("❌ pending_settle.json file not found");
+      return;
+    }
+
+    final text = await file.readAsString();
+
+    debugPrint("pending_settle.json file $text");
+    if (text.isEmpty) return;
+
+    final List<dynamic> settleList = jsonDecode(text);
+
+    if (settleList.isEmpty) return;
+
+    final prefs = await SharedPreferences.getInstance();
+
+    for (var entry in settleList) {
+      if (entry is Map<String, dynamic>) {
+        final tableNo = entry['tableNo']?.toString();
+        if (tableNo != null) {
+          final key = "table$tableNo";
+          if (prefs.containsKey(key)) {
+            await prefs.remove(key);
+            debugPrint("✅ Removed table $tableNo from SharedPreferences");
+            // -----------------------------
+      // 5️⃣ Update ObjectBox table total
+      // -----------------------------
+      final store = Provider.of<ObjectBoxService>(context, listen: false).store;
+      final box = store.box<Active_Table_view>();
+
+      final query = box
+          .query(Active_Table_view_.number.equals(int.parse(tableNo)))
+          .build();
+
+      final tableList = query.find();
+      query.close();
+
+      if (tableList.isNotEmpty) {
+        final table = tableList.first;
+
+        // Update total inside ObjectBox
+        updateTableTotal(table, []);
+
+        final tableNo1 = int.tryParse(entry['tableNo']) ?? 0;
+          // 3. Find if an entry for this table already exists
+    final box = store.box<tableCart>();
+    final query = box.query(tableCart_.tableNo.equals(tableNo1)).build();
+    tableCart? existingTableCart = query.findFirst();
+    query.close();
+    debugPrint("✅ Updated cart for table #$tableNo in ObjectBox. existingTableCart $existingTableCart");
+
+    // 5. If the cart is empty, remove the entry from the database
+    if (existingTableCart != null) {
+      box.remove(existingTableCart.id);
+      debugPrint("🗑️ Removed empty cart for table #$tableNo from ObjectBox.");
+    }
+
+
+       
+
+        _loadTables(); // refresh UI
+
+        debugPrint("🔄 Updated ObjectBox table ${table.number}");
+      } else {
+        debugPrint("❌ No ObjectBox table found for number: $tableNo");
+      }
+
+          } else {
+            debugPrint("⚠️ Table $tableNo key not found in SharedPreferences");
+
+               final store = Provider.of<ObjectBoxService>(context, listen: false).store;
+      final box = store.box<Active_Table_view>();
+
+             final query = box
+          .query(Active_Table_view_.number.equals(int.parse(tableNo)))
+          .build();
+
+      final tableList = query.find();
+      query.close();
+
+  
+        final table = tableList.first;
+            updateTableTotal(table, [], skipFcm: true);
+
+
+              final tableNo1 = int.tryParse(entry['tableNo']) ?? 0;
+          // 3. Find if an entry for this table already exists
+    final box1 = store.box<tableCart>();
+    final query1 = box1.query(tableCart_.tableNo.equals(tableNo1)).build();
+    tableCart? existingTableCart = query1.findFirst();
+    query1.close();
+    debugPrint("✅ Updated cart for table #$tableNo in ObjectBox. existingTableCart $existingTableCart");
+
+    // 5. If the cart is empty, remove the entry from the database
+    if (existingTableCart != null) {
+      box1.remove(existingTableCart.id);
+      debugPrint("🗑️ Removed empty cart for table #$tableNo from ObjectBox.");
+
+    }
+
+     if (mounted) setState(() => _loadTables());
+          }
+        }
+      }
+    }
+
+    // Clear the pending_settle.json file after processing
+    await file.writeAsString("[]");
+    debugPrint("🧹 pending_settle.json cleared after processing");
+
+    
+  } catch (e) {
+    debugPrint("❌ Error processing settle tables: $e");
+  }
+}
+
+Future<void> readAndSaveToPrefsforkot() async {
+  try {
+    final dir = await getApplicationSupportDirectory();
+    final file = File("${dir.path}/pending_kot.json");
+
+    if (!file.existsSync()) {
+      debugPrint("❌ pending_kot.json not found");
+      return;
+    }
+
+    final raw = await file.readAsString();
+    debugPrint("pending_kot File → $raw");
+
+    final List<dynamic> rootList = jsonDecode(raw);
+
+    // STEP 1️⃣ : GROUP ITEMS BY TABLE
+    Map<String, List<Map<String, dynamic>>> tableMap = {};
+
+    for (var entry in rootList) {
+      final List<dynamic> items = entry["items"] ?? [];
+      if (items.isEmpty) continue;
+
+      final tableNo = items.first["tableno"]?.toString();
+      if (tableNo == null || tableNo.isEmpty) continue;
+
+      tableMap.putIfAbsent(tableNo, () => []);
+      tableMap[tableNo]!.addAll(
+        items.map<Map<String, dynamic>>((e) => Map<String, dynamic>.from(e))
+      );
+    }
+
+    // Access ObjectBox
+    final store = Provider.of<ObjectBoxService>(context, listen: false).store;
+    final activeBox = store.box<Active_Table_view>();
+    final cartBox = store.box<tableCart>();
+
+    // STEP 2️⃣ : PROCESS EACH TABLE ONCE
+    for (var tableNo in tableMap.keys) {
+      final int tNo = int.parse(tableNo);
+
+      // Check existing cart
+      final cartQuery =
+          cartBox.query(tableCart_.tableNo.equals(tNo)).build();
+      tableCart? existing = cartQuery.findFirst();
+      cartQuery.close();
+
+      // Decode old cart
+      List<Map<String, dynamic>> oldItems = [];
+      if (existing != null && existing.tCart.isNotEmpty) {
+        oldItems =
+            List<Map<String, dynamic>>.from(jsonDecode(existing.tCart));
+      }
+
+      // New KOT items
+      List<Map<String, dynamic>> newItems = tableMap[tableNo]!;
+
+      // STEP 3️⃣ : Merge (name + portion)
+      Map<String, Map<String, dynamic>> merged = {};
+
+      for (var item in oldItems) {
+        final key = "${item['name']}_${item['portion']}";
+        merged[key] = Map<String, dynamic>.from(item);
+      }
+
+      for (var item in newItems) {
+        final key = "${item['name']}_${item['portion']}";
+        if (merged.containsKey(key)) {
+          merged[key]!['qty'] =
+              (merged[key]!['qty'] as num) + (item['qty'] as num);
+          merged[key]!['total'] =
+              (merged[key]!['qty'] as num) * (merged[key]!['sellPrice'] as num);
+        } else {
+          merged[key] = Map<String, dynamic>.from(item);
+        }
+      }
+
+      final finalList = merged.values.toList();
+      final stringCart = jsonEncode(finalList);
+
+      // STEP 4️⃣ : SAVE IN OBJECTBOX (NOT SHAREDPREFS)
+      if (finalList.isNotEmpty) {
+        if (existing != null) {
+          existing.tCart = stringCart;
+          cartBox.put(existing);
+          debugPrint("🟢 Updated ObjectBox Cart → Table $tNo");
+
+
+        } else {
+          final newCart = tableCart(tableNo: tNo, tCart: stringCart);
+          cartBox.put(newCart);
+          debugPrint("🟢 Created ObjectBox Cart → Table $tNo");
+        }
+      } else {
+        if (existing != null) {
+          cartBox.remove(existing.id);
+          debugPrint("🗑️ Deleted empty cart → Table $tNo");
+        }
+      }
+
+      // STEP 5️⃣ : UPDATE ACTIVE TABLE TOTAL
+      final tQuery = activeBox
+          .query(Active_Table_view_.number.equals(tNo))
+          .build();
+
+      final tableList = tQuery.find();
+      tQuery.close();
+
+      if (tableList.isNotEmpty) {
+        
+        updateTableTotal(tableList.first, finalList,skipFcm: true);
+        debugPrint("🔄 Updated Table Total → $tNo (skipFcm)");
+      }
+    }
+
+    // STEP 6️⃣ : CLEAR FILE SAFELY
+    //ignoreNextWrite = true;
+    await file.writeAsString(jsonEncode([]));
+    lastKotHash = getMd5("[]");
+
+    debugPrint("🧹 pending_kot.json cleared successfully");
+
+    if (mounted) setState(() => _loadTables());
+  } catch (e) {
+    debugPrint("❌ Error → $e");
+  }
+}
+
+
+Future<void> readAndSaveToPrefs() async {
+  try {
+    final dir = await getApplicationSupportDirectory();
+    final file = File("${dir.path}/pending_kot.json");
+
+    if (!file.existsSync()) {
+      debugPrint("❌ pending_kot.json not found");
+      return;
+    }
+
+    final raw = await file.readAsString();
+    debugPrint("pending_kot File → $raw");
+
+    final List<dynamic> rootList = jsonDecode(raw);
+
+    // STEP 1️⃣ : GROUP ITEMS BY TABLE
+    Map<String, List<Map<String, dynamic>>> tableMap = {};
+
+    for (var entry in rootList) {
+      final List<dynamic> items = entry["items"] ?? [];
+      if (items.isEmpty) continue;
+
+      final tableNo = items.first["tableno"]?.toString();
+      if (tableNo == null || tableNo.isEmpty) continue;
+
+      tableMap.putIfAbsent(tableNo, () => []);
+      tableMap[tableNo]!.addAll(
+        items.map<Map<String, dynamic>>((e) => Map<String, dynamic>.from(e))
+      );
+    }
+
+    // Access ObjectBox
+    final store = Provider.of<ObjectBoxService>(context, listen: false).store;
+    final activeBox = store.box<Active_Table_view>();
+    final cartBox = store.box<tableCart>();
+
+    // STEP 2️⃣ : PROCESS EACH TABLE ONCE
+    for (var tableNo in tableMap.keys) {
+      final int tNo = int.parse(tableNo);
+
+      // Check existing cart
+      final cartQuery = cartBox.query(tableCart_.tableNo.equals(tNo)).build();
+      tableCart? existing = cartQuery.findFirst();
+      cartQuery.close();
+
+      // 🔥 NEW: Get only NEW items (no merging with old)
+      List<Map<String, dynamic>> newItems = tableMap[tableNo]!;
+      
+      // 🔥 OPTION A: Replace completely (overwrite old cart)
+      final stringCart = jsonEncode(newItems);
+
+      // STEP 4️⃣ : SAVE IN OBJECTBOX
+      if (newItems.isNotEmpty) {
+        if (existing != null) {
+          existing.tCart = stringCart;
+          cartBox.put(existing);
+          debugPrint("🟢 REPLACED ObjectBox Cart → Table $tNo (overwrote old)");
+        } else {
+          final newCart = tableCart(tableNo: tNo, tCart: stringCart);
+          cartBox.put(newCart);
+          debugPrint("🟢 Created new ObjectBox Cart → Table $tNo");
+        }
+      } else {
+        if (existing != null) {
+          cartBox.remove(existing.id);
+          debugPrint("🗑️ Deleted empty cart → Table $tNo");
+        }
+      }
+
+      // STEP 5️⃣ : UPDATE ACTIVE TABLE TOTAL
+      final tQuery = activeBox.query(Active_Table_view_.number.equals(tNo)).build();
+      final tableList = tQuery.find();
+      tQuery.close();
+
+      if (tableList.isNotEmpty) {
+        // 🔥 Calculate total from NEW items only
+        double newTotal = 0.0;
+        for (final item in newItems) {
+          final int quantity = int.parse(item['qty'].toString());
+          final double price = double.parse(item['sellPrice'].toString());
+          newTotal += price * quantity;
+        }
+        
+        // Update table with new total
+        tableList.first.total = newTotal;
+        activeBox.put(tableList.first);
+        
+        debugPrint("🔄 Updated Table Total → $tNo (₹${newTotal.toStringAsFixed(2)})");
+      }
+    }
+
+    // STEP 6️⃣ : CLEAR FILE
+    await file.writeAsString(jsonEncode([]));
+    lastKotHash = getMd5("[]");
+
+    debugPrint("🧹 pending_kot.json cleared successfully");
+
+    if (mounted) setState(() => _loadTables());
+  } catch (e) {
+    debugPrint("❌ Error → $e");
+  }
+}
+
+
+
+
+
+
+
 
   /// Adds a new table to the database and reloads the list.
 void _addNewTable() {
@@ -223,33 +867,45 @@ void _addNewTable() {
     _loadTables();
   }
       
-  void updateTableTotal(Active_Table_view table, List<Map<String, dynamic>> cart) {
+  void updateTableTotal(Active_Table_view table, List<Map<String, dynamic>> cart, {bool skipFcm = false}) async {
     double newTotal = 0.0;
-
-    debugPrint("item['sellPrice'], ${cart.runtimeType} ${cart}");
+    
+    debugPrint("updateTableTotal called with skipFcm: $skipFcm");
     
     // Loop through each item in the cart
     for (final item in cart) {
-      // ❗️ FIX: The value could be a String, int, or double.
-      // .toString() and parse() handles all cases safely.
       debugPrint("item['sellPrice'], ${item['sellPrice']}");
       final int quantity = int.parse(item['qty'].toString());
       final double price = double.parse(item['sellPrice'].toString());
-
-      // Perform the calculation
       newTotal += price * quantity;
     }
     
-    // Update the table's total property
-    table.total = newTotal;
-    
-    // Save the updated table object to the database
-    _tablesList.put(table); 
-    
-    _updateTableTimer(table.number, newTotal);
+    final double oldTotal = table.total ?? 0.0;
 
-    debugPrint("✅ Table #${table.number} total updated to: $newTotal from $cart");
-    setState(() { });
+    // Only update if total actually changed
+    if (newTotal != oldTotal) {
+      table.total = newTotal;
+      _tablesList.put(table); 
+      _updateTableTimer(table.number, newTotal);
+      debugPrint("🔥 Table #${table.number} total updated → ₹${newTotal.toStringAsFixed(2)}");
+      
+      // 🔥 PREVENT THE LOOP: Only send FCM if NOT skipping (i.e., not from FCM update)
+      if (!skipFcm) {
+        final prefs = await SharedPreferences.getInstance();
+        final role = prefs.getString('role');
+        
+        if (role == 'cashier') {
+          debugPrint("💰 Cashier role detected → sending FCM notification");
+          await sendFcmNotification(context, cart, table.number);
+        }
+      } else {
+        debugPrint("⏭️ Skipping FCM notification (skipFcm=true)");
+      }
+      
+      if (mounted) setState(() { });
+    } else {
+      debugPrint("⏭️ Table #${table.number} total unchanged → ₹$oldTotal");
+    }
   }
 
   Future<void> _updateTableTimer(int tableNumber, double total) async {
@@ -293,6 +949,11 @@ void _addNewTable() {
       return {};
     }
   }
+
+  Future<String?> _getUserRole() async {
+  final prefs = await SharedPreferences.getInstance();
+  return prefs.getString('role');
+}
 
   /// Navigates to the order page for the selected table
   void _navigateToOrderPage(Active_Table_view table) async {
@@ -343,19 +1004,19 @@ void _addNewTable() {
       // String? _cart1 = existingTableCart.tCart ?? "";
       debugPrint("item['sellPrice'] ${_cart1} cartProvider.cart ${(_cart1).runtimeType}");
       if ((_cart1 ?? '').isEmpty || _cart1 == null) {
-        updateTableTotal(table, []);
+        updateTableTotal(table, [], skipFcm: true);
         _loadTables();
       } else {
         final cartProvider = Provider.of<CartProvider>(context, listen: false);
         debugPrint("item['sellPrice'] ${cartProvider.cart.isNotEmpty} cartProvider.cart ${(cartProvider.cart).runtimeType}");
         if (cartProvider.cart.isNotEmpty){
-          updateTableTotal(table, cartProvider.cart);
+          updateTableTotal(table, cartProvider.cart,skipFcm: true);
           _loadTables();
         } else{
           final cart = jsonDecode(_cart1 ?? "[]");
           final cartData = List<Map<String, dynamic>>.from(cart); // Simpler conversion
           debugPrint("item['sellPrice'] ${cartData} cartProvider.cart ${cartData.runtimeType}");
-          updateTableTotal(table, cartData);
+          updateTableTotal(table, cartData, skipFcm: true);
           _loadTables();
         }
       }
@@ -383,44 +1044,88 @@ void _addNewTable() {
     final liveOrderTables = activeTables.where((t) => t.total > 0).toList();
     final liveOrderCount = liveOrderTables.length;
 
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Tables Orders'),
+return Scaffold(
+  appBar: AppBar(
+    title: const Text('Tables Orders'),
+    actions: [
+      // Sync button
+      IconButton(
+        icon: const Icon(Icons.sync),
+        tooltip: 'Sync',
+        onPressed: () async {
+          // Call your methods sequentially
+          await readAndSaveToPrefs();
+          await processSettleTables();
+          _loadTables();
+          debugPrint("✅ Sync completed");
+        },
       ),
-      
-      // 4. NEW: The body is now a Column
-      body: Column(
-        children: [
-          
-          // 5. NEW: The Live Orders Box
-          _buildLiveOrdersBox(liveOrderCount, liveOrderTables),
 
-          // 6. NEW: We wrap the ListView in Expanded
-          Expanded(
-            child: ListView.builder(
-              itemCount: sections.length,
-              itemBuilder: (context, index) {
-                final sectionName = sections[index];
-                final tablesInSecion = groupedTables[sectionName]!;
+      // Settings button
+      IconButton(
+        icon: const Icon(Icons.settings),
+        onPressed: () {
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => SettingsPage(menuItemBox: menuItemBox),
+            ),
+          );
+        },
+      ),
+    ],
+  ),
+  
+ body: FutureBuilder<String?>(
+  future: _getUserRole(),
+  builder: (context, snapshot) {
+    if (snapshot.connectionState == ConnectionState.waiting) {
+      return Center(child: CircularProgressIndicator());
+    }
+    
+    if (snapshot.hasError) {
+      return Center(child: Text('Error loading role'));
+    }
+    
+    final role = snapshot.data;
+    
+    return Column(
+      children: [
+        // Only show CaptainNameBox if role is NOT 'cashier'
+        if (role != 'cashier')
+          Padding(
+            padding: const EdgeInsets.all(12.0),
+            child: CaptainNameBox(),
+          ),
 
-                // --- The rest of your ListView.builder code is unchanged ---
-                return Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    // SECTION HEADER
-                    Padding(
-                      padding: const EdgeInsets.fromLTRB(15, 15, 15, 8),
-                      child: Text(
-                        sectionName,
-                        style: TextStyle(
-                          fontSize: 22,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.green.shade800,
-                        ),
-                      ),
-                    ),
+        // 🔥 Existing Live Orders Box
+        _buildLiveOrdersBox(liveOrderCount, liveOrderTables),
 
-                    // List of tables for this section
+        // Existing Expanded ListView
+        Expanded(
+          // ... your existing content
+       
+      child: ListView.builder(
+        itemCount: sections.length,
+        itemBuilder: (context, index) {
+          final sectionName = sections[index];
+          final tablesInSecion = groupedTables[sectionName]!;
+
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Padding(
+                padding: const EdgeInsets.fromLTRB(15, 15, 15, 8),
+                child: Text(
+                  sectionName,
+                  style: TextStyle(
+                    fontSize: 22,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.green.shade800,
+                  ),
+                ),
+              ),
+
                     GridView.builder(
                       padding: const EdgeInsets.symmetric(horizontal: 5),
                       shrinkWrap: true,
@@ -483,17 +1188,14 @@ void _addNewTable() {
                       },
                     ),
                   ],
-                );
-              },
-            ),
-          ),
-        ],
+          );
+        },
       ),
-      // floatingActionButton: FloatingActionButton(
-      //   onPressed: _addNewTable,
-      //   backgroundColor: Colors.green.shade700,
-      //   child: const Icon(Icons.add),
-      // ),
+        )
+      ],
+    );
+  },
+),
     );
   }
 
@@ -625,6 +1327,248 @@ void _addNewTable() {
 
 
 }
+
+class CaptainNameBox extends StatefulWidget {
+
+  
+  @override
+  State<CaptainNameBox> createState() => _CaptainNameBoxState();
+}
+
+class _CaptainNameBoxState extends State<CaptainNameBox> {
+ 
+  final TextEditingController _controller = TextEditingController();
+  String? captainName;
+  bool editing = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadCaptainName();
+  }
+
+  // 🔥 Load from SharedPreferences
+  Future<void> _loadCaptainName() async {
+    final prefs = await SharedPreferences.getInstance();
+    final savedName = prefs.getString("captain_name")?? '';
+
+    if (savedName != null && savedName.isNotEmpty) {
+      setState(() {
+        captainName = savedName;
+        editing = false;
+      });
+    }
+  }
+
+  // 🔥 Save to SharedPreferences
+  Future<void> _saveCaptainName(String name) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString("captain_name", name);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    
+    return Column(
+      
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+
+        // --- INPUT FIELD ---
+        if (editing) ...[
+          Row(
+            children: [
+              Expanded(
+                child: TextField(
+                  controller: _controller,
+                  decoration: const InputDecoration(
+                    labelText: "Enter Captain Name",
+                    border: OutlineInputBorder(),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 10),
+              ElevatedButton(
+                onPressed: () {
+                  final name = _controller.text.trim();
+                  if (name.isEmpty) return;
+
+                  _saveCaptainName(name);
+
+                  setState(() {
+                    captainName = name;
+                    editing = false;
+                  });
+                },
+                child: const Text("Add"),
+              )
+            ],
+          ),
+        ],
+
+        // --- DISPLAY SAVED NAME ---
+        if (!editing && captainName != null) ...[
+          Row(
+            children: [
+              Text(
+                "Captain Name: $captainName",
+                style: const TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.red, // You can change color here
+                ),
+              ),
+              IconButton(
+                icon: const Icon(Icons.edit),
+                onPressed: () {
+                  _controller.text = captainName!;
+                  setState(() => editing = true);
+                },
+              )
+            ],
+          ),
+        ],
+      ],
+    );
+  }
+
+  
+}
+
+class DeviceIdBox extends StatefulWidget {
+  @override
+  State<DeviceIdBox> createState() => _DeviceIdBoxState();
+}
+
+class _DeviceIdBoxState extends State<DeviceIdBox> {
+  String deviceId = "Loading...";
+  String role = "";
+  bool showFullId = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadDeviceInfo();
+  }
+
+  Future<void> _loadDeviceInfo() async {
+    final prefs = await SharedPreferences.getInstance();
+    setState(() {
+      deviceId = prefs.getString('device_id') ?? "Not set";
+      role = prefs.getString('role') ?? "Not set";
+    });
+  }
+
+  String _getShortDeviceId() {
+    if (deviceId.length <= 8) return deviceId;
+    return "${deviceId.substring(0, 4)}...${deviceId.substring(deviceId.length - 4)}";
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      elevation: 2,
+      color: Colors.blueGrey[50],
+      child: Padding(
+        padding: const EdgeInsets.all(12.0),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            // Left side: Device info
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Icon(Icons.device_hub, size: 16, color: Colors.blueGrey),
+                      SizedBox(width: 6),
+                      Text(
+                        'Device ID:',
+                        style: TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w500,
+                          color: Colors.blueGrey[700],
+                        ),
+                      ),
+                    ],
+                  ),
+                  GestureDetector(
+                    onTap: () {
+                      setState(() {
+                        showFullId = !showFullId;
+                      });
+                    },
+                    child: Container(
+                      margin: EdgeInsets.only(top: 4),
+                      padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(4),
+                        border: Border.all(color: Colors.grey[300]!),
+                      ),
+                      child: Row(
+                        children: [
+                          Icon(Icons.fingerprint, size: 14, color: Colors.grey),
+                          SizedBox(width: 6),
+                          Text(
+                            showFullId ? deviceId : _getShortDeviceId(),
+                            style: TextStyle(
+                              fontSize: 13,
+                              fontFamily: 'Monospace',
+                              color: Colors.grey[800],
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            
+            // Right side: Role info
+            Container(
+              padding: EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+              decoration: BoxDecoration(
+                color: _getRoleColor(),
+                borderRadius: BorderRadius.circular(20),
+              ),
+              child: Text(
+                role.toUpperCase(),
+                style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.white,
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Color _getRoleColor() {
+    switch (role.toLowerCase()) {
+      case 'cashier':
+        return Colors.green;
+      case 'captain':
+        return Colors.blue;
+      case 'admin':
+        return Colors.purple;
+      case 'kitchen':
+        return Colors.orange;
+      default:
+        return Colors.grey;
+    }
+  }
+}
+
+
+
+
 
 class TableTimerWidget extends StatefulWidget {
   final int tableNumber;

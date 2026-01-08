@@ -15,6 +15,8 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'Transctionreportpage.dart';
 import 'package:device_info_plus/device_info_plus.dart';
 
+import 'package:test1/table_selection/table_view.dart';
+
 
 // Create a secure storage instance (you can make this global or in a service)
 final FlutterSecureStorage secureStorage = const FlutterSecureStorage();
@@ -446,6 +448,7 @@ class _LoginPageState extends State<LoginPage> {
             final difference = extendedExpiry.difference(now).inDays;
             final role = data['role'];
             debugPrint("Expiry remaining3 ");
+            await prefs.setString('role', role);
 
             // Create a date-only version of "today" by setting the time to midnight
             final today = DateTime(now.year, now.month, now.day);
@@ -514,15 +517,15 @@ class _LoginPageState extends State<LoginPage> {
                 await secureStorage.delete(key: 'expiry_Date');
               }
               
-              if (role == 'owner' || role == 'admin') {
-                final allowedHotelStr =data['allowed_hotel']; // "gk,pradeep,tk,etc"
-                final allowedHotels = allowedHotelStr.split(',',); // ['gk', 'pradeep', 'tk', 'etc']
+              if (role == 'captain') {
+                // final allowedHotelStr =data['allowed_hotel']; // "gk,pradeep,tk,etc"
+                // final allowedHotels = allowedHotelStr.split(',',); // ['gk', 'pradeep', 'tk', 'etc']
                 
                 Navigator.pushReplacement(
                   context,
                   MaterialPageRoute(
                     builder: (context) =>
-                        Transctionreportpage(allowedHotels: allowedHotels),
+                       TableView()
                   ),
                 );
               } else {

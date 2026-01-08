@@ -33,8 +33,9 @@ import 'table_selection/table_view.dart';
 import 'package:test1/l10n/app_localizations.dart';
 import 'package:test1/cartprovier/locale_provider.dart';
 import '../utilities.dart';
-import 'package:test1/firebase/fcm_service.dart'; 
-import 'package:firebase_core/firebase_core.dart';
+
+import 'package:device_info_plus/device_info_plus.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 
 final printer = BillPrinter();
@@ -57,17 +58,10 @@ void main() async {
   await objectBoxService.init();
   HttpOverrides.global = MyHttpOverrides();
   final cartProvider = CartProvider();
-    WidgetsFlutterBinding.ensureInitialized();
-  
-  // 1. Initialize Firebase
-  // If you have firebase_options.dart:
-  // await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
-  // If not, just:
-  await Firebase.initializeApp();
+  WidgetsFlutterBinding.ensureInitialized();
 
-  // 2. Initialize FCM Service
-  await FcmService().initialize();
-  // await cartProvider.loadCart(); //
+  await initDeviceId(); // Initialize device ID
+
   runApp(
     MultiProvider(
       providers: [
@@ -154,6 +148,27 @@ DateTime getBusinessDate({int cutoffHour = 4}) {
     return now;
   }
 }
+
+
+Future<void> initDeviceId() async {
+  final prefs = await SharedPreferences.getInstance();
+  
+    final deviceInfo = DeviceInfoPlugin();
+    String deviceId;
+    
+    if (Platform.isAndroid) {
+      final androidInfo = await deviceInfo.androidInfo;
+      deviceId = androidInfo.id;
+    } else if (Platform.isIOS) {
+      final iosInfo = await deviceInfo.iosInfo;
+      deviceId = iosInfo.identifierForVendor ?? 'ios_${DateTime.now().millisecondsSinceEpoch}';
+    } else {
+      deviceId = 'unknown_${DateTime.now().millisecondsSinceEpoch}';
+    }
+    
+    await prefs.setString('device_id', deviceId);
+    debugPrint("📱 Device ID initialized: $deviceId");
+  }
 
 class DostiKitchenPage extends StatefulWidget {
   const DostiKitchenPage({super.key});
@@ -765,7 +780,7 @@ class _DostiKitchenPageState extends State<DostiKitchenPage> {
                   title: Text(AppLocalizations.of(context)!.sales_report),
                   onTap: () {
                     if(hide_sales_report){
-                      screen_massage(context, "Access Denied");
+                      screen_massage(context,AppLocalizations.of(context)!.access_denied);
                       return;
                     }
 
