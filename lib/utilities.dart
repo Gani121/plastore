@@ -90,6 +90,11 @@ void screen_massage(BuildContext context,String massage){
   );
 }
 
+String getHotelIdentifier(String username) {
+  // Split on "_captain" followed by optional digits
+  return username.split(RegExp(r'_captain\d*'))[0];
+}
+
 String getEpocDatetime() {
   String epoc_datetime =  DateTime.now().millisecondsSinceEpoch.toString();
   return epoc_datetime;
@@ -258,6 +263,7 @@ Future<http.Response?> apiCalls(
   String apiCalls,
   String hotelName,
   Map<String, Object?>  payload,
+  {String? token}
   ) async {
     print_log("apiCalls in utility $apiCalls hotelName $hotelName payload $payload");
     
@@ -270,12 +276,9 @@ Future<http.Response?> apiCalls(
         ).timeout(const Duration(seconds: 300));
         return response;
       case "m":
-        final response = await http
-          .get(
-            Uri.parse(
-              "https://api2.nextorbitals.in/api/get_menu.php?hotel_name=$hotelName&menutype=ac",
-            ),
-            headers: {'Content-Type': 'application/json'},
+        final response = await http.get(
+          Uri.parse("https://api2.nextorbitals.in/api/get_menu.php?hotel_name=$hotelName&menutype=ac",),
+          headers: {'Content-Type': 'application/json'},
           ).timeout(const Duration(seconds: 300));
         return response;
       case "a":
@@ -295,6 +298,17 @@ Future<http.Response?> apiCalls(
       case "i":
         final apiUrl = Uri.parse("https://api2.nextorbitals.in/api/menu_filename.php?hotel_name=${hotelName}",);
         http.Response response = await http.get(apiUrl);
+        return response;
+      case "s":
+        final response = await http.post(
+              Uri.parse('https://api2.nextorbitals.in/api/sent_fcm1.php'),
+              headers: {'Content-Type': 'application/json'},
+              body: json.encode(payload),
+            );
+        return response;
+      case "st":
+        final String apiUrl = 'https://api2.nextorbitals.in/api/save_token.php?hotel=$hotelName&token=$token';
+        final response = await http.get(Uri.parse(apiUrl));
         return response;
       default:
         return null;

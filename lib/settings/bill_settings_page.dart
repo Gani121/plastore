@@ -3,6 +3,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:test1/utilities.dart';
 
 const Map<String, String> switchPreferenceKeys = {
+  "1.1 Enable Captain": "startcaptain",
   "2.1 Enable Fast Billing": "enable_fast_billing",
   "2.2 Item Barcode Scanner": "item_barcode_scanner",
   "2.3 Calculator Billing For Retail": "calculator_in_billing_retail",
@@ -333,6 +334,7 @@ class _billSettingsPageState extends State<billSettingsPage> {
           sectionTitle("1. CURRENT PROFILE"),
           currentProfileBox(),
           const SizedBox(height: 20),
+          toggleTile("1.1 Enable Captain", "Unable captain cashier service."),
           sectionTitle("2. BILL SETTINGS"),
           itemSelector(),
           const SizedBox(height: 20),

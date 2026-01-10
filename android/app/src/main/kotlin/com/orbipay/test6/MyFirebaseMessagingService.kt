@@ -34,17 +34,18 @@ class MyFirebaseMessagingService : FirebaseMessagingService() {
     }
 
 
-fun showUserMessage(context: Context, message: String) {
-    Handler(Looper.getMainLooper()).post {
-        Toast.makeText(context, message, Toast.LENGTH_LONG).show()
+    fun showUserMessage(context: Context, message: String) {
+        Handler(Looper.getMainLooper()).post {
+            Toast.makeText(context, message, Toast.LENGTH_LONG).show()
+        }
     }
-}
     
 
 
     // Called when a message is received (foreground/background/killed)
     override fun onMessageReceived(message: RemoteMessage) {
         Log.d("FCM_MSG", "FCM Received: $message")
+        //showUserMessage(this, "FCM Received: $message")
         val printData = message.data["printData"] ?: ""
         Log.d("FCM_MSG", "FCM Received: $printData")
 
@@ -57,7 +58,7 @@ fun showUserMessage(context: Context, message: String) {
             startService(intent)
         }
        
- showUserMessage(this, "Background print triggered")
+    showUserMessage(this, "Background print triggered")
     }
 
     // Optional: fetch the current token anytime

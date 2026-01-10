@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -37,10 +39,29 @@ import '../utilities.dart';
 import 'package:device_info_plus/device_info_plus.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import 'package:firebase_core/firebase_core.dart';
+import 'firebase_options.dart';
+import 'package:firebase_messaging/firebase_messaging.dart';
 
 final printer = BillPrinter();
 String selectedStyle = "";
 bool _isOnline = true;
+
+@pragma('vm:entry-point')
+Future<void> _firebaseBackgroundMessage(RemoteMessage message) async {
+  await Firebase.initializeApp();
+  
+  final cart = message.data['printData'];
+  print_log("massage ${cart.runtimeType} $cart");
+  List<Map<String, dynamic>> cart1 = List<Map<String, dynamic>>.from(jsonDecode(cart));
+
+  print_log("massage ${cart1.runtimeType} ${cart1[0]['total']} $cart1 ");
+  int totalAmt = (cart1[0]['total'] as num).toInt();
+  int tableNum = int.tryParse(cart1[0]['tableno'].toString()) ?? 0;
+  // printer.printCart111111111(cart1:cart1,total:totalAmt,mode:'kot',payment_mode: "",transactionData:{},tableNo:tableNum);
+  
+  print_log("Background message new: ${message.data}, ${message.from}, ${message.notification},${message.senderId},${message.threadId},${message.sentTime},${message.threadId},${message.category},${message.messageType}");
+}
 
 class MyHttpOverrides extends HttpOverrides {
   @override
@@ -58,9 +79,25 @@ void main() async {
   await objectBoxService.init();
   HttpOverrides.global = MyHttpOverrides();
   final cartProvider = CartProvider();
-  WidgetsFlutterBinding.ensureInitialized();
+  // WidgetsFlutterBinding.ensureInitialized();
 
-  await initDeviceId(); // Initialize device ID
+  // await initDeviceId(); // Initialize device ID
+
+
+  // await _initializeFirebase();
+  // // Initialize Firebase
+  // await Firebase.initializeApp(
+  //   options: DefaultFirebaseOptions.currentPlatform,
+  // );
+  // FirebaseMessaging.onBackgroundMessage(_firebaseBackgroundMessage);
+  // // Request permission (iOS/macOS)
+  // await FirebaseMessaging.instance.requestPermission(
+  //   alert: true,
+  //   badge: true,
+  //   sound: true,
+  //   provisional: false,  // For provisional authorization
+  // );
+
 
   runApp(
     MultiProvider(
@@ -150,25 +187,26 @@ DateTime getBusinessDate({int cutoffHour = 4}) {
 }
 
 
-Future<void> initDeviceId() async {
-  final prefs = await SharedPreferences.getInstance();
+
+// Future<void> initDeviceId() async {
+//   final prefs = await SharedPreferences.getInstance();
   
-    final deviceInfo = DeviceInfoPlugin();
-    String deviceId;
+//     final deviceInfo = DeviceInfoPlugin();
+//     String deviceId;
     
-    if (Platform.isAndroid) {
-      final androidInfo = await deviceInfo.androidInfo;
-      deviceId = androidInfo.id;
-    } else if (Platform.isIOS) {
-      final iosInfo = await deviceInfo.iosInfo;
-      deviceId = iosInfo.identifierForVendor ?? 'ios_${DateTime.now().millisecondsSinceEpoch}';
-    } else {
-      deviceId = 'unknown_${DateTime.now().millisecondsSinceEpoch}';
-    }
+//     if (Platform.isAndroid) {
+//       final androidInfo = await deviceInfo.androidInfo;
+//       deviceId = androidInfo.id;
+//     } else if (Platform.isIOS) {
+//       final iosInfo = await deviceInfo.iosInfo;
+//       deviceId = iosInfo.identifierForVendor ?? 'ios_${DateTime.now().millisecondsSinceEpoch}';
+//     } else {
+//       deviceId = 'unknown_${DateTime.now().millisecondsSinceEpoch}';
+//     }
     
-    await prefs.setString('device_id', deviceId);
-    debugPrint("📱 Device ID initialized: $deviceId");
-  }
+//     await prefs.setString('device_id', deviceId);
+//     debugPrint("📱 Device ID initialized: $deviceId");
+//   }
 
 class DostiKitchenPage extends StatefulWidget {
   const DostiKitchenPage({super.key});

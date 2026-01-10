@@ -216,7 +216,7 @@ class SettingsPage extends StatelessWidget {
       // ✅ Insert fresh items
       for (int i = 0; i < menuItems.length; i++) {
         final item = menuItems[i];
-        debugPrint('💾 Saved item: ${item}');
+        // debugPrint('💾 Saved item: ${item}');
         _menuItemBox.put(item);
       }
     }else{
@@ -264,12 +264,17 @@ class SettingsPage extends StatelessWidget {
     if (proceed!) {
       // print("ApiCallPage started...");
       final prefs = await SharedPreferences.getInstance();
-      final username = prefs.getString(AppConstants.usernameKey) ?? "";
-      final hotelName = username;
-      // .split("_")
-      // .sublist(0, username.split("_").length - 1)
-      // .join("_");
-      // print("hotelName $hotelName");
+      final username = prefs.getString('username') ?? "";
+      final role = prefs.getString('role') ?? "";
+      var hotelName='';
+      if(role=="captain"){
+        hotelName = getHotelIdentifier(username);
+        // hotelName = username.split("_").sublist(0, username.split("_").length - 1).join("_");
+        debugPrint("hotelName $hotelName");
+      }else{
+         hotelName = username;
+         debugPrint("hotelName $hotelName");
+      }
 
       try {
         http.Response? response = await apiCalls("m",hotelName, {});
@@ -278,10 +283,10 @@ class SettingsPage extends StatelessWidget {
         }
         if (response.statusCode == 200) {
           final jsonData = jsonDecode(response.body);
-          // print("server response $jsonData");
+          // print_log("server response $jsonData");
 
           final dataList = jsonData['data'];
-          debugPrint("server response $dataList");
+          print_log("server response $dataList");
           if (dataList is List) {
             List<MenuItem> menuItems = dataList.map((item) => MenuItem.fromJson(item)).toList();
             saveMenuItemsReliably(menuItems);

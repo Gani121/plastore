@@ -5,6 +5,7 @@ import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:convert';
 import 'package:objectbox/objectbox.dart';
+import 'package:test1/utilities.dart';
 import 'dart:async';
 
 // --- Import your other files ---
@@ -57,11 +58,19 @@ class _TableViewState extends State<TableView> {
     cartProvider = Provider.of<CartProvider>(context,listen: false);
     
     // Load initial data
+    // Call your methods sequentially
     _loadTables();
     loadSelectedStyle();
 
     watchKOTFile();
     watchSettleFile();
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      if (!mounted) return;
+      await readAndSaveToPrefs();
+      await processSettleTables();
+      _loadTables();
+      debugPrint("✅ Sync completed");
+    });
   }
 
   /// Fetches all tables from ObjectBox and updates the UI.
@@ -102,11 +111,11 @@ void watchKOTFile() async {
     debugPrint("🆕 Created pending_kot.json");
   }
 
-  _kotWatcher =
-      kotFile.watch(events: FileSystemEvent.modify).listen((event) async {
+  _kotWatcher = kotFile.watch(events: FileSystemEvent.modify).listen((event) async {
     if (event.type != FileSystemEvent.modify) return;
 
     final text = await kotFile.readAsString();
+    debugPrint("⛔ text read from file $text");
     final currentHash = getMd5(text);
 
     if (currentHash == lastKotHash) {
@@ -146,9 +155,8 @@ void watchKOTFile() async {
             if(type == "KOT")
             {
                await readAndSaveToPrefsforkot();
-
             }else{
-            await readAndSaveToPrefs();
+              await readAndSaveToPrefs();
             }
             
             if (mounted) setState(() => _loadTables());
@@ -201,11 +209,14 @@ void watchSettleFile() async {
   });
 }
 
-// @override
-// void dispose() {
-//   _kotWatcher!.cancel(); // Cancel the watcher
-//   super.dispose();
-// }
+@override
+void dispose() {
+  _kotWatcher?.cancel(); // Cancel the watcher
+  _settleWatcher?.cancel();
+  _debounce?.cancel();
+  _settleDebounce?.cancel();
+  super.dispose();
+}
 
   Future<void> sendFcmNotification( BuildContext context, List<Map<String, dynamic>> cartItems ,int tablenumber) async {
   try {
@@ -282,15 +293,9 @@ void watchSettleFile() async {
     debugPrint("Sending FCM notification after table price upate: ${json.encode(requestData)}");
     
     // Make API call
-    final response = await http.post(
-      Uri.parse('https://api2.nextorbitals.in/api/sent_fcm1.php'),
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: json.encode(requestData),
-    );
+    final response = await apiCalls('s',hotelname,requestData);
     
-    if (response.statusCode == 200) {
+    if (response!.statusCode == 200) {
       debugPrint("FCM notification sent successfully");
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -620,10 +625,9 @@ Future<void> readAndSaveToPrefs() async {
       if (tableNo == null || tableNo.isEmpty) continue;
 
       tableMap.putIfAbsent(tableNo, () => []);
-      tableMap[tableNo]!.addAll(
-        items.map<Map<String, dynamic>>((e) => Map<String, dynamic>.from(e))
-      );
+      tableMap[tableNo]!.addAll(items.map<Map<String, dynamic>>((e) => Map<String, dynamic>.from(e)));
     }
+    print_log("create table map is $tableMap");
 
     // Access ObjectBox
     final store = Provider.of<ObjectBoxService>(context, listen: false).store;
@@ -634,25 +638,57 @@ Future<void> readAndSaveToPrefs() async {
     for (var tableNo in tableMap.keys) {
       final int tNo = int.parse(tableNo);
 
-      // Check existing cart
       final cartQuery = cartBox.query(tableCart_.tableNo.equals(tNo)).build();
       tableCart? existing = cartQuery.findFirst();
       cartQuery.close();
 
-      // 🔥 NEW: Get only NEW items (no merging with old)
       List<Map<String, dynamic>> newItems = tableMap[tableNo]!;
-      
-      // 🔥 OPTION A: Replace completely (overwrite old cart)
-      final stringCart = jsonEncode(newItems);
+      List<Map<String, dynamic>> combinedItems = [];
+
+      // Load existing items if they exist
+      if (existing != null && existing.tCart.isNotEmpty) {
+        try {
+          combinedItems = List<Map<String, dynamic>>.from(jsonDecode(existing.tCart));
+        } catch (e) {
+          debugPrint("Error decoding existing cart: $e");
+        }
+      }
+
+      // 🔥 FIX: Merge logic instead of .addAll()
+      for (var newItem in newItems) {
+        // Find if the item already exists in the combined list (check by ID)
+        int existingIndex = combinedItems.indexWhere((item) => item['name'] == newItem['name']);
+
+        if (existingIndex != -1) {
+          
+          int oldQty = (combinedItems[existingIndex]['qty'] as num? ?? 0).toInt();
+          int newQty = (newItem['qty'] as num? ?? 0).toInt();
+
+          double newPrice = (newItem['sellPrice'] as num? ?? 0.0).toDouble();
+
+          combinedItems[existingIndex]['qty'] = oldQty + newQty;
+          combinedItems[existingIndex]['total'] = (oldQty + newQty) * newPrice;
+          
+          debugPrint("marge and Updated ${newItem['name']} qty to ${combinedItems[existingIndex]['qty']} total to ${combinedItems[existingIndex]['total']}");
+        } else{
+          debugPrint("ITEM DOES NOT EXIST: Add new item $newItem");
+          // ITEM DOES NOT EXIST: Add new item
+          combinedItems.add(newItem);
+        }
+      }
+
+
+      final stringCartNew = jsonEncode(combinedItems);
+      print_log("stringCartNew $stringCartNew");
 
       // STEP 4️⃣ : SAVE IN OBJECTBOX
       if (newItems.isNotEmpty) {
         if (existing != null) {
-          existing.tCart = stringCart;
+          existing.tCart = stringCartNew;
           cartBox.put(existing);
-          debugPrint("🟢 REPLACED ObjectBox Cart → Table $tNo (overwrote old)");
+          debugPrint("🟢 Merged ObjectBox Cart → Table $tNo");
         } else {
-          final newCart = tableCart(tableNo: tNo, tCart: stringCart);
+          final newCart = tableCart(tableNo: tNo, tCart: stringCartNew);
           cartBox.put(newCart);
           debugPrint("🟢 Created new ObjectBox Cart → Table $tNo");
         }
@@ -668,21 +704,7 @@ Future<void> readAndSaveToPrefs() async {
       final tableList = tQuery.find();
       tQuery.close();
 
-      if (tableList.isNotEmpty) {
-        // 🔥 Calculate total from NEW items only
-        double newTotal = 0.0;
-        for (final item in newItems) {
-          final int quantity = int.parse(item['qty'].toString());
-          final double price = double.parse(item['sellPrice'].toString());
-          newTotal += price * quantity;
-        }
-        
-        // Update table with new total
-        tableList.first.total = newTotal;
-        activeBox.put(tableList.first);
-        
-        debugPrint("🔄 Updated Table Total → $tNo (₹${newTotal.toStringAsFixed(2)})");
-      }
+      updateTableTotal(tableList.first, combinedItems, skipFcm: true);
     }
 
     // STEP 6️⃣ : CLEAR FILE
@@ -870,7 +892,7 @@ void _addNewTable() {
   void updateTableTotal(Active_Table_view table, List<Map<String, dynamic>> cart, {bool skipFcm = false}) async {
     double newTotal = 0.0;
     
-    debugPrint("updateTableTotal called with skipFcm: $skipFcm");
+    debugPrint("updateTableTotal called with skipFcm: $skipFcm $cart");
     
     // Loop through each item in the cart
     for (final item in cart) {

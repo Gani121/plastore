@@ -309,7 +309,7 @@ class CartProvider extends ChangeNotifier {
     // Update item price in cart
   void updatePricePortion(
     String name,
-    int newPrice,
+    double newPrice,
     String portion, {
     int? tableNo,
   }) async {

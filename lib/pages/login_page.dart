@@ -17,6 +17,12 @@ import 'package:device_info_plus/device_info_plus.dart';
 
 import 'package:test1/table_selection/table_view.dart';
 
+import 'package:firebase_messaging/firebase_messaging.dart';
+import 'package:test1/settings/permissionUtils.dart';
+
+import 'package:firebase_core/firebase_core.dart';
+import './../firebase_options.dart';
+import 'package:firebase_messaging/firebase_messaging.dart';
 
 // Create a secure storage instance (you can make this global or in a service)
 final FlutterSecureStorage secureStorage = const FlutterSecureStorage();
@@ -44,6 +50,44 @@ class _LoginPageState extends State<LoginPage> {
     super.initState();
     _loadLoginDetails();
     getmodeldata();
+
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      if (!mounted) return;
+      
+        // Initialize permissions
+      await PermissionUtils.requestAllPermissions();
+      
+      // Check if permissions are granted before proceeding
+      final hasPermissions = await PermissionUtils.checkAllPermissions();
+      
+      if (!hasPermissions) {
+        screen_massage(context, "Please ganter permissions to continue");
+        await PermissionUtils.requestAllPermissions();
+      }
+    });
+
+  }
+
+  Future<void> _initializeFirebase() async {
+    final prefs = await SharedPreferences.getInstance();
+
+    // Initialize Firebase
+    await Firebase.initializeApp(
+      options: DefaultFirebaseOptions.currentPlatform,
+    );
+    // Request permission (iOS/macOS)
+    await FirebaseMessaging.instance.requestPermission(
+      alert: true,
+      badge: true,
+      sound: true,
+      provisional: true,  // For provisional authorization
+    );
+    
+    // Get device token
+    String? token = await FirebaseMessaging.instance.getToken();
+    print_log("FCM Token: $token");
+    await prefs.setString('device_id', token ?? "");
+    
   }
 
   Future<void> _loadLoginDetails() async {
@@ -388,6 +432,59 @@ class _LoginPageState extends State<LoginPage> {
     }
   }
 
+
+  Future<String?> readTokenFromJson() async {
+    try {
+      final dir = await getApplicationSupportDirectory();
+
+      final file = File("${dir.path}/fcm_token.json");
+
+      print_log("looking token $file");
+
+      if (!file.existsSync()) {
+        print_log("FCM token JSON file not found ❌");
+        return null;
+      }
+
+      final text = await file.readAsString();
+      final json = jsonDecode(text);
+
+      return json["token"];
+    } catch (e) {
+      print_log("Error reading token from JSON: $e");
+      return null;
+    }
+  }
+
+  void loadToken() async {
+    final prefs = await SharedPreferences.getInstance();
+      String? id = await prefs.getString('device_id');
+      String? token = id ?? await FirebaseMessaging.instance.getToken();
+      print_log("🔥 Loaded FCM Token from JSON: $token");
+      String? hotelname = prefs.getString('username');
+
+      if (token != null && hotelname != null) {
+        try {
+          
+          final response = await apiCalls('st',hotelname,{},token:token);
+
+          if (response!.statusCode == 200) {
+            print_log('Token saved successfully ✅');
+            print_log('Response: ${response.body}');
+          } else {
+            print_log('Failed to save token ❌');
+            print_log('Status Code: ${response.statusCode}');
+          }
+        } catch (e) {
+          print_log('Error while saving token: $e');
+          }
+      } else {
+        print_log('FCM token is null ❌');
+      }
+  }
+
+
+
   void _login() async {
     try{
     final email = _emailController.text.trim();
@@ -516,10 +613,17 @@ class _LoginPageState extends State<LoginPage> {
                 await secureStorage.delete(key: 'expiresAtStr');
                 await secureStorage.delete(key: 'expiry_Date');
               }
-              
+              // final prefs = await SharedPreferences.getInstance();
+              final captain = prefs.getBool('startcaptain') ?? false;
+              print_log("Captain $captain");
+              if(captain){
+                await _initializeFirebase().then((value)=> loadToken());
+                // loadToken();
+              }
               if (role == 'captain') {
                 // final allowedHotelStr =data['allowed_hotel']; // "gk,pradeep,tk,etc"
                 // final allowedHotels = allowedHotelStr.split(',',); // ['gk', 'pradeep', 'tk', 'etc']
+                await _initializeFirebase().then((value)=> loadToken());
                 
                 Navigator.pushReplacement(
                   context,

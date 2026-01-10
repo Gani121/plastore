@@ -122,6 +122,7 @@ fun saveKOTToFile(rawJson: String) {
         val file = File(filesDir, "pending_kot.json")
         val existing = if (file.exists()) file.readText() else "[]"
         val jsonArray = JSONArray(existing)
+        Log.w("PrintService", "Read cart from the file: $jsonArray")
 
         if (rawJson.startsWith("settle-")) {
             saveSettleToFile(rawJson)
@@ -142,6 +143,8 @@ fun saveKOTToFile(rawJson: String) {
         var isDuplicate = false
         for (i in 0 until jsonArray.length()) {
             val existingKot = jsonArray.getJSONObject(i)
+            Log.w("PrintService", "Read cart from the file existingKot: $existingKot")
+            Log.w("PrintService", "Read cart from the file newKot: $newKot")
             if (existingKot.toString() == newKot.toString()) {
                 isDuplicate = true
                 break
@@ -155,6 +158,7 @@ fun saveKOTToFile(rawJson: String) {
 
         // Save only unique KOT
         jsonArray.put(newKot)
+        Log.w("PrintService", "save cart in pending_kot file: ${jsonArray.toString()}")
         file.writeText(jsonArray.toString())
 
         Log.d("PrintService", "KOT saved: $rawJson")
@@ -272,115 +276,117 @@ if (numericTableNo == null) {
 }
 
 
-private fun generateBillFromJson(printData: String, total: Double): String {
-    val sb = StringBuilder()
-    val lineWidth = 32
+    private fun generateBillFromJson(printData: String, total: Double): String {
+        val sb = StringBuilder()
+        val lineWidth = 36
 
-    fun boldOn() = sb.append("\u001B\u0045\u0001")
-    fun boldOff() = sb.append("\u001B\u0045\u0000")
-    fun center() = sb.append("\u001B\u0061\u0001")
-    fun left() = sb.append("\u001B\u0061\u0000")
+        fun boldOn() = sb.append("\u001B\u0045\u0001")
+        fun boldOff() = sb.append("\u001B\u0045\u0000")
+        fun center() = sb.append("\u001B\u0061\u0001")
+        fun left() = sb.append("\u001B\u0061\u0000")
 
-    fun addLine(text: String) {
-        left()
-        if (text.length <= lineWidth) {
-            sb.append(text.padEnd(lineWidth)).append("\n")
-        } else {
-            var start = 0
-            while (start < text.length) {
-                val end = minOf(start + lineWidth, text.length)
-                sb.append(text.substring(start, end)).append("\n")
-                start = end
+        fun addLine(text: String) {
+            left()
+            if (text.length <= lineWidth) {
+                sb.append(text.padEnd(lineWidth)).append("\n")
+            } else {
+                var start = 0
+                while (start < text.length) {
+                    val end = minOf(start + lineWidth, text.length)
+                    sb.append(text.substring(start, end)).append("\n")
+                    start = end
+                }
             }
         }
-    }
 
-     val items = JSONArray(printData)
-     val item = items.getJSONObject(0)
-     val captain_name = item.getString("captain_name")
-     val Table_No = item.getString("tableno")
-
-     
-    // ==========================
-    // HEADER
-    // ==========================
-    center()
-    boldOn()
-    sb.append("KOT\n")
-    boldOff()
-
-    center()
-    sb.append("==============\n")
-    left()
-
-
-    addLine("captain Name : $captain_name")
-    addLine("Table No : $Table_No")
-    val kotDateTime = SimpleDateFormat("dd/MM/yyyy hh:mm a", Locale.getDefault()).format(Date())
-    addLine("KOT Time : $kotDateTime")
-    addLine("--------------------------------")
-
-    // COLUMN HEADER
-    boldOn()
-    addLine("Item           Note         Qty")
-    boldOff()
-    addLine("--------------------------------")
-
-    // ==========================
-    // ITEMS
-    // ==========================
-
-    try {
         val items = JSONArray(printData)
+        val item = items.getJSONObject(0)
+        val captain_name = item.getString("captain_name")
+        val Table_No = item.getString("tableno")
 
-        val nameWidth = 12
-        val noteWidth = 12
-        val qtyWidth = 3
+        
+        // ==========================
+        // HEADER
+        // ==========================
+        center()
+        boldOn()
+        sb.append("KOT\n")
+        boldOff()
 
-        for (i in 0 until items.length()) {
-            val item = items.getJSONObject(i)
+        center()
+        sb.append("==============\n")
+        left()
 
-            val name = item.getString("name")
-            val qty = item.getInt("qty")
-            val note = if (item.has("note")) item.getString("note") else ""
 
-            val qtyStr = qty.toString().padStart(qtyWidth, ' ')
+        addLine("captain Name : $captain_name")
+        addLine("Table No : $Table_No")
+        val kotDateTime = SimpleDateFormat("dd/MM/yyyy hh:mm a", Locale.getDefault()).format(Date())
+        addLine("KOT Time : $kotDateTime")
+        addLine("--------------------------------")
 
-            val wrappedName = wrapWords(name, nameWidth)
-            val wrappedNote = wrapWords(note, noteWidth)
+        // COLUMN HEADER
+        boldOn()
+        addLine("Item               Note     Qty")
+        boldOff()
+        addLine("--------------------------------")
 
-            val maxLines = maxOf(wrappedName.size, wrappedNote.size)
+        // ==========================
+        // ITEMS
+        // ==========================
 
-            for (lineIndex in 0 until maxLines) {
-                val namePart =
-                    if (lineIndex < wrappedName.size)
-                        wrappedName[lineIndex].padEnd(nameWidth)
-                    else
-                        " ".repeat(nameWidth)
+        try {
+            val items = JSONArray(printData)
 
-                val notePart =
-                    if (lineIndex < wrappedNote.size)
-                        wrappedNote[lineIndex].padEnd(noteWidth)
-                    else
-                        " ".repeat(noteWidth)
+            val nameWidth = 30
+            val noteWidth = 4
+            val qtyWidth = 4
 
-                val qtyPart =
-                    if (lineIndex == maxLines - 1)
-                        qtyStr
-                    else
-                        " ".repeat(qtyWidth)
+            for (i in 0 until items.length()) {
+                val item = items.getJSONObject(i)
 
-                addLine(namePart + notePart + qtyPart)
+                val name = item.getString("name")
+                val qty = item.getInt("qty")
+                val note = if (item.has("note")) item.getString("note") else ""
+
+                val qtyStr = qty.toString().padStart(qtyWidth, ' ')
+
+                val wrappedName = wrapWords(name, nameWidth)
+                val wrappedNote = wrapWords(note, noteWidth)
+
+                val maxLines = maxOf(wrappedName.size, wrappedNote.size)
+
+                for (lineIndex in 0 until maxLines) {
+                    val namePart =
+                        if (lineIndex < wrappedName.size)
+                            wrappedName[lineIndex].padEnd(nameWidth)
+                        else
+                            " ".repeat(nameWidth)
+
+                    val notePart =
+                        if (lineIndex < wrappedNote.size)
+                            wrappedNote[lineIndex].padEnd(noteWidth)
+                        else
+                            " ".repeat(noteWidth)
+
+                    val qtyPart =
+                        if (lineIndex == maxLines - 1)
+                            qtyStr
+                        else
+                            " ".repeat(qtyWidth)
+
+                    addLine(namePart + notePart + qtyPart)
+                }
             }
+
+        } catch (e: Exception) {
+            addLine("Invalid print data")
         }
 
-    } catch (e: Exception) {
-        addLine("Invalid print data")
+        addLine("--------------------------------")
+        addLine(".")
+        addLine(".")
+        return sb.toString()
     }
-
-    addLine("--------------------------------")
-    return sb.toString()
-}
 
     private fun printViaBluetooth(text: String) {
         try {
@@ -400,10 +406,11 @@ private fun generateBillFromJson(printData: String, total: Double): String {
 
             val device = adapter.getRemoteDevice(printerMac)
             val uuid = UUID.fromString("00001101-0000-1000-8000-00805F9B34FB")
+            Log.d("PrintService", "uuid: $uuid")
             val socket = device.createRfcommSocketToServiceRecord(uuid)
 
             adapter.cancelDiscovery()
-            Log.d("PrintService", "Connecting to printer: ${device.name} ${device.address}")
+            Log.d("PrintService", "Connecting to printer: ${uuid} ${device.name} ${device.address} ${device.uuids}")
             socket.connect()
             Log.d("PrintService", "Connected!")
 
@@ -420,7 +427,7 @@ private fun generateBillFromJson(printData: String, total: Double): String {
     }
 
 
-        private fun getPrinterMacFromJson(): String? {
+    private fun getPrinterMacFromJson(): String? {
         return try {
             val file = File(filesDir, "printer.json")   // <-- Yes, this is correct
             if (!file.exists()) {

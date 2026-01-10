@@ -15,7 +15,7 @@ class MainActivity : FlutterActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
-        fetchAndSaveFcmToken()
+        
     }
 
     private fun fetchAndSaveFcmToken() {

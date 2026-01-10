@@ -7,6 +7,10 @@ import 'dart:async';
 import 'package:flutter_blue_plus/flutter_blue_plus.dart' as bl;
 import 'package:test1/utilities.dart';
 
+import 'package:path_provider/path_provider.dart';
+import 'dart:io';
+import 'dart:convert';
+
 class PrinterSetupPage extends StatefulWidget {
   const PrinterSetupPage({super.key});
 
@@ -170,6 +174,21 @@ class _PrinterSetupPageState extends State<PrinterSetupPage> with WidgetsBinding
     // ✨ NEW: Use KOT-specific keys
     await prefs.setString('saved_KOT_printer_address', device.address ?? '');
     await prefs.setString('savedKOTDeviceName', device.name ?? "Unknown");
+    // await prefs.setString('selected_printer_uuid', device.name ?? "49535343-8841-43f4-a8d4-ecbe34729bb3");
+    // ----------- SAVE TO JSON FILE -------------
+    final dir = await getApplicationSupportDirectory();
+    final file = File("${dir.path}/printer.json");
+
+    final data = {
+      "printerName": device.name ?? "Unknown",
+      "printerAddress": device.address ?? "",
+      "uuid": _selectedUUID ?? "49535343-8841-43f4-a8d4-ecbe34729bb3",
+    };
+
+    await file.writeAsString(jsonEncode(data), flush: true);
+
+    print("📄 Printer saved in JSON: ${file.path}");
+    // ------------------------------------------
 
     setState(() {
       _selectedKOTDevice = device; // Set the active KOT device

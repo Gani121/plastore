@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:typed_data';
 import 'dart:convert';
+import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:test1/utilities.dart';
 import '../objectbox.g.dart';
@@ -394,9 +395,9 @@ class _DetailPageState extends State<DetailPage> {
               )
             else
               ...cart.map((item) {
-                final qty = item['qty'] ?? 0;
-                final price = item['sellPrice'] ?? 0;
-                final portion = item['portion'] ?? 'Full';
+                final qty = int.tryParse((item['qty'] ?? 0).toString()) ?? 0;
+                final price = double.tryParse((item['sellPrice'] ?? 0).toString()) ?? 0.0;
+                final portion = item['portion'] ?? '  Full';
                 final id = item['id'];
                 final String name = item['name'];
                 final total = item['total'].toString() is double
@@ -525,8 +526,8 @@ class _DetailPageState extends State<DetailPage> {
                               //   }
                               // },
                               onFieldSubmitted: (val) {
-                                final newPrice = int.tryParse(val) ?? price.toInt();
-                                if (newPrice > 0 && newPrice != price.toInt()) {
+                                double newPrice = double.tryParse(val) ?? price;
+                                if (newPrice > 0 && newPrice != price) {
                                   cartProvider.updatePricePortion(name, newPrice, portion);
                                   addtablecart(cartProvider);
                                 } else if( newPrice < 1 || newPrice.toString().isEmpty){
@@ -570,7 +571,7 @@ class _DetailPageState extends State<DetailPage> {
                                     border: OutlineInputBorder(),
                                   ),
                                   onFieldSubmitted: (val) {
-                                      final newQty = int.tryParse(val ?? qty) ?? qty;
+                                      final newQty = int.tryParse(val) ?? qty;
                                       if (newQty > 0 && newQty != qty) {
                                         cartProvider.updateQuantity(id, newQty, price, name, portion);
                                         addtablecart(cartProvider);
@@ -1366,36 +1367,36 @@ DateTime getBusinessDate({int cutoffHour = 4}) {
               ),
             ),
           ),
-          // Use a Consumer for the bottom bar so it updates automatically too
-          Consumer<CartProvider>(
-            builder: (context, cartProvider, child) {
-              print_log("Transaction Data,ordertype $ordertype-${_customerNameController.text}-${_mobileNoController.text}-${_customerAdreessController.text}-${(_discountAmountController1)} $_discountPercentController1 ${(_serviceChargeAmountController1)} ${(_serviceChargePercentController1)}  ");
-              return _BottomBar(
-                subtotalNotifier: subtotalNotifier,
-                discountNotifier: discountNotifier,
-                serviceChargeNotifier: serviceChargeNotifier,
-                cart: cartProvider.cart, // Pass the up-to-date cart
-                transaction: transaction,
-                mode:widget.mode,
-                table:widget.table,
-                discountAmount: _discountAmountController1,
-                discountPercent: _discountPercentController1,
-                serviceChargeAmount: _serviceChargeAmountController1,
-                serviceChargePercent: _serviceChargePercentController1,
-                name: _customerNameController.text,        // Use .text
-                mobileNo: _mobileNoController.text, // Use .text
-                adreess:_customerAdreessController.text,
-                billno: billNo,
-                cartProvider:cartProvider,
-                existingcart:existingcart,
-                addtablecart:addtablecart,
-                isRetail:isRetail,
-                ordertype:ordertype,
-                printer:printer
-              );
-            }
-          ),
         ],
+      ),
+      // Use a Consumer for the bottom bar so it updates automatically too
+      bottomNavigationBar: Consumer<CartProvider>(
+        builder: (context, cartProvider, child) {
+          print_log("Transaction Data,ordertype $ordertype-${_customerNameController.text}-${_mobileNoController.text}-${_customerAdreessController.text}-${(_discountAmountController1)} $_discountPercentController1 ${(_serviceChargeAmountController1)} ${(_serviceChargePercentController1)}  ");
+          return _BottomBar(
+            subtotalNotifier: subtotalNotifier,
+            discountNotifier: discountNotifier,
+            serviceChargeNotifier: serviceChargeNotifier,
+            cart: cartProvider.cart, // Pass the up-to-date cart
+            transaction: transaction,
+            mode:widget.mode,
+            table:widget.table,
+            discountAmount: _discountAmountController1,
+            discountPercent: _discountPercentController1,
+            serviceChargeAmount: _serviceChargeAmountController1,
+            serviceChargePercent: _serviceChargePercentController1,
+            name: _customerNameController.text,        // Use .text
+            mobileNo: _mobileNoController.text, // Use .text
+            adreess:_customerAdreessController.text,
+            billno: billNo,
+            cartProvider:cartProvider,
+            existingcart:existingcart,
+            addtablecart:addtablecart,
+            isRetail:isRetail,
+            ordertype:ordertype,
+            printer:printer
+          );
+        }
       ),
     );
   }
@@ -1890,7 +1891,7 @@ class __BottomBarState extends State<_BottomBar> {
           kotItem['qty'] = qtyToSend;
           
           // Recalculate the total for the KOT
-          kotItem['total'] = (kotItem['sellPrice'] as double) * qtyToSend;
+          kotItem['total'] = (double.tryParse(kotItem['sellPrice'].toString()) ?? 0.0) * qtyToSend;
           // debugPrint("oldCartMap.containsKey(key) ${kotItem}");
           kotItems.add(kotItem);
         }
@@ -1981,7 +1982,7 @@ class __BottomBarState extends State<_BottomBar> {
     // _sendTransactionSms(currentCustomer, newTransaction);
   }
 
-    void _sendTransactionSms(String no,String total,String recived,String pending) async {
+  void _sendTransactionSms(String no,String total,String recived,String pending) async {
     final pref = await SharedPreferences.getInstance();
     final bool SmsEnabled = pref.getBool('SmsEnabled') ?? false;
     if (!SmsEnabled || no.isEmpty) return;
@@ -2013,74 +2014,66 @@ class __BottomBarState extends State<_BottomBar> {
       return prefs.getString('role');
     }
 
-    Future<void> _sendsettleFcmNotification() async {
-      try {
-        // // Generate order ID
-        // String orderId = "ORD${DateTime.now().millisecondsSinceEpoch}";
+    Future<void> _sendsettleFcmNotification(String tableName) async {
+      final prefs = await SharedPreferences.getInstance();
+      final captain = prefs.getBool('startcaptain') ?? false;
+      print_log("Captain $captain");
+      if(captain){
+        try {
 
-        // Get table name
-        String tableName = widget.table != null
-            ? "${widget.table!['kot']}"
-            : "Takeaway";
+          if (tableName == "Takeaway") {
+            return;
+          }
 
-        if (tableName == "Takeaway") {
-          return;
+          final prefs = await SharedPreferences.getInstance();
+          final hotelname = prefs.getString("username") ?? '';
+
+          // Prepare the request data
+          Map<String, dynamic> requestData = {
+            "hotel": hotelname,
+            "data": {
+              "printData":
+                  "settle-$tableName", // Convert cart items to JSON string
+            },
+          };
+
+          debugPrint("Sending FCM notification to all: ${json.encode(requestData)}");
+
+          // Make API call
+          final response = await apiCalls('s',hotelname,requestData);
+
+          if (response!.statusCode == 200) {
+            print_log("FCM notification sent successfully to all");
+            // ScaffoldMessenger.of(context).showSnackBar(
+            //   SnackBar(
+            //     content: Text("Order sent to kitchen successfully"),
+            //     backgroundColor: Colors.green,
+            //     duration: Duration(seconds: 2),
+            //   ),
+            // );
+          } else {
+            print_log("Failed to send FCM notification: ${response.statusCode}");
+            // ScaffoldMessenger.of(context).showSnackBar(
+            //   SnackBar(
+            //     content: Text("Failed to send order to kitchen"),
+            //     backgroundColor: Colors.red,
+            //     duration: Duration(seconds: 2),
+            //   ),
+            // );
+          }
+        } catch (e) {
+          print_log_red("Error sending FCM notification: $e");
+          // ScaffoldMessenger.of(context).showSnackBar(
+          //   SnackBar(
+          //     content: Text("Error sending order to kitchen: $e"),
+          //     backgroundColor: Colors.red,
+          //     duration: Duration(seconds: 2),
+          //   ),
+          // );
         }
-
-        final prefs = await SharedPreferences.getInstance();
-        final hotelname = prefs.getString("username") ?? '';
-
-        // Prepare the request data
-        Map<String, dynamic> requestData = {
-          "hotel": hotelname,
-          "data": {
-            "printData":
-                "settle-$tableName", // Convert cart items to JSON string
-          },
-        };
-
-        debugPrint(
-          "Sending FCM notification to all: ${json.encode(requestData)}",
-        );
-
-        // Make API call
-        final response = await http.post(
-          Uri.parse('https://api2.nextorbitals.in/api/sent_fcm1.php'),
-          headers: {'Content-Type': 'application/json'},
-          body: json.encode(requestData),
-        );
-
-        if (response.statusCode == 200) {
-          debugPrint("FCM notification sent successfully to all");
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text("Order sent to kitchen successfully"),
-              backgroundColor: Colors.green,
-              duration: Duration(seconds: 2),
-            ),
-          );
-        } else {
-          debugPrint("Failed to send FCM notification: ${response.statusCode}");
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text("Failed to send order to kitchen"),
-              backgroundColor: Colors.red,
-              duration: Duration(seconds: 2),
-            ),
-          );
-        }
-      } catch (e) {
-        debugPrint("Error sending FCM notification: $e");
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text("Error sending order to kitchen: $e"),
-            backgroundColor: Colors.red,
-            duration: Duration(seconds: 2),
-          ),
-        );
       }
     }
-    // debugPrint("!_isChecked && (widget.mobileNo ?? "").isEmpty && (widget.name ?? "").isEmpty ${!_isChecked} && ${(widget.mobileNo ?? "").isEmpty} && ${(widget.name ?? "").isEmpty}");
+    
 
     Future<void> _sendFcmNotification(
       List<Map<String, dynamic>> cartItems,
@@ -2108,13 +2101,13 @@ class __BottomBarState extends State<_BottomBar> {
 
         if (hotelname == '') {
           debugPrint("Fail to sent ");
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text("Failed to send order for hotel $hotelname"),
-              backgroundColor: Colors.green,
-              duration: Duration(seconds: 2),
-            ),
-          );
+          // ScaffoldMessenger.of(context).showSnackBar(
+          //   SnackBar(
+          //     content: Text("Failed to send order for hotel $hotelname"),
+          //     backgroundColor: Colors.green,
+          //     duration: Duration(seconds: 2),
+          //   ),
+          // );
           return;
         }
 
@@ -2139,51 +2132,45 @@ class __BottomBarState extends State<_BottomBar> {
 
         // Prepare the request data
         Map<String, dynamic> requestData = {
-          "hotel": hotelname,
+          "hotel": getHotelIdentifier(hotelname),
           "data": {
-            "printData": json.encode(
-              updatedCart,
-            ), // Convert cart items to JSON string
+            "printData": json.encode(updatedCart), // Convert cart items to JSON string
           },
         };
 
         debugPrint("Sending FCM notification: ${json.encode(requestData)}");
 
         // Make API call
-        final response = await http.post(
-          Uri.parse('https://api2.nextorbitals.in/api/sent_fcm1.php'),
-          headers: {'Content-Type': 'application/json'},
-          body: json.encode(requestData),
-        );
+        final response = await apiCalls('s',hotelname,requestData);
 
-        if (response.statusCode == 200) {
+        if (response!.statusCode == 200) {
           debugPrint("FCM notification sent successfully");
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text("Order sent to kitchen successfully"),
-              backgroundColor: Colors.green,
-              duration: Duration(seconds: 2),
-            ),
-          );
+          // ScaffoldMessenger.of(context).showSnackBar(
+          //   SnackBar(
+          //     content: Text("Order sent to kitchen successfully"),
+          //     backgroundColor: Colors.green,
+          //     duration: Duration(seconds: 2),
+          //   ),
+          // );
         } else {
           debugPrint("Failed to send FCM notification: ${response.statusCode}");
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text("Failed to send order to kitchen"),
-              backgroundColor: Colors.red,
-              duration: Duration(seconds: 2),
-            ),
-          );
+          // ScaffoldMessenger.of(context).showSnackBar(
+          //   SnackBar(
+          //     content: Text("Failed to send order to kitchen"),
+          //     backgroundColor: Colors.red,
+          //     duration: Duration(seconds: 2),
+          //   ),
+          // );
         }
       } catch (e) {
         debugPrint("Error sending FCM notification: $e");
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text("Error sending order to kitchen: $e"),
-            backgroundColor: Colors.red,
-            duration: Duration(seconds: 2),
-          ),
-        );
+        // ScaffoldMessenger.of(context).showSnackBar(
+        //   SnackBar(
+        //     content: Text("Error sending order to kitchen: $e"),
+        //     backgroundColor: Colors.red,
+        //     duration: Duration(seconds: 2),
+        //   ),
+        // );
       }
     }
 
@@ -2209,7 +2196,9 @@ class __BottomBarState extends State<_BottomBar> {
         color: Colors.white,
         boxShadow: [BoxShadow(color: Colors.black12, blurRadius: 4)],
       ),
-      child: ValueListenableBuilder<double>(
+      child: SafeArea(
+        top: false,
+        child: ValueListenableBuilder<double>(
         valueListenable: widget.subtotalNotifier,
         builder: (context, subtotal, _) {
           return ValueListenableBuilder<double>(
@@ -2621,7 +2610,7 @@ class __BottomBarState extends State<_BottomBar> {
                                           transactionData : transactiondata,
                                           tableNo:tableno,
                                         );
-
+                                        _sendsettleFcmNotification(tableno.toString());
                                       } else{
                                         debugPrint("PrinterCart ${widget.cart} and transaction ${transactiondata}");
                                         await printer.printCart(
@@ -2633,6 +2622,7 @@ class __BottomBarState extends State<_BottomBar> {
                                           transactionData : transactiondata,
                                         );
                                       }
+                                    // _sendsettleFcmNotification();
                                     } else {
                                       debugPrint("Payment selection canceled OR cart is empty");
                                     }
@@ -2763,6 +2753,7 @@ class __BottomBarState extends State<_BottomBar> {
             },
           );
         },
+      ),
       ),
     );
   }
