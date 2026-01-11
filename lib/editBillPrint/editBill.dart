@@ -24,9 +24,8 @@ import 'package:path_provider/path_provider.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:test1/bill_printer.dart';
 import 'package:telephony_sms/telephony_sms.dart';
-
+import 'package:permission_handler/permission_handler.dart';
 import 'package:http/http.dart' as http;
-import 'dart:convert';
 
 class DetailPage extends StatefulWidget {
   final List<Map<String, dynamic>>? cart1;
@@ -1113,6 +1112,7 @@ DateTime getBusinessDate({int cutoffHour = 4}) {
                             // readOnly: true,        // Make it editable
                             onChanged: (value) {
                               transaction['reserved_field'] = value;
+                              setState(() {});
                             },
                             decoration: InputDecoration(
                               labelText: 'Online Order ID',
@@ -1202,6 +1202,7 @@ DateTime getBusinessDate({int cutoffHour = 4}) {
                                 transaction['customerName'] = value;
                                 // Update your external controller if you still use it elsewhere
                                 _customerNameController.text = value; 
+                                setState(() {});
                               },
                             );
                           },
@@ -1224,6 +1225,7 @@ DateTime getBusinessDate({int cutoffHour = 4}) {
                         controller: _customerAdreessController,
                         onChanged: (value) {
                           transaction['reserved'] =  value;
+                          setState(() {});
                           // setState(() {
                           //   _customerAdreessController.text = value;
                           // });
@@ -1240,10 +1242,7 @@ DateTime getBusinessDate({int cutoffHour = 4}) {
                                 controller: _mobileNoController,
                                 onChanged: (value) {
                                   transaction['mobileNo'] =  value;
-                                  // setState(() {
-                                  //   _transaction['mobileNo'] = value;
-                                  //   // _mobileNoController.text = value;
-                                  // });
+                                  setState(() {});
                                 },
                               ),
                             ),
@@ -1405,6 +1404,8 @@ DateTime getBusinessDate({int cutoffHour = 4}) {
 
 
 
+
+
 class ItemCard extends StatelessWidget {
   final int index;
   final VoidCallback onChanged;
@@ -1416,6 +1417,64 @@ class ItemCard extends StatelessWidget {
     required this.onDelete,
     super.key,
   });
+
+  // Update the _buildInputContainer method
+  Widget _buildInputContainer({
+    required String label,
+    required String value,
+    required Function(String) onChanged,
+  }) {
+    final controller = TextEditingController(text: value);
+    
+    return Container(
+      height: 36,
+      decoration: BoxDecoration(
+        border: Border.all(color: Colors.grey.shade400),
+        borderRadius: BorderRadius.circular(6),
+      ),
+      child: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 8),
+            decoration: BoxDecoration(
+              border: Border(right: BorderSide(color: Colors.grey.shade400)),
+            ),
+            child: Text(
+              label,
+              style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
+            ),
+          ),
+          Expanded(
+            child: TextFormField(
+              controller: controller,
+              textAlign: TextAlign.center,
+              keyboardType: TextInputType.number,
+              decoration: const InputDecoration(
+                contentPadding: EdgeInsets.only(bottom: 10),
+                border: InputBorder.none,
+              ),
+              style: const TextStyle(fontSize: 14),
+              onChanged: onChanged,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildIconButton(IconData icon, {VoidCallback? onPressed}) {
+    return Container(
+      width: 25,
+      height: 25,
+      decoration: BoxDecoration(border: Border.all(color: Colors.grey.shade400)),
+      child: IconButton(
+        icon: Icon(icon, size: 18),
+        onPressed: onPressed, // Update this line
+        padding: EdgeInsets.zero,
+        constraints: const BoxConstraints(),
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -1510,65 +1569,10 @@ class ItemCard extends StatelessWidget {
   }
 }
 
-// Update the _buildInputContainer method
-Widget _buildInputContainer({
-  required String label,
-  required String value,
-  required Function(String) onChanged,
-}) {
-  final controller = TextEditingController(text: value);
-  
-  return Container(
-    height: 36,
-    decoration: BoxDecoration(
-      border: Border.all(color: Colors.grey.shade400),
-      borderRadius: BorderRadius.circular(6),
-    ),
-    child: Row(
-      children: [
-        Container(
-          padding: const EdgeInsets.symmetric(horizontal: 8),
-          decoration: BoxDecoration(
-            border: Border(right: BorderSide(color: Colors.grey.shade400)),
-          ),
-          child: Text(
-            label,
-            style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
-          ),
-        ),
-        Expanded(
-          child: TextFormField(
-            controller: controller,
-            textAlign: TextAlign.center,
-            keyboardType: TextInputType.number,
-            decoration: const InputDecoration(
-              contentPadding: EdgeInsets.only(bottom: 10),
-              border: InputBorder.none,
-            ),
-            style: const TextStyle(fontSize: 14),
-            onChanged: onChanged,
-          ),
-        ),
-      ],
-    ),
-  );
-}
 
 
 
-Widget _buildIconButton(IconData icon, {VoidCallback? onPressed}) {
-  return Container(
-    width: 25,
-    height: 25,
-    decoration: BoxDecoration(border: Border.all(color: Colors.grey.shade400)),
-    child: IconButton(
-      icon: Icon(icon, size: 18),
-      onPressed: onPressed, // Update this line
-      padding: EdgeInsets.zero,
-      constraints: const BoxConstraints(),
-    ),
-  );
-}
+
 
 class _BottomBar extends StatefulWidget {
   final ValueNotifier<double> subtotalNotifier;
@@ -1635,6 +1639,7 @@ class __BottomBarState extends State<_BottomBar> {
   TextEditingController _receivedAmountController = TextEditingController();
   late int recivedamount = 0;
   final _telephonySMS = TelephonySMS();
+  int totalItems = 0;
   
   
   @override
@@ -1643,6 +1648,9 @@ class __BottomBarState extends State<_BottomBar> {
     // Initialize _orderType here, only once.
     loadordertype();
     _orderType = widget.ordertype ?? 'Dine-In';
+    _customermobile = widget.mobileNo ?? "";
+    _cusomername = widget.name ?? "";
+    _customeradd = widget.adreess ?? "";
     print_log("Controller text set to:- $_orderType  / ${widget.ordertype}");
 
   }
@@ -1907,10 +1915,6 @@ class __BottomBarState extends State<_BottomBar> {
     return (kotItems.isEmpty) ? oldCart : kotItems;
   }
 
-
-
-
-
   udhariCustomer _findOrCreateCustomer(Box<udhariCustomer> customerBox, String name, String phone,String adreess) {
     debugPrint("currentCustomer $name ");
 
@@ -1936,9 +1940,6 @@ class __BottomBarState extends State<_BottomBar> {
       return newCustomer;
     }
   }
-
-
-
 
   void saveEntry(String name, String phone,String adreess, String amountController, String descriptionController) {
     
@@ -1982,21 +1983,29 @@ class __BottomBarState extends State<_BottomBar> {
     // _sendTransactionSms(currentCustomer, newTransaction);
   }
 
-  void _sendTransactionSms(String no,String total,String recived,String pending) async {
+  void _sendTransactionSms(String no,String total,String recived,String pending , String sms) async {
     final pref = await SharedPreferences.getInstance();
     final bool SmsEnabled = pref.getBool('SmsEnabled') ?? false;
+    // print_log("massage $SmsEnabled $no");
     if (!SmsEnabled || no.isEmpty) return;
 
     String businessName = pref.getString('businessName') ?? 'Store';
     String customerName = (widget.name != null && widget.name!.isNotEmpty) ? widget.name! : "Customer";
-    final message = "Hi $customerName, Thank you for visiting $businessName! Your Bill Amount is $total. Received: $recived. Balance: $pending. Have a nice day!";
-
+    // final message = "Hi $customerName, Thank you for visiting $businessName! Your Bill Amount is $total. Received: $recived. Balance: $pending. Have a nice day!";
+    String message;
+    if (sms.length < 120){
+      message = sms;
+    } else {
+      message = "Hi $customerName,\nThanks for visiting $businessName!\nTotal: $total\nTotal Items: $totalItems\nWe hope to see you again soon!";
+    }
+    
+    print_log("massage $message");
     try {
-      await _telephonySMS.requestPermission();
       final pho_nu = "+91${extractLast10Digits((no).toString())}";
+      print_log("massage $pho_nu");
       await _telephonySMS.sendSMS(phone: pho_nu, message: message);
     } catch (error) {
-      debugPrint("Error sending SMS: $error");
+      print_log_red("Error sending SMS: $error");
     }
   }
 
@@ -2008,143 +2017,41 @@ class __BottomBarState extends State<_BottomBar> {
     return digitsOnly;
   }
 
-    
-    Future<String?> _getUserRole() async {
-      final prefs = await SharedPreferences.getInstance();
-      return prefs.getString('role');
-    }
+  Future<String?> _getUserRole() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getString('role');
+  }
 
-    Future<void> _sendsettleFcmNotification(String tableName) async {
-      final prefs = await SharedPreferences.getInstance();
-      final captain = prefs.getBool('startcaptain') ?? false;
-      print_log("Captain $captain");
-      if(captain){
-        try {
-
-          if (tableName == "Takeaway") {
-            return;
-          }
-
-          final prefs = await SharedPreferences.getInstance();
-          final hotelname = prefs.getString("username") ?? '';
-
-          // Prepare the request data
-          Map<String, dynamic> requestData = {
-            "hotel": hotelname,
-            "data": {
-              "printData":
-                  "settle-$tableName", // Convert cart items to JSON string
-            },
-          };
-
-          debugPrint("Sending FCM notification to all: ${json.encode(requestData)}");
-
-          // Make API call
-          final response = await apiCalls('s',hotelname,requestData);
-
-          if (response!.statusCode == 200) {
-            print_log("FCM notification sent successfully to all");
-            // ScaffoldMessenger.of(context).showSnackBar(
-            //   SnackBar(
-            //     content: Text("Order sent to kitchen successfully"),
-            //     backgroundColor: Colors.green,
-            //     duration: Duration(seconds: 2),
-            //   ),
-            // );
-          } else {
-            print_log("Failed to send FCM notification: ${response.statusCode}");
-            // ScaffoldMessenger.of(context).showSnackBar(
-            //   SnackBar(
-            //     content: Text("Failed to send order to kitchen"),
-            //     backgroundColor: Colors.red,
-            //     duration: Duration(seconds: 2),
-            //   ),
-            // );
-          }
-        } catch (e) {
-          print_log_red("Error sending FCM notification: $e");
-          // ScaffoldMessenger.of(context).showSnackBar(
-          //   SnackBar(
-          //     content: Text("Error sending order to kitchen: $e"),
-          //     backgroundColor: Colors.red,
-          //     duration: Duration(seconds: 2),
-          //   ),
-          // );
-        }
-      }
-    }
-    
-
-    Future<void> _sendFcmNotification(
-      List<Map<String, dynamic>> cartItems,
-    ) async {
+  Future<void> _sendsettleFcmNotification(String tableName) async {
+    final prefs = await SharedPreferences.getInstance();
+    final captain = prefs.getBool('startcaptain') ?? false;
+    print_log("Captain $captain");
+    if(captain){
       try {
-        // // Generate order ID
-        // String orderId = "ORD${DateTime.now().millisecondsSinceEpoch}";
-
-        // Get table name
-        String tableName = widget.table != null
-            ? "${widget.table!['kot']}"
-            : "Takeaway";
-
-        debugPrint("sentfcm trigger through eitbill $tableName");
 
         if (tableName == "Takeaway") {
           return;
         }
 
         final prefs = await SharedPreferences.getInstance();
-        final deviceId = prefs.getString('device_id') ?? 'unknown';
-        final captain_name = prefs.getString("captain_name") ?? '';
-        final role = prefs.getString("role") ?? '';
         final hotelname = prefs.getString("username") ?? '';
-
-        if (hotelname == '') {
-          debugPrint("Fail to sent ");
-          // ScaffoldMessenger.of(context).showSnackBar(
-          //   SnackBar(
-          //     content: Text("Failed to send order for hotel $hotelname"),
-          //     backgroundColor: Colors.green,
-          //     duration: Duration(seconds: 2),
-          //   ),
-          // );
-          return;
-        }
-
-        var order_tpe = '';
-
-        if (role == "captain") {
-          order_tpe = "KOT";
-        } else {
-          order_tpe = "OTHER";
-        }
-
-        List<Map<String, dynamic>> updatedCart = cartItems.map((item) {
-          return {
-            ...item,
-            "tableno": tableName, // 🔥 insert table name
-            "datafor": "ALL",
-            "sender_device": deviceId, // 🔥 ADD sender device ID
-            "captain_name": captain_name,
-            "type": order_tpe,
-          };
-        }).toList();
 
         // Prepare the request data
         Map<String, dynamic> requestData = {
-          "hotel": getHotelIdentifier(hotelname),
+          "hotel": hotelname,
           "data": {
-            "printData": json.encode(updatedCart), // Convert cart items to JSON string
+            "printData":
+                "settle-$tableName", // Convert cart items to JSON string
           },
         };
 
-        debugPrint("Sending FCM notification: ${json.encode(requestData)}");
+        debugPrint("Sending FCM notification to all: ${json.encode(requestData)}");
 
         // Make API call
         final response = await apiCalls('s',hotelname,requestData);
 
         if (response!.statusCode == 200) {
-          debugPrint("FCM notification sent successfully");
+          print_log("FCM notification sent successfully to all");
           // ScaffoldMessenger.of(context).showSnackBar(
           //   SnackBar(
           //     content: Text("Order sent to kitchen successfully"),
@@ -2153,7 +2060,7 @@ class __BottomBarState extends State<_BottomBar> {
           //   ),
           // );
         } else {
-          debugPrint("Failed to send FCM notification: ${response.statusCode}");
+          print_log("Failed to send FCM notification: ${response.statusCode}");
           // ScaffoldMessenger.of(context).showSnackBar(
           //   SnackBar(
           //     content: Text("Failed to send order to kitchen"),
@@ -2163,7 +2070,7 @@ class __BottomBarState extends State<_BottomBar> {
           // );
         }
       } catch (e) {
-        debugPrint("Error sending FCM notification: $e");
+        print_log_red("Error sending FCM notification: $e");
         // ScaffoldMessenger.of(context).showSnackBar(
         //   SnackBar(
         //     content: Text("Error sending order to kitchen: $e"),
@@ -2173,8 +2080,139 @@ class __BottomBarState extends State<_BottomBar> {
         // );
       }
     }
+  }
+  
+  Future<void> _sendFcmNotification(
+    List<Map<String, dynamic>> cartItems,
+  ) async {
+    try {
+      // // Generate order ID
+      // String orderId = "ORD${DateTime.now().millisecondsSinceEpoch}";
 
+      // Get table name
+      String tableName = widget.table != null
+          ? "${widget.table!['kot']}"
+          : "Takeaway";
 
+      debugPrint("sentfcm trigger through eitbill $tableName");
+
+      if (tableName == "Takeaway") {
+        return;
+      }
+
+      final prefs = await SharedPreferences.getInstance();
+      final deviceId = prefs.getString('device_id') ?? 'unknown';
+      final captain_name = prefs.getString("captain_name") ?? '';
+      final role = prefs.getString("role") ?? '';
+      final hotelname = prefs.getString("username") ?? '';
+
+      if (hotelname == '') {
+        debugPrint("Fail to sent ");
+        // ScaffoldMessenger.of(context).showSnackBar(
+        //   SnackBar(
+        //     content: Text("Failed to send order for hotel $hotelname"),
+        //     backgroundColor: Colors.green,
+        //     duration: Duration(seconds: 2),
+        //   ),
+        // );
+        return;
+      }
+
+      var order_tpe = '';
+
+      if (role == "captain") {
+        order_tpe = "KOT";
+      } else {
+        order_tpe = "OTHER";
+      }
+
+      List<Map<String, dynamic>> updatedCart = cartItems.map((item) {
+        return {
+          ...item,
+          "tableno": tableName, // 🔥 insert table name
+          "datafor": "ALL",
+          "sender_device": deviceId, // 🔥 ADD sender device ID
+          "captain_name": captain_name,
+          "type": order_tpe,
+        };
+      }).toList();
+
+      // Prepare the request data
+      Map<String, dynamic> requestData = {
+        "hotel": getHotelIdentifier(hotelname),
+        "data": {
+          "printData": json.encode(updatedCart), // Convert cart items to JSON string
+        },
+      };
+
+      debugPrint("Sending FCM notification: ${json.encode(requestData)}");
+
+      // Make API call
+      final response = await apiCalls('s',hotelname,requestData);
+
+      if (response!.statusCode == 200) {
+        debugPrint("FCM notification sent successfully");
+        // ScaffoldMessenger.of(context).showSnackBar(
+        //   SnackBar(
+        //     content: Text("Order sent to kitchen successfully"),
+        //     backgroundColor: Colors.green,
+        //     duration: Duration(seconds: 2),
+        //   ),
+        // );
+      } else {
+        debugPrint("Failed to send FCM notification: ${response.statusCode}");
+        // ScaffoldMessenger.of(context).showSnackBar(
+        //   SnackBar(
+        //     content: Text("Failed to send order to kitchen"),
+        //     backgroundColor: Colors.red,
+        //     duration: Duration(seconds: 2),
+        //   ),
+        // );
+      }
+    } catch (e) {
+      debugPrint("Error sending FCM notification: $e");
+      // ScaffoldMessenger.of(context).showSnackBar(
+      //   SnackBar(
+      //     content: Text("Error sending order to kitchen: $e"),
+      //     backgroundColor: Colors.red,
+      //     duration: Duration(seconds: 2),
+      //   ),
+      // );
+    }
+  }
+
+  /// In your real app, you would generate this from your actual bill data.
+  Future<String> _createBillString(CartProvider cartProvider) async {
+    // Example bill number - you can make this dynamic
+    final prefs = await SharedPreferences.getInstance();
+    String businessName = prefs.getString('businessName') ?? 'Hotel Test';
+    int totalAmount =  (cartProvider.total ?? 0);
+    final cartItems = (cartProvider.cart ?? []);
+    print_log( "item $cartItems");
+    // Use a StringBuffer for efficient string building in a loop
+    final itemsBuffer = StringBuffer();
+
+    for (var item in cartItems) {
+      // Safely access data from the map
+      print_log( "item $item");
+      final String name = item['name'] ?? 'Unknown Item';
+      final int qty = item['qty'] ?? 0;
+      totalItems += qty;
+
+      // Format each line item like: "1 x Coffee - $30.00"
+      itemsBuffer.writeln('$qty x $name');
+    }
+    String customerName = (widget.name != null && widget.name!.isNotEmpty) ? widget.name! : "Customer";
+
+    return 
+    '''
+Hi $customerName,
+$businessName
+Total ${totalAmount.toStringAsFixed(0)}
+${itemsBuffer.toString().trim()}
+Have a nice day!
+''';
+  }
 
 
 
@@ -2207,10 +2245,14 @@ class __BottomBarState extends State<_BottomBar> {
               return ValueListenableBuilder<double>(
                 valueListenable: widget.serviceChargeNotifier,
                 builder: (context, serviceCharge, _) {
-                  // final total = (cartProvider!.total + serviceCharge - discount).clamp(0,double.infinity,);
-                  // debugPrint("Transaction Data to be sent:$total $subtotal + $serviceCharge - $discount ${widget.subtotalNotifier.value} ${widget.serviceChargeNotifier.value} ${widget.discountNotifier.value}");
+                  
                   final total = ((widget.cartProvider?.total ?? 0) + serviceCharge - discount).clamp(0,double.infinity,);
                   transactiondata['udhari'] = !_isChecked;
+                  print_log("Data Recived in the Bottom bar Other: $total $subtotal + $serviceCharge - $discount ${widget.subtotalNotifier.value} ${widget.serviceChargeNotifier.value} ${widget.discountNotifier.value}");
+                  print_log("Data Recived in the Bottom bar cartProvider: ${widget.cartProvider?.cart}");
+                  print_log("Data Recived in the Bottom bar transaction: ${widget.transaction}");
+                  print_log("Data Recived in the Bottom bar Other2 ${_orderType}, ${_customermobile}, ${_cusomername} ${_customeradd} !widget.isRetail ${!widget.isRetail} !_isChecked ${!_isChecked}");
+
                   if (_isChecked) {
                     transactiondata['recivedamount'] = total;
                     transactiondata['pendingamount'] = 0.0;
@@ -2340,6 +2382,8 @@ class __BottomBarState extends State<_BottomBar> {
                         padding: const EdgeInsets.symmetric(horizontal: 5), // Adjust the value as needed
                         child: Row(
                           children: [
+
+                            // KOT BUtton
                             Expanded(
                               flex: 2,
                               child: ElevatedButton(
@@ -2384,7 +2428,7 @@ class __BottomBarState extends State<_BottomBar> {
                                           tableNo: tableno
                                         ).then((value) async {
                                             debugPrint("PrinterCart ${tableno}");
-                                            widget.addtablecart(cartProvider);
+                                            widget.addtablecart(widget.cartProvider);
                                             Navigator.of(context).pop(context);
                                         });
                                       } else{
@@ -2409,9 +2453,7 @@ class __BottomBarState extends State<_BottomBar> {
                                     }
                                   }
                                 },
-                                // ✅ 3. Show a loading indicator or text based on the state
-                                child: _isPrinting
-                                  ? const SizedBox(
+                                child: _isPrinting? const SizedBox(
                                       height: 20,
                                       width: 20,
                                       child: CircularProgressIndicator(
@@ -2426,7 +2468,7 @@ class __BottomBarState extends State<_BottomBar> {
                                   ),
                                 ),
                             const SizedBox(width: 6),
-
+                            
                             // Print Button - Only show if role is not captain
                             FutureBuilder<String?>(
                               future: _getUserRole(),
@@ -2458,7 +2500,7 @@ class __BottomBarState extends State<_BottomBar> {
                                   try {
                                     if(tableno > 0){
                                       final ttid = prefs.getInt("tt${tableno}");
-                                      widget.addtablecart(cartProvider);
+                                      widget.addtablecart(widget.cartProvider);
                                       await printer.printCart(context: context,
                                                       cart1: widget.cart,
                                                       total:total.toInt(),
@@ -2506,7 +2548,6 @@ class __BottomBarState extends State<_BottomBar> {
                                 );
                               }
                             ),
-                                                        // Add SizedBox only if Print button is visible
                             FutureBuilder<String?>(
                               future: _getUserRole(),
                               builder: (context, snapshot) {
@@ -2523,7 +2564,8 @@ class __BottomBarState extends State<_BottomBar> {
                                 return const SizedBox(width: 6);
                               },
                             ),
-                                                        // Settle Button - Only show if role is not captain
+                            
+                            // Settle Button - Only show if role is not captain
                             FutureBuilder<String?>(
                               future: _getUserRole(),
                               builder: (context, snapshot) {
@@ -2596,11 +2638,18 @@ class __BottomBarState extends State<_BottomBar> {
                                       }
                                     }
 
-                                    debugPrint("Transaction Data to be sent: $subtotal + $serviceCharge - $discount ${widget.subtotalNotifier.value} ${widget.serviceChargeNotifier.value} ${widget.discountNotifier.value}");
+                                    if(widget.cartProvider != null){
+                                      // final cartProvider = Provider.of<CartProvider>(context, listen: false);
+                                      String billDetails = await _createBillString(widget.cartProvider!);  
+                                      // print_log("massage going to send sms --${_customermobile}--");
+                                      _sendTransactionSms(_customermobile, total.toStringAsFixed(0), recivedamount.toStringAsFixed(0), (total - recivedamount).toStringAsFixed(0),billDetails);
+                                    }
 
+                                    // debugPrint("Transaction Data to be sent: transactiondata ${transactiondata}-${widget.mobileNo} $recivedamount $subtotal + $serviceCharge - $discount ${widget.subtotalNotifier.value} ${widget.serviceChargeNotifier.value} ${widget.discountNotifier.value}");
+                                    // debugPrint("!_isChecked going to udhari${!_forudhari} ${!_isChecked}-${(_customermobile)}-${(_cusomername)}");
                                     if (paymentMode != null && (widget.cart).isNotEmpty) {
                                       if(tableno > 0){
-                                        debugPrint("PrinterCart ${tableno} and transactiondata ${transactiondata}");
+                                        // debugPrint("PrinterCart ${tableno} and transactiondata ${transactiondata}");
                                         await printer.printCart(
                                           context: context,
                                           cart1: widget.cart,
@@ -2612,7 +2661,7 @@ class __BottomBarState extends State<_BottomBar> {
                                         );
                                         _sendsettleFcmNotification(tableno.toString());
                                       } else{
-                                        debugPrint("PrinterCart ${widget.cart} and transaction ${transactiondata}");
+                                        // debugPrint("PrinterCart ${widget.cart} and transaction ${transactiondata}");
                                         await printer.printCart(
                                           context: context,
                                           cart1: widget.cart,
@@ -2628,14 +2677,11 @@ class __BottomBarState extends State<_BottomBar> {
                                     }
 
                                     if(!_isChecked){
-                                      debugPrint("!_isChecked going to udhari${!_forudhari} ${!_isChecked}-${(_customermobile.isEmpty)}-${(_cusomername.isEmpty)}");
+                                      // debugPrint("!_isChecked going to udhari${!_forudhari} ${!_isChecked}-${(_customermobile.isEmpty)}-${(_cusomername.isEmpty)}");
                                       String descriptionController = "Bill No- ${widget.billno} on date- ${DateTime.now()}";
-                                      debugPrint("currentCustomer $descriptionController");
-
+                                      // debugPrint("currentCustomer $descriptionController");
                                       saveEntry(widget.name ?? "" , widget.mobileNo ?? "" ,widget.adreess ?? "", (total - recivedamount).toStringAsFixed(0), descriptionController);
                                     }
-                                    
-                                    _sendTransactionSms(widget.mobileNo ?? "", total.toStringAsFixed(2), recivedamount.toStringAsFixed(2), (total - recivedamount).toStringAsFixed(2));
                                     
                                   } finally {
                                     if (mounted) { 
@@ -2663,7 +2709,6 @@ class __BottomBarState extends State<_BottomBar> {
                                 );
                               }
                             ),
-                            // Add SizedBox only if Print button is visible
                             FutureBuilder<String?>(
                               future: _getUserRole(),
                               builder: (context, snapshot) {
@@ -2680,6 +2725,8 @@ class __BottomBarState extends State<_BottomBar> {
                                 return const SizedBox(width: 6);
                               },
                             ),
+                            
+                            // ADD BUTTON
                             if (tableno > 0 )
                               FutureBuilder<String?>(
                               future: _getUserRole(),
@@ -2712,7 +2759,7 @@ class __BottomBarState extends State<_BottomBar> {
                                     try {
                                     if(tableno > 0){
 
-                                        widget.addtablecart(cartProvider);
+                                        widget.addtablecart(widget.cartProvider);
                                         Navigator.of(context).pop(context);
                                       }
                                       

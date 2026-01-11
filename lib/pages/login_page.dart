@@ -14,12 +14,9 @@ import 'package:archive/archive_io.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'Transctionreportpage.dart';
 import 'package:device_info_plus/device_info_plus.dart';
-
 import 'package:test1/table_selection/table_view.dart';
-
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:test1/settings/permissionUtils.dart';
-
 import 'package:firebase_core/firebase_core.dart';
 import './../firebase_options.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
@@ -50,22 +47,26 @@ class _LoginPageState extends State<LoginPage> {
     super.initState();
     _loadLoginDetails();
     getmodeldata();
-
+    
     WidgetsBinding.instance.addPostFrameCallback((_) async {
-      if (!mounted) return;
-      
-        // Initialize permissions
-      await PermissionUtils.requestAllPermissions();
-      
-      // Check if permissions are granted before proceeding
-      final hasPermissions = await PermissionUtils.checkAllPermissions();
-      
-      if (!hasPermissions) {
-        screen_massage(context, "Please ganter permissions to continue");
-        await PermissionUtils.requestAllPermissions();
-      }
+      await PermissionUtils.requestsmsPermissions();
     });
 
+  }
+
+  Future<void> hasSmsPermission() async {
+    if (!mounted) return;
+    
+    // Initialize permissions
+    await PermissionUtils.requestAllPermissions();
+    
+    // Check if permissions are granted before proceeding
+    final hasPermissions = await PermissionUtils.checkAllPermissions();
+    
+    if (!hasPermissions) {
+      screen_massage(context, "Please ganter permissions to continue");
+      // await PermissionUtils.requestAllPermissions();
+    }
   }
 
   Future<void> _initializeFirebase() async {
@@ -486,6 +487,7 @@ class _LoginPageState extends State<LoginPage> {
 
 
   void _login() async {
+    await hasSmsPermission();
     try{
     final email = _emailController.text.trim();
     final password = _passwordController.text.trim();

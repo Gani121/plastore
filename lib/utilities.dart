@@ -339,3 +339,65 @@ Future<DateTime> getBussinessDate() async {
 
 
 
+
+  Future<bool> askPassword(BuildContext context) async {
+    final TextEditingController _pwdController = TextEditingController();
+    bool verified = false;
+
+    await showDialog(
+      context: context,
+      builder: (ctx) {
+        return AlertDialog(
+          title: Text("Enter Password"),
+          content: TextField(
+            controller: _pwdController,
+            keyboardType: TextInputType.number, // 🔑 Number keypad
+            obscureText: true,
+            decoration: InputDecoration(
+              hintText: "Password",
+              border: OutlineInputBorder(),
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () {
+                Navigator.pop(ctx); // cancel
+              },
+              child: Text("Cancel"),
+            ),
+            ElevatedButton(
+              onPressed: () async {
+                final savedPwd = await getSavedPassword();
+                // print_log("_pwdController.text == savedPwd ${_pwdController.text} $savedPwd}");
+                if (_pwdController.text == savedPwd) {
+                  // print_log(  "verifyed $verified");
+                  verified = true;
+                  // print_log(  "verifyed $verified");
+                  Navigator.pop(ctx); // ✅ close only if correct
+                } else {
+                  // print_log(  "verifyed else $verified");
+                  await ScaffoldMessenger.of(ctx).showSnackBar(
+                    SnackBar(
+                      content: Text("❌ Password is wrong"),
+                      backgroundColor: Colors.red,
+                    ),
+                  );
+                }
+              },
+              child: Text("OK"),
+            ),
+          ],
+        );
+      },
+    );
+    print_log(  "verifyed end $verified");
+    return verified;
+  }
+
+  Future<String?> getSavedPassword() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getString(AppConstants.appPasswordKey) ?? "1234"; // 🔑 key for password
+  }
+
+
+

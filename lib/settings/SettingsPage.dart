@@ -47,61 +47,8 @@ class SettingsPage extends StatelessWidget {
     "PAGES",
   ];
 
-  Future<String?> getSavedPassword() async {
-    final prefs = await SharedPreferences.getInstance();
-    return prefs.getString(AppConstants.appPasswordKey); // 🔑 key for password
-  }
 
-  Future<bool> _askPassword(BuildContext context) async {
-    final TextEditingController _pwdController = TextEditingController();
-    bool verified = false;
 
-    await showDialog(
-      context: context,
-      builder: (ctx) {
-        return AlertDialog(
-          title: Text("Enter Password"),
-          content: TextField(
-            controller: _pwdController,
-            keyboardType: TextInputType.number, // 🔑 Number keypad
-            obscureText: true,
-            decoration: InputDecoration(
-              hintText: "Password",
-              border: OutlineInputBorder(),
-            ),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () {
-                Navigator.pop(ctx); // cancel
-              },
-              child: Text("Cancel"),
-            ),
-            ElevatedButton(
-              onPressed: () async {
-                final savedPwd = await getSavedPassword();
-
-                if (_pwdController.text == savedPwd) {
-                  verified = true;
-                  Navigator.pop(ctx); // ✅ close only if correct
-                } else {
-                  ScaffoldMessenger.of(ctx).showSnackBar(
-                    SnackBar(
-                      content: Text("❌ Password is wrong"),
-                      backgroundColor: Colors.red,
-                    ),
-                  );
-                }
-              },
-              child: Text("OK"),
-            ),
-          ],
-        );
-      },
-    );
-
-    return verified;
-  }
 
   Future<void> downloadHotelZip(BuildContext context, String hotelName) async {
     try {
@@ -362,14 +309,14 @@ class SettingsPage extends StatelessWidget {
                         borderRadius: BorderRadius.circular(6),
                       ),
                     ),
-                    onPressed: () {
+                    onPressed: () async {
                       // ScaffoldMessenger.of(context).showSnackBar(
                       //   SnackBar(content: Text('Selected: ${index}')),
                       // );
 
                       //profile setting
                       if (index == 0) {
-                        Navigator.push(
+                       await Navigator.push(
                           context,
                           MaterialPageRoute(
                             builder: (context) => ProfilePage(),
@@ -378,7 +325,7 @@ class SettingsPage extends StatelessWidget {
                       }
                       //billing setting
                       if (index == 1) {
-                        Navigator.push(
+                        await Navigator.push(
                           context,
                           MaterialPageRoute(builder: (_) => billSettingsPage()),
                         );
@@ -386,14 +333,14 @@ class SettingsPage extends StatelessWidget {
 
                       //printer setting
                       if (index == 2) {
-                        Navigator.push(
+                        await Navigator.push(
                           context,
                           MaterialPageRoute(builder: (_) => PrinterSetupPage()),
                         );
                       }
 
                       if (index == 6) {
-                        Navigator.push(
+                        await Navigator.push(
                           context,
                           MaterialPageRoute(
                             builder: (context) => BulkUploadPage(),
@@ -402,7 +349,7 @@ class SettingsPage extends StatelessWidget {
                       }
 
                       if (index == 8) {
-                        Navigator.push(
+                        await Navigator.push(
                           context,
                           MaterialPageRoute(
                             builder: (context) => ThemeSelectorPage(),
@@ -411,7 +358,7 @@ class SettingsPage extends StatelessWidget {
                       }
 
                       if (index == 9) {
-                        Navigator.push(
+                        await Navigator.push(
                           context,
                           MaterialPageRoute(
                             builder: (context) => LanguageSelectionPage(),
@@ -422,7 +369,7 @@ class SettingsPage extends StatelessWidget {
                       
                       if (index == 11) {
                         debugPrint("going to apicall");
-                        ApiCallPage(context);
+                        await ApiCallPage(context);
                       }
 
                       if (index == 12) {
@@ -431,17 +378,21 @@ class SettingsPage extends StatelessWidget {
                       }
 
                       if (index == 13) {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (context) => hideData(),
-                          ),
-                        );
+                        final bool verifyed = await askPassword(context);
+                        // print_log(  "verifyed in setting $verifyed");
+                        if (verifyed) {
+                          await Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) => hideData(),
+                            ),
+                          );
+                        }
                       }
 
 
                       if (index == 14) {
-                        Navigator.push(
+                        await Navigator.push(
                           context,
                           MaterialPageRoute(
                             builder: (context) => ReceiptPage(),
@@ -541,7 +492,7 @@ void showChangePasswordDialog(BuildContext context) {
 
                   await prefs.setString(AppConstants.appPasswordKey,_newPwdController.text.trim(),);
 
-                  Navigator.pop(ctx); // close dialog
+                  Navigator.pop(context); // close dialog
                   ScaffoldMessenger.of(context).showSnackBar(
                     SnackBar(
                       content: Text("✅ Password updated successfully!"),
@@ -559,5 +510,90 @@ void showChangePasswordDialog(BuildContext context) {
   );
 }
 
+void Askforpasword(BuildContext context) {
+  final TextEditingController _oldPwdController = TextEditingController();
+  final TextEditingController _newPwdController = TextEditingController();
+
+  showDialog(
+    context: context,
+    builder: (ctx) {
+      String? errorMsg;
+
+      return StatefulBuilder(
+        builder: (ctx, setState) {
+          return AlertDialog(
+            title: Text("Enter Password"),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                // TextField(
+                //   controller: _oldPwdController,
+                //   obscureText: true,
+                //   keyboardType: TextInputType.number,
+                //   decoration: InputDecoration(
+                //     labelText: "Old Password",
+                //     border: OutlineInputBorder(),
+                //   ),
+                // ),
+                // SizedBox(height: 10),
+                TextField(
+                  controller: _newPwdController,
+                  obscureText: true,
+                  keyboardType: TextInputType.number,
+                  decoration: InputDecoration(
+                    labelText: "Enter Password",
+                    border: OutlineInputBorder(),
+                  ),
+                ),
+                if (errorMsg != null)
+                  Padding(
+                    padding: const EdgeInsets.only(top: 8.0),
+                    child: Text(errorMsg!, style: TextStyle(color: Colors.red)),
+                  ),
+              ],
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(ctx),
+                child: Text("Cancel"),
+              ),
+              ElevatedButton(
+                onPressed: () async {
+                  final prefs = await SharedPreferences.getInstance();
+                  final savedPwd = prefs.getString(AppConstants.appPasswordKey) ?? "1234";
+
+                  if (_oldPwdController.text != savedPwd) {
+                    setState(() {
+                      errorMsg = "❌ Old password is incorrect";
+                    });
+                    return;
+                  }
+
+                  if (_newPwdController.text.trim().isEmpty) {
+                    setState(() {
+                      errorMsg = "❌ New password cannot be empty";
+                    });
+                    return;
+                  }
+
+                  await prefs.setString(AppConstants.appPasswordKey,_newPwdController.text.trim(),);
+
+                  Navigator.pop(context); // close dialog
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text("✅ Password updated successfully!"),
+                      backgroundColor: Colors.green,
+                    ),
+                  );
+                },
+                child: Text("Save"),
+              ),
+            ],
+          );
+        },
+      );
+    },
+  );
+}
 
 

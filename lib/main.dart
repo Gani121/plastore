@@ -42,6 +42,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'firebase_options.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
+import 'package:test1/settings/permissionUtils.dart';
 
 final printer = BillPrinter();
 String selectedStyle = "";

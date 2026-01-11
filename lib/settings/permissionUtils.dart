@@ -2,11 +2,22 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:permission_handler/permission_handler.dart' as ph;
+import 'package:telephony_sms/telephony_sms.dart';
+import 'package:test1/utilities.dart';
 
 class PermissionUtils {
+
+static Future<bool> requestsmsPermissions() async {
+   final _telephonySMS = TelephonySMS();
+    await _telephonySMS.requestPermission();
+    return true;
+}
+
   
   // Request all necessary permissions
   static Future<bool> requestAllPermissions() async {
+    
+    // sleep(1,"s");
     final List<Permission> permissions = _getRequiredPermissions();
     final results = await permissions.request();
     
@@ -35,14 +46,14 @@ class PermissionUtils {
     // Always required
     final List<Permission> permissions = [
       Permission.notification,
-      Permission.bluetooth,
-      Permission.bluetoothConnect,
-      Permission.bluetoothScan,
-      Permission.sms,
-      Permission.storage,
-      Permission.contacts,
-      Permission.manageExternalStorage,
-      Permission.photos,
+      // Permission.bluetooth,
+      // Permission.bluetoothConnect,
+      // Permission.bluetoothScan,
+      // Permission.sms,
+      // Permission.storage,
+      // Permission.contacts,
+      // Permission.manageExternalStorage,
+      // Permission.photos,
     ];
     
     // Android-specific permissions
