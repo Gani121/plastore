@@ -20,6 +20,7 @@ import 'package:test1/settings/permissionUtils.dart';
 import 'package:firebase_core/firebase_core.dart';
 import './../firebase_options.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
+import '../firebase/notification_service.dart';
 
 // Create a secure storage instance (you can make this global or in a service)
 final FlutterSecureStorage secureStorage = const FlutterSecureStorage();
@@ -49,45 +50,43 @@ class _LoginPageState extends State<LoginPage> {
     getmodeldata();
     
     WidgetsBinding.instance.addPostFrameCallback((_) async {
-      await PermissionUtils.requestsmsPermissions();
+      // await PermissionUtils.requestsmsPermissions();
     });
 
   }
 
-  Future<void> hasSmsPermission() async {
-    if (!mounted) return;
-    
-    // Initialize permissions
-    await PermissionUtils.requestAllPermissions();
-    
-    // Check if permissions are granted before proceeding
-    final hasPermissions = await PermissionUtils.checkAllPermissions();
-    
-    if (!hasPermissions) {
-      screen_massage(context, "Please ganter permissions to continue");
-      // await PermissionUtils.requestAllPermissions();
-    }
-  }
+  // Future<void> hasSmsPermission() async {
+  //   if (!mounted) return;
+  //   // Initialize permissions
+  //   await PermissionUtils.requestAllPermissions();
+  //   // Check if permissions are granted before proceeding
+  //   final hasPermissions = await PermissionUtils.checkAllPermissions();
+  //   if (!hasPermissions) {
+  //     screen_massage(context, "Please ganter permissions to continue");
+  //     // await PermissionUtils.requestAllPermissions();
+  //   }
+  // }
 
   Future<void> _initializeFirebase() async {
-    final prefs = await SharedPreferences.getInstance();
 
-    // Initialize Firebase
+        // Initialize Firebase
     await Firebase.initializeApp(
       options: DefaultFirebaseOptions.currentPlatform,
     );
-    // Request permission (iOS/macOS)
-    await FirebaseMessaging.instance.requestPermission(
-      alert: true,
-      badge: true,
-      sound: true,
-      provisional: true,  // For provisional authorization
-    );
+    await NotificationService.initialize();
     
-    // Get device token
-    String? token = await FirebaseMessaging.instance.getToken();
-    print_log("FCM Token: $token");
-    await prefs.setString('device_id', token ?? "");
+    // Set background handler
+    FirebaseMessaging.onBackgroundMessage(
+      NotificationService.backgroundHandler
+    );
+      
+      
+    // final prefs = await SharedPreferences.getInstance();
+    
+    // // Get device token
+    // String? token = await FirebaseMessaging.instance.getToken();
+    // print_log("FCM Token: $token");
+    // await prefs.setString('device_id', token ?? "");
     
   }
 
@@ -109,35 +108,35 @@ class _LoginPageState extends State<LoginPage> {
   }
 
   // Check and request storage permissions
-  Future<void> _checkAndRequestPermissions() async {
-    if (Platform.isAndroid) {
-      try {
-        // Check current permission status
-        var status = await Permission.storage.status;
-        if (!status.isGranted) {
-          // Request permission
-          status = await Permission.storage.request();
-        }
-        var status1 = await Permission.requestInstallPackages.status;
-        if (!status1.isGranted) {
-          status1 = await Permission.requestInstallPackages.request();
-        }
-        if (!status.isGranted || !status1.isGranted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(
-                "❌ permission of storage ${status.isGranted} and installer ${status1.isGranted}",
-              ),
-            ),
-          );
-        }
-      } catch (e) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text("❌ permission of storage and installer $e ")),
-        );
-      }
-    }
-  }
+  // Future<void> _checkAndRequestPermissions() async {
+  //   if (Platform.isAndroid) {
+  //     try {
+  //       // Check current permission status
+  //       var status = await Permission.storage.status;
+  //       if (!status.isGranted) {
+  //         // Request permission
+  //         status = await Permission.storage.request();
+  //       }
+  //       var status1 = await Permission.requestInstallPackages.status;
+  //       if (!status1.isGranted) {
+  //         status1 = await Permission.requestInstallPackages.request();
+  //       }
+  //       if (!status.isGranted || !status1.isGranted) {
+  //         ScaffoldMessenger.of(context).showSnackBar(
+  //           SnackBar(
+  //             content: Text(
+  //               "❌ permission of storage ${status.isGranted} and installer ${status1.isGranted}",
+  //             ),
+  //           ),
+  //         );
+  //       }
+  //     } catch (e) {
+  //       ScaffoldMessenger.of(context).showSnackBar(
+  //         SnackBar(content: Text("❌ permission of storage and installer $e ")),
+  //       );
+  //     }
+  //   }
+  // }
 
   Future<void> _downloadNewApp(String id) async {
     double downloadProgress = 0.0;
@@ -184,7 +183,7 @@ class _LoginPageState extends State<LoginPage> {
 
     try {
       // ✅ 1. Check and request permissions
-      _checkAndRequestPermissions();
+      // _checkAndRequestPermissions();
 
       // ✅ 2. Extract the actual ID from the string
       final nameId = id.split(":");
@@ -487,7 +486,7 @@ class _LoginPageState extends State<LoginPage> {
 
 
   void _login() async {
-    await hasSmsPermission();
+    // await hasSmsPermission();
     try{
     final email = _emailController.text.trim();
     final password = _passwordController.text.trim();
@@ -743,9 +742,9 @@ class _LoginPageState extends State<LoginPage> {
                       ),
                     ),
                     Text(
-                      app_version,
+                      "V-${AppConstants.app_version} B-${AppConstants.buildNumber}",
                       style: TextStyle(
-                        fontSize: 22,
+                        fontSize: 10,
                         fontWeight: FontWeight.bold,
                         color: Colors.green.shade900,
                       ),

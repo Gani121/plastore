@@ -42,27 +42,26 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'firebase_options.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
-import 'package:test1/settings/permissionUtils.dart';
 
 final printer = BillPrinter();
 String selectedStyle = "";
 bool _isOnline = true;
 
-@pragma('vm:entry-point')
-Future<void> _firebaseBackgroundMessage(RemoteMessage message) async {
-  await Firebase.initializeApp();
+// @pragma('vm:entry-point')
+// Future<void> _firebaseBackgroundMessage(RemoteMessage message) async {
+//   await Firebase.initializeApp();
   
-  final cart = message.data['printData'];
-  print_log("massage ${cart.runtimeType} $cart");
-  List<Map<String, dynamic>> cart1 = List<Map<String, dynamic>>.from(jsonDecode(cart));
+//   final cart = message.data['printData'];
+//   print_log("massage ${cart.runtimeType} $cart");
+//   List<Map<String, dynamic>> cart1 = List<Map<String, dynamic>>.from(jsonDecode(cart));
 
-  print_log("massage ${cart1.runtimeType} ${cart1[0]['total']} $cart1 ");
-  int totalAmt = (cart1[0]['total'] as num).toInt();
-  int tableNum = int.tryParse(cart1[0]['tableno'].toString()) ?? 0;
-  // printer.printCart111111111(cart1:cart1,total:totalAmt,mode:'kot',payment_mode: "",transactionData:{},tableNo:tableNum);
+//   print_log("massage ${cart1.runtimeType} ${cart1[0]['total']} $cart1 ");
+//   int totalAmt = (cart1[0]['total'] as num).toInt();
+//   int tableNum = int.tryParse(cart1[0]['tableno'].toString()) ?? 0;
+//   // printer.printCart111111111(cart1:cart1,total:totalAmt,mode:'kot',payment_mode: "",transactionData:{},tableNo:tableNum);
   
-  print_log("Background message new: ${message.data}, ${message.from}, ${message.notification},${message.senderId},${message.threadId},${message.sentTime},${message.threadId},${message.category},${message.messageType}");
-}
+//   print_log("Background message new: ${message.data}, ${message.from}, ${message.notification},${message.senderId},${message.threadId},${message.sentTime},${message.threadId},${message.category},${message.messageType}");
+// }
 
 class MyHttpOverrides extends HttpOverrides {
   @override
@@ -80,25 +79,6 @@ void main() async {
   await objectBoxService.init();
   HttpOverrides.global = MyHttpOverrides();
   final cartProvider = CartProvider();
-  // WidgetsFlutterBinding.ensureInitialized();
-
-  // await initDeviceId(); // Initialize device ID
-
-
-  // await _initializeFirebase();
-  // // Initialize Firebase
-  // await Firebase.initializeApp(
-  //   options: DefaultFirebaseOptions.currentPlatform,
-  // );
-  // FirebaseMessaging.onBackgroundMessage(_firebaseBackgroundMessage);
-  // // Request permission (iOS/macOS)
-  // await FirebaseMessaging.instance.requestPermission(
-  //   alert: true,
-  //   badge: true,
-  //   sound: true,
-  //   provisional: false,  // For provisional authorization
-  // );
-
 
   runApp(
     MultiProvider(
@@ -865,6 +845,29 @@ class _DostiKitchenPageState extends State<DostiKitchenPage> {
         ),
       ),
 
+      // endDrawer: Drawer(
+        // child: ListView(
+        //   padding: EdgeInsets.zero,
+        //   children: [
+        //     DrawerHeader(
+        //       decoration: BoxDecoration(
+        //         color: themeProvider.primaryColor,
+        //       ),
+        //       child: Center(
+        //         child: Text(
+        //           'Right Menu',
+        //           style: TextStyle(
+        //             color: Colors.white,
+        //             fontSize: 24,
+        //             fontWeight: FontWeight.bold,
+        //           ),
+        //         ),
+        //       ),
+        //     ),
+        //   ],
+        // ),
+      // ),
+      
 
       appBar: AppBar(
         backgroundColor: themeProvider.primaryColor,
@@ -872,7 +875,7 @@ class _DostiKitchenPageState extends State<DostiKitchenPage> {
 
         // 🔹 Left Menu Button
         leading: IconButton(
-          icon: Icon(Icons.menu, color: Colors.white),
+          icon: Icon(Icons.settings, color: Colors.black),
           onPressed: () => _scaffoldKey.currentState?.openDrawer(),
         ),
 
@@ -884,7 +887,9 @@ class _DostiKitchenPageState extends State<DostiKitchenPage> {
                 children: [
                   // Icon(Icons.restaurant, size: 24, color: Colors.white),
                   // SizedBox(width: 8),
-                  Text('${AppLocalizations.of(context)!.loding}...', style: TextStyle(color: Colors.white)),
+                  Text('${AppLocalizations.of(context)!.loding}...', 
+                    style: TextStyle(color: Colors.white,fontSize: 10)
+                  ),
                   Spacer(),
                 ],
               );
@@ -896,7 +901,7 @@ class _DostiKitchenPageState extends State<DostiKitchenPage> {
               children: [
                 // Icon(Icons.restaurant, size: 24, color: Colors.white),
                 // SizedBox(width: 8),
-                Text(businessName, style: TextStyle(color: Colors.white)),
+                Text(businessName, style: TextStyle(color: Colors.white,fontSize: 18)),
                 Spacer(),
               ],
             );

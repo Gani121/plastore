@@ -14,7 +14,10 @@ android {
         minSdk = flutter.minSdkVersion
         targetSdk = 36
         versionCode = 4
-        versionName = "1.0" 
+        versionName = "1.0.0"
+        
+        // 1. Enable multiDex for desugaring support
+        multiDexEnabled = true
     }
 
     signingConfigs {
@@ -41,6 +44,9 @@ android {
     }
 
     compileOptions {
+        // 2. Enable core library desugaring here
+        isCoreLibraryDesugaringEnabled = true
+        
         sourceCompatibility = JavaVersion.VERSION_11
         targetCompatibility = JavaVersion.VERSION_11
     }
@@ -52,9 +58,11 @@ android {
 
 dependencies {
     implementation(platform("com.google.firebase:firebase-bom:32.3.1"))
-    implementation ("com.google.firebase:firebase-messaging:24.0.0")
+    implementation("com.google.firebase:firebase-messaging:24.0.0")
     implementation("com.google.firebase:firebase-analytics")
-     coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.0.4")
+    
+    // 3. Keep your desugaring dependency here
+    coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.1.4")
 }
 
 flutter {

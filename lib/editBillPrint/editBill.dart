@@ -2000,13 +2000,14 @@ class __BottomBarState extends State<_BottomBar> {
     }
     
     print_log("massage $message");
-    try {
-      final pho_nu = "+91${extractLast10Digits((no).toString())}";
-      print_log("massage $pho_nu");
-      await _telephonySMS.sendSMS(phone: pho_nu, message: message);
-    } catch (error) {
-      print_log_red("Error sending SMS: $error");
-    }
+    // try {
+    //   await _telephonySMS.requestPermission();
+    //   final pho_nu = "+91${extractLast10Digits((no).toString())}";
+    //   print_log("massage $pho_nu");
+    //   await _telephonySMS.sendSMS(phone: pho_nu, message: message);
+    // } catch (error) {
+    //   print_log_red("Error sending SMS: $error");
+    // }
   }
 
   String extractLast10Digits(String phone) {

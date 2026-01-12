@@ -27,6 +27,7 @@ enum keys {
 
 class AppConstants {
   static String test_version = "";
+  static String buildNumber = "";
   static String app_version = "1.0.0";
   static String objectbox_path = "";
   static String businessDateKey = 'businessDate';
@@ -43,12 +44,13 @@ class AppConstants {
       // Automatically gets the ID defined in your build.gradle/versions.properties
       test_version = packageInfo.packageName; 
       app_version = packageInfo.version;
+      buildNumber = packageInfo.buildNumber.toString();
       // final dir1 = await getApplicationDocumentsDirectory();
       final dir = await getApplicationDocumentsDirectory();
       // objectbox_path = '${(dir1 ?? dir).path}/objectbox';
       objectbox_path = '${dir.path}/objectbox';
-
-      debugPrint("✅ AppConstants initialized: $test_version, $app_version $objectbox_path");
+      debugPrint(packageInfo.toString());
+      debugPrint("✅ AppConstants initialized: $test_version,$buildNumber, $app_version $objectbox_path");
     } catch (e) {
       debugPrint("⚠️ Failed to load package info: $e");
     }
