@@ -13,8 +13,8 @@ android {
         applicationId = "com.orbipay.test6" 
         minSdk = flutter.minSdkVersion
         targetSdk = 36
-        versionCode = 4
-        versionName = "1.0.0"
+        versionCode = 5
+        versionName = "1.0.1"
         
         // 1. Enable multiDex for desugaring support
         multiDexEnabled = true
