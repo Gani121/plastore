@@ -924,17 +924,58 @@ Future<void> printBillWithLogo(thermal.BlueThermalPrinter bluetooth) async {
     List<bl.BluetoothService> services = await _connectedDevice!.discoverServices();
     bl.BluetoothCharacteristic? printerCharacteristic;
     
-    debugPrint("Data for printer miniPrinter-$miniPrinter && miniPrinterKOT-${!miniPrinterKOT} || (miniPrinterKOT-$miniPrinterKOT && KOT_Print-$KOT_Print  miniPrinter-${( (miniPrinter && !KOT_Print) || (miniPrinterKOT && KOT_Print))}");
+    debugPrint("Data for printer miniPrinter-$miniPrinter && !miniPrinterKOT-${!miniPrinterKOT} || (miniPrinterKOT-$miniPrinterKOT && KOT_Print-$KOT_Print  miniPrinter-${( (miniPrinter && !KOT_Print) || (miniPrinterKOT && KOT_Print))}");
     if( (miniPrinter && !KOT_Print) || (miniPrinterKOT && KOT_Print)){
       
       print_log("in mini printer");
-      for (bl.BluetoothService service in services) {
-        // printerCharacteristic = service.characteristics.firstWhere((c) => c.uuid.toString() == SERVICE_UUID);
-        for (bl.BluetoothCharacteristic characteristic in service.characteristics) {
-          print_log("🔍 finding printer characteristic in miniPrinter: ${characteristic.uuid.toString()} characteristic ${characteristic}");
-          // break;
-        }
-      }
+      // for (bl.BluetoothService service in services) {
+      //   // printerCharacteristic = service.characteristics.firstWhere((c) => c.uuid.toString() == SERVICE_UUID);
+      //   for (bl.BluetoothCharacteristic characteristic in service.characteristics) {
+      //     print_log("🔍 finding printer characteristic in miniPrinter: ${characteristic.uuid.toString()} characteristic ${characteristic}");
+      //     // break;
+      //   }
+      // }
+      // for (bl.BluetoothService service in services) {
+      //   for (bl.BluetoothCharacteristic characteristic in service.characteristics) {
+      //     // Use the characteristic from Service 3 that has write capabilities
+      //     print_log("🔍 finding printer characteristic:${characteristic.uuid.toString()} ==  $SERVICE_UUID");
+      //     print_log("   finding printer characteristic ${characteristic}");
+          
+      //     if (characteristic.uuid.toString() == SERVICE_UUID) {
+      //       printerCharacteristic = characteristic;
+      //       print_log("✅ Found printer characteristic: ${characteristic.uuid}");
+      //       break;
+      //     } 
+          
+      //   }
+      //   if (printerCharacteristic != null) break;
+      // }
+      print_log("in mini printer2");
+      // final bl.Guid CAT_PRINT_SRV = bl.Guid("0000ae30-0000-1000-8000-00805f9b34fb");
+      // final bl.Guid CAT_PRINT_TX_CHAR = bl.Guid("0000ae01-0000-1000-8000-00805f9b34fb");
+
+      // final service = services.firstWhere((s) => s.uuid == CAT_PRINT_SRV);
+      // print_log("service in print$service");
+      // printerCharacteristic = service.characteristics.firstWhere((c) => c.uuid.toString() == CAT_PRINT_TX_CHAR);
+      // final services = await device.discoverServices();
+
+
+      
+      print("✅ services $services");
+      // BluetoothCharacteristic? tx;
+      // final service = services.firstWhere((s) => s.uuid == CAT_PRINT_SRV);
+      // for (var s in services) {
+      //   print("Checking Service UUID: services ------------ ${s.uuid}");
+      //   for (var c in s.characteristics) {
+      //     print("Checking Char UUID s.characteristics --------- : ${c.uuid}");
+      //     if ((c.uuid).toString().toLowerCase() == "ae01") {
+      //       printerCharacteristic = c;
+      //       print("🎯 Match found for Characteristic!");
+      //       // break;
+      //     }
+      //   }
+      // }
+
       for (bl.BluetoothService service in services) {
         for (bl.BluetoothCharacteristic characteristic in service.characteristics) {
           // Use the characteristic from Service 3 that has write capabilities
@@ -945,19 +986,14 @@ Future<void> printBillWithLogo(thermal.BlueThermalPrinter bluetooth) async {
             printerCharacteristic = characteristic;
             print_log("✅ Found printer characteristic: ${characteristic.uuid}");
             break;
-          } 
-          
+          }
         }
         if (printerCharacteristic != null) break;
       }
-      print_log("in mini printer2");
-      // final bl.Guid CAT_PRINT_SRV = bl.Guid("0000ae30-0000-1000-8000-00805f9b34fb");
-      // final bl.Guid CAT_PRINT_TX_CHAR = bl.Guid("0000ae01-0000-1000-8000-00805f9b34fb");
 
-      // final service = services.firstWhere((s) => s.uuid == CAT_PRINT_SRV);
-      // print_log("service in print$service");
-      // printerCharacteristic = service.characteristics.firstWhere((c) => c.uuid.toString() == CAT_PRINT_TX_CHAR);
-      // print_log("service in print ${printerCharacteristic.uuid}");
+
+
+      print_log("service in print ${printerCharacteristic!.uuid}");
       if (printerCharacteristic == null) print_log("printerCharacteristic in print ${printerCharacteristic}");
       final printer = CatPrinter(printerCharacteristic!);
       final prefs = await SharedPreferences.getInstance();
@@ -1045,8 +1081,7 @@ Future<void> printBillWithLogo(thermal.BlueThermalPrinter bluetooth) async {
             printerCharacteristic = characteristic;
             print_log("✅ Found printer characteristic: ${characteristic.uuid}");
             break;
-          } 
-          
+          }
         }
         if (printerCharacteristic != null) break;
       }
