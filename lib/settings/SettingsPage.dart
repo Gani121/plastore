@@ -24,10 +24,10 @@ import 'package:test1/settings/hideData.dart';
 
 
 class SettingsPage extends StatelessWidget {
-  final Box<MenuItem> _menuItemBox;
+  final Box<MenuItem> menuItemBox;
 
   SettingsPage({Key? key, required Box<MenuItem> menuItemBox})
-      : _menuItemBox = menuItemBox,
+      : menuItemBox = menuItemBox,
         super(key: key);
         
   final List<String> settings = [
@@ -157,17 +157,17 @@ class SettingsPage extends StatelessWidget {
 
   void saveMenuItemsReliably(List<MenuItem> menuItems) {
     // ❌ Remove all old items first
-     if (_menuItemBox != null) {
-      _menuItemBox.removeAll();
+     if (menuItemBox != null) {
+      menuItemBox.removeAll();
 
       // ✅ Insert fresh items
       for (int i = 0; i < menuItems.length; i++) {
         final item = menuItems[i];
         // debugPrint('💾 Saved item: ${item}');
-        _menuItemBox.put(item);
+        menuItemBox.put(item);
       }
     }else{
-      debugPrint("found _menuItemBox is null in setting");
+      debugPrint("found menuItemBox is null in setting");
     }
     // print("✅ Saved ${menuItems.length} fresh menu items");
   }

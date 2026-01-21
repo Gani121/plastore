@@ -21,6 +21,10 @@ import 'package:firebase_core/firebase_core.dart';
 import './../firebase_options.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import '../firebase/notification_service.dart';
+import 'package:provider/provider.dart';
+import '../database_Module/ObjectBoxService.dart';
+import '../database_Module/menu_item.dart';
+import '../objectbox.g.dart';
 
 // Create a secure storage instance (you can make this global or in a service)
 final FlutterSecureStorage secureStorage = const FlutterSecureStorage();
@@ -484,6 +488,151 @@ class _LoginPageState extends State<LoginPage> {
   }
 
 
+  Future<void> downloadHotelZip(BuildContext context, String hotelName) async {
+    try {
+      http.Response? apiResponse = await apiCalls("i", hotelName, {});
+        if (apiResponse == null) {
+          return;
+        }
+
+      if (apiResponse.statusCode != 200) {
+        throw Exception(
+          "❌ Failed to fetch filename: ${apiResponse.statusCode}",
+        );
+      }
+
+      final data = jsonDecode(apiResponse.body);
+      if (data['success'] != true || data['menu_filename'] == null) {
+        throw Exception("❌ API error: ${data['message'] ?? 'Unknown error'}");
+      }
+
+      final fileName = data['menu_filename']; // e.g., hotelA.zip
+      debugPrint("📥 Filename received from API: $fileName");
+
+      final fileId = fileName; // Replace if you return a Google Drive ID directly
+      final downloadUrl = Uri.parse("https://drive.google.com/uc?export=download&id=$fileId",);
+
+      // 4️⃣ Download the ZIP
+      final response = await http.get(downloadUrl);
+      if (response.statusCode != 200) {
+        throw Exception("❌ HTTP Error: ${response.statusCode}");
+      }
+
+      // 5️⃣ Save ZIP to temporary storage
+      final tempDir = await getTemporaryDirectory();
+      final zipFile = File("${tempDir.path}/$hotelName.zip");
+      await zipFile.writeAsBytes(response.bodyBytes);
+
+      final picturesDir = (await getExternalStorageDirectories(
+        type: StorageDirectory.pictures,
+      ))?.first;
+      if (picturesDir == null) {
+        throw Exception("❌ Pictures directory unavailable");
+      }
+
+      final extractDir = Directory("${picturesDir.path}/menu_images");
+
+      if (!await extractDir.exists()) {
+        await extractDir.create(recursive: true);
+      } else {
+        final files = extractDir.listSync();
+        for (var file in files) {
+          if (file is File) {
+            await file.delete();
+          }
+        }
+      }
+
+      final archive = ZipDecoder().decodeBytes(response.bodyBytes);
+      int fileCount = 0;
+
+      for (final file in archive) {
+        if (file.isFile) {
+          final outFile = File("${extractDir.path}/${file.name}");
+          await outFile.create(recursive: true);
+          await outFile.writeAsBytes(file.content as List<int>);
+          fileCount++;
+        }
+      }
+
+      debugPrint("✅ Extracted $fileCount images to ${extractDir.path}");
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text("❌ Error while downloading images: $e")),
+      );
+      debugPrint("❌ Error while downloading images: $e");
+    }
+  }
+
+  void saveMenuItemsReliably(List<MenuItem> menuItems,Box<MenuItem> menuItemBox) {
+    // ❌ Remove all old items first
+     if (menuItemBox != null) {
+      menuItemBox.removeAll();
+
+      // ✅ Insert fresh items
+      for (int i = 0; i < menuItems.length; i++) {
+        final item = menuItems[i];
+        // debugPrint('💾 Saved item: ${item}');
+        menuItemBox.put(item);
+      }
+    }else{
+      debugPrint("found menuItemBox is null in setting");
+    }
+    // print("✅ Saved ${menuItems.length} fresh menu items");
+  }
+
+
+ void loadMenu() async {
+    final store = Provider.of<ObjectBoxService>(context, listen: false).store;
+    Box<MenuItem> menuItemBox = store.box<MenuItem>();
+    List<MenuItem> items_all = menuItemBox.getAll();
+    
+    if(items_all != null && items_all.isEmpty){
+      print_log("menu Not found so download from server $items_all");
+            // print("ApiCallPage started...");
+      final prefs = await SharedPreferences.getInstance();
+      final username = prefs.getString('username') ?? "";
+      final role = prefs.getString('role') ?? "";
+      var hotelName='';
+      if(role=="captain"){
+        hotelName = getHotelIdentifier(username);
+        // hotelName = username.split("_").sublist(0, username.split("_").length - 1).join("_");
+        debugPrint("hotelName $hotelName");
+      }else{
+         hotelName = username;
+         debugPrint("hotelName $hotelName");
+      }
+
+      try {
+        http.Response? response = await apiCalls("m",hotelName, {});
+        if (response == null) {
+          return;
+        }
+        if (response.statusCode == 200) {
+          final jsonData = jsonDecode(response.body);
+          // print_log("server response $jsonData");
+
+          final dataList = jsonData['data'];
+          print_log("server response $dataList");
+          if (dataList is List) {
+            List<MenuItem> menuItems = dataList.map((item) => MenuItem.fromJson(item)).toList();
+            saveMenuItemsReliably(menuItems,menuItemBox);
+
+            downloadHotelZip(context, hotelName);
+            
+            print_log("✅ Menu loaded from server: ${menuItems.length} items");
+          } else {
+            print_log("❌ 'data' is not a list");
+          }
+        } else {
+          debugPrint('HTTP Error: ${response.statusCode}: ${response.reasonPhrase}');
+        }
+      } catch (error) {
+          screen_massage(context, "Device Not Connected ${error}");
+        debugPrint("❌ Error in ApiCallPage: $error");
+      }
+    }
+ }
 
   void _login() async {
     // await hasSmsPermission();
@@ -614,6 +763,7 @@ class _LoginPageState extends State<LoginPage> {
                 await secureStorage.delete(key: 'expiresAtStr');
                 await secureStorage.delete(key: 'expiry_Date');
               }
+              loadMenu();
               // final prefs = await SharedPreferences.getInstance();
               final captain = prefs.getBool('startcaptain') ?? false;
               print_log("Captain $captain");
