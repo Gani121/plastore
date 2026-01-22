@@ -67,6 +67,9 @@ class _DashboardPageState extends State<DashboardPage> {
 
           final customers = snapshot.data!;
 
+          // Sort customers: High balance (positive) to Low balance (negative)
+          customers.sort((a, b) => b.balance.abs().compareTo(a.balance.abs()));
+
           // Calculate totals based on the current list of customers from the stream
           double totalToGive = 0;
           double totalToGet = 0;
@@ -118,8 +121,7 @@ class _DashboardPageState extends State<DashboardPage> {
                           ),
                         ),
                         title: Text(customer.name, style: const TextStyle(fontWeight: FontWeight.bold)),
-                        trailing: Text(
-                          '₹${balance.abs().toStringAsFixed(2)}',
+                        trailing: Text('₹${balance.abs().toStringAsFixed(2)}',
                           style: TextStyle(
                             color: balance > 0 ? Colors.green.shade700 : (balance < 0 ? Colors.red.shade700 : Colors.grey),
                             fontWeight: FontWeight.bold,
