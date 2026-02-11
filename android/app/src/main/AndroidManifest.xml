@@ -18,6 +18,7 @@
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_CONNECTED_DEVICE" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_DATA_SYNC" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_REMOTE_MESSAGING" />
+    <uses-permission android:name="com.google.android.gms.permission.AD_ID"/>
 
     <!-- <uses-permission android:name="android.permission.SEND_SMS" /> -->
     
@@ -66,11 +67,21 @@
             </intent-filter>
         </service>
 
-            <!-- Don't delete the meta-data below.
-                This is used by the Flutter tool to generate GeneratedPluginRegistrant.java -->
+        <!-- Don't delete the meta-data below.
+            This is used by the Flutter tool to generate GeneratedPluginRegistrant.java -->
+        <meta-data
+            android:name="flutterEmbedding"
+            android:value="2" />
+
+        <provider
+            android:name="androidx.core.content.FileProvider"
+            android:authorities="com.orbipay.test8.provider"
+            android:exported="false"
+            android:grantUriPermissions="true">
             <meta-data
-                android:name="flutterEmbedding"
-                android:value="2" />
+                android:name="android.support.FILE_PROVIDER_PATHS"
+                android:resource="@xml/file_paths" />
+        </provider>
     </application>
     <!-- Required to query activities that can process text, see:
          https://developer.android.com/training/package-visibility and
@@ -98,7 +109,8 @@
             <action android:name="android.intent.action.PROCESS_TEXT" />
             <data android:mimeType="text/plain" />
         </intent>
-        <package android:name="com.whatsapp"/>
+        <package android:name="com.whatsapp" />
+        <package android:name="com.whatsapp.w4b" />
     </queries>
 
 </manifest>

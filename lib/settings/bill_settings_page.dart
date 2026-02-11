@@ -479,6 +479,7 @@ class _billSettingsPageState extends State<billSettingsPage> {
           toggleTile("4.5 Settle Button", "Enable or disable the Settle button functionality."),
           toggleTile("4.6 Transection Color", "set yellow color for the online order transaction."),
           toggleTile("4.7 Send SMS", "Send SMS while save transection."),
+          // toggleTile("4.8 API call", "Send transection to server."),
 
           // buildSwitchTile(
           //   title: "2.24 Always Show Previous Balance",

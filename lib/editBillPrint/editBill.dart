@@ -4,28 +4,31 @@ import 'dart:convert';
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:test1/utilities.dart';
-import '../objectbox.g.dart';
-import '../database_Module/BillCounter.dart';
+import 'package:test1/objectbox.g.dart';
+import 'package:test1/database_Module/BillCounter.dart';
 import 'dart:io';
 import 'package:intl/intl.dart';
-import '../cartprovier/cart_provider.dart';
+import 'package:test1/cartprovier/cart_provider.dart';
 import 'package:provider/provider.dart';
-import '../database_Module/ObjectBoxService.dart';
+import 'package:test1/database_Module/ObjectBoxService.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import '../NewOrderPage.dart';
+import 'package:test1/NewOrderPage.dart';
 import 'package:test1/MenuItemPage.dart' as gk;
 import 'package:url_launcher/url_launcher.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:test1/l10n/app_localizations.dart';
-import '../udhari/AddCustomerPage.dart';
-import '../database_Module/udharicustomer.dart';
-import '../database_Module/tableCart.dart';
+import 'package:test1/udhari/AddCustomerPage.dart';
+import 'package:test1/database_Module/party_database.dart';
+import 'package:test1/database_Module/udharicustomer.dart';
+import 'package:test1/database_Module/tableCart.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:test1/bill_printer.dart';
 import 'package:telephony_sms/telephony_sms.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:http/http.dart' as http;
+import 'package:appinio_social_share/appinio_social_share.dart'as share;
+import 'package:whatsapp_share_plus/whatsapp_share_plus.dart' as whatsapp;
 
 class DetailPage extends StatefulWidget {
   final List<Map<String, dynamic>>? cart1;
@@ -33,6 +36,7 @@ class DetailPage extends StatefulWidget {
   final Map<String, dynamic>? transaction;
   final Map<String, dynamic>? table;
   final int? hideadd;
+  
   
 
   DetailPage({this.cart1,this.mode,this.transaction,this.table,this.hideadd,super.key,});
@@ -78,22 +82,21 @@ class _DetailPageState extends State<DetailPage> {
   List<Map<String, dynamic>> existingcart = [];
   late bool isRetail = false;
   String ordertype = 'Dine-In';
-  late Store store = Provider.of<ObjectBoxService>(context, listen: false).store;
+  late Store store;
+  final share.AppinioSocialShare _appinioSocialShare = share.AppinioSocialShare();
 
   
 
   @override
   void initState() {
     super.initState();
-    final store = Provider.of<ObjectBoxService>(context, listen: false).store;
-    billCounterBox = store.box<BillCounter>();
     loadSelectedStyle();
     existingcart = (widget.cart1 ?? []).map((item) => Map<String, dynamic>.from(item)).toList();
 
-    // debugPrint("oldCartMap.containsKey(key) ${existingcart}");
+    // //debugPrint("oldCartMap.containsKey(key) ${existingcart}");
     void _updateCalculations() {
     if (!mounted) return;
-      // debugPrint(" widget.hideadd == null ${widget.table} ${widget.table == null } ${widget.table == null && widget.hideadd == null} ${widget.hideadd != null} ${widget.hideadd}");
+      // //debugPrint(" widget.hideadd == null ${widget.table} ${widget.table == null } ${widget.table == null && widget.hideadd == null} ${widget.hideadd != null} ${widget.hideadd}");
       // This function will now be the single source of truth for all calculations
       // It should handle subtotal, apply discounts, apply service charges, and update the final total.
       // I'm assuming the logic is inside your listeners, so we can just call one of them
@@ -111,16 +114,19 @@ class _DetailPageState extends State<DetailPage> {
     // Use a single post-frame callback to set up the initial state
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
+
       final cartProvider = Provider.of<CartProvider>(context, listen: false);
+      store = Provider.of<ObjectBoxService>(context, listen: false).store;
+      billCounterBox = store.box<BillCounter>();
 
       // 1. First, load the cart so the subtotal is available
       if (widget.mode == "edit") {
         cartProvider.cart.clear();
-        debugPrint("set cart to the provider to the in neworderpage ${cartProvider.cart.isEmpty} ${cartProvider.cart}");
+        //debugPrint("set cart to the provider to the in neworderpage ${cartProvider.cart.isEmpty} ${cartProvider.cart}");
         cartProvider.setCart(widget.cart1 ?? []);
-        debugPrint("set cart to the provider to the in neworderpage ${cartProvider.cart.isEmpty} ${cartProvider.cart}");
-        // debugPrint("cartProvider.cart in editbill ${cartProvider.cart}");
-        debugPrint("transaction in editbill ${widget.transaction}");
+        //debugPrint("set cart to the provider to the in neworderpage ${cartProvider.cart.isEmpty} ${cartProvider.cart}");
+        // //debugPrint("cartProvider.cart in editbill ${cartProvider.cart}");
+        //debugPrint("transaction in editbill ${widget.transaction}");
         if (widget.transaction != null && (widget.transaction ?? {}).isNotEmpty) {
           transaction = widget.transaction ?? {};
 
@@ -154,7 +160,7 @@ class _DetailPageState extends State<DetailPage> {
               someValueFromServer = _ordertype; // New value received
               // 3. Update the controller's text. The UI will update automatically.
               ordertype = someValueFromServer; 
-              debugPrint("Controller text set to: ${ordertype}");
+              //debugPrint("Controller text set to: ${ordertype}");
             });
           });
 
@@ -200,7 +206,7 @@ class _DetailPageState extends State<DetailPage> {
         someValueFromServer = value; // New value received
         // 3. Update the controller's text. The UI will update automatically.
         key.text = someValueFromServer; 
-        debugPrint("Controller text set to: ${key.text}");
+        //debugPrint("Controller text set to: ${key.text}");
       });
     });
   }
@@ -210,7 +216,7 @@ class _DetailPageState extends State<DetailPage> {
     // 2. Find the existing counter object. There should only be one.
     BillCounter counter;
     final existingCounters = billCounterBox.getAll();
-    debugPrint("next bill number ${existingCounters}");
+    //debugPrint("next bill number ${existingCounters}");
     int billNo = (existingCounters.isEmpty) ? 1 : existingCounters.first.lastBillNo;
     // if (existingCounters.isEmpty) {
     //   // 3a. If no counter exists (first time), create one starting at 1.
@@ -223,7 +229,7 @@ class _DetailPageState extends State<DetailPage> {
     // 5. Return the latest bill number.
     
     // int billNo = (existingCounters.isEmpty) ? 1 : counter.lastBillNo;
-    debugPrint("next bill number ${billNo}");
+    //debugPrint("next bill number ${billNo}");
     return billNo;
   }
 
@@ -326,8 +332,8 @@ class _DetailPageState extends State<DetailPage> {
 
   void addtablecart(CartProvider cartProvider) async {
 
-    if (widget.table == null || widget.table!['kot'] == null) {
-      debugPrint("Cannot save table cart: table data is missing.");
+    if (widget.table == null || widget.table!['kot'] == null || widget.table!['kot'] < 1) {
+      print_log("Cannot save table cart: table data is missing.");
       return;
     }
     
@@ -341,25 +347,25 @@ class _DetailPageState extends State<DetailPage> {
     final query = box.query(tableCart_.tableNo.equals(tableNo)).build();
     tableCart? existingTableCart = query.findFirst();
     query.close();
-    debugPrint("✅ Updated cart for table #$tableNo in ObjectBox. existingTableCart $existingTableCart");
+    //debugPrint("✅ Updated cart for table #$tableNo in ObjectBox. existingTableCart $existingTableCart");
 
     if (cartProvider.cart.isNotEmpty) {
       if (existingTableCart != null) {
         // 4a. If it exists, update it
         existingTableCart.tCart = stringCart;
         box.put(existingTableCart);
-        debugPrint("✅ Updated cart for table #$tableNo in ObjectBox.");
+        //debugPrint("✅ Updated cart for table #$tableNo in ObjectBox.");
       } else {
         // 4b. If it doesn't exist, create a new one
         final newTableCart = tableCart(tableNo: tableNo, tCart: stringCart);
         box.put(newTableCart);
-        debugPrint("✅ Created new cart for table #$tableNo in ObjectBox. stringCart $stringCart");
+        //debugPrint("✅ Created new cart for table #$tableNo in ObjectBox. stringCart $stringCart");
       }
     } else {
       // 5. If the cart is empty, remove the entry from the database
       if (existingTableCart != null) {
         box.remove(existingTableCart.id);
-        debugPrint("🗑️ Removed empty cart for table #$tableNo from ObjectBox.");
+        //debugPrint("🗑️ Removed empty cart for table #$tableNo from ObjectBox.");
       }
     }
   }
@@ -367,7 +373,7 @@ class _DetailPageState extends State<DetailPage> {
   Widget _buildItemCards(CartProvider cartProvider) {
     // final cartProvider = Provider.of<CartProvider>(context);
     final cart = cartProvider.cart;
-    // debugPrint("cart items _buildItemCards $cart");
+    print_log("cart items _buildItemCards $cart");
     
     // addtablecart(cartProvider);
     
@@ -495,7 +501,7 @@ class _DetailPageState extends State<DetailPage> {
                                   final count = cartProvider.cart.where((cartItem) => (cartItem['name'] as String).startsWith(baseName)).length;
 
                                   // Create the new name, e.g., "Burger_2" if count is 2
-                                  // debugPrint("count ${count}");
+                                  // //debugPrint("count ${count}");
                                   newItem['name'] = '${baseName}_${count}';
 
                                   // Add the new item to the cart
@@ -686,11 +692,12 @@ class _DetailPageState extends State<DetailPage> {
   }
 
 
-  void _deleteItem(String index,String portion) {
+  void _deleteItem(String name,String portion) {
     final cartProvider = Provider.of<CartProvider>(context, listen: false);
-    cartProvider.removeFromCart(index, portion); // Make sure this method exists in your provider
-    setState(() { });
+    cartProvider.removeFromCart(name, portion); // Make sure this method exists in your provider
+    addtablecart(cartProvider);
     _calculateSubtotal();
+    setState(() { });                 
     // No need for setState if you're using Provider's notifyListeners
   }
 
@@ -895,6 +902,11 @@ class _DetailPageState extends State<DetailPage> {
     final total = cartProvider.total;
     final wcart = cartProvider.cart;
     final tableno = (widget.table ?? {"kot":0})['kot'];
+    final prefs = await SharedPreferences.getInstance();
+    String businessName = prefs.getString('businessName') ?? 'Hotel Test';
+    String contactPhone = prefs.getString('contactPhone') ?? '';
+    String businessAddress = prefs.getString('businessAddress') ?? '';
+    String _myUpiId = prefs.getString('upi') ?? '';
 
     // 1. Generate Image
     Uint8List? imageBytes = await printer.generateReceiptImageToShare(cart1: wcart, total: total, billNo: billNo, transactionData: transaction, tableno: tableno);
@@ -902,95 +914,6 @@ class _DetailPageState extends State<DetailPage> {
     // 2. Get the bill details string
     String billDetails = await _createBillString(cartProvider);  
 
-    // 3. Try to share Image + Text using share_plus
-    if (imageBytes != null) {
-      try {
-        final directory = await getExternalStorageDirectory();
-        final path = '${directory!.path}/receipt_$billNo.png';
-        final file = File(path);
-        await file.writeAsBytes(imageBytes);
-        // ShareParams params = {ShareParams.text t = "hsjahdj",};
-        await SharePlus.instance.share(ShareParams(
-          files: [XFile(path)],
-          subject: 'Receipt - Bill No: $billNo',
-          text: billDetails,
-        ),);
-
-        // await Share.shareXFiles([XFile(path)], text: billDetails);
-        return; // Exit if sharing initiated successfully
-      } catch (e) {
-        debugPrint("Error sharing image: $e");
-      }
-    }
-
-    // 1. Get the mobile number from the controller
-    // Note: Ensure the number includes the country code (e.g., +91 for India)
-    String mobileNumber = _mobileNoController.text.trim();
-
-    if (mobileNumber.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Please enter a mobile number.'),
-          backgroundColor: Colors.red,
-        ),
-      );
-      return;
-    }
-
-     // --- EDITED: LOGIC TO ADD COUNTRY CODE ---
-    // This logic prepares the number for the WhatsApp URL.
-    // It assumes the target is an Indian mobile number.
-    mobileNumber = extractLast10Digits(mobileNumber);
-    if (mobileNumber.startsWith('+')) {
-        mobileNumber = mobileNumber.substring(1); // Remove '+'
-    }
-
-    if (mobileNumber.length == 10) {
-        // Standard 10-digit number, prepend India's country code
-        mobileNumber = '91$mobileNumber';
-    } else if (mobileNumber.length == 11 && mobileNumber.startsWith('0')) {
-        // Number starts with a 0, replace it with the country code
-        mobileNumber = '91${mobileNumber.substring(1)}';
-    }
-
-    // 3. URL-encode the message
-    String encodedMessage = Uri.encodeComponent(billDetails);
-
-    // 4. Create the WhatsApp URL
-    // The wa.me URL is the recommended universal link for WhatsApp
-    Uri whatsappUrl = Uri.parse("https://wa.me/$mobileNumber?text=$encodedMessage");
-
-    // 5. Check if the URL can be launched and launch it
-    try {
-        if (await canLaunchUrl(whatsappUrl)) {
-            await launchUrl(whatsappUrl, mode: LaunchMode.externalApplication);
-        } else {
-             ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(
-                content: Text('Could not launch WhatsApp. Is it installed?'),
-                 backgroundColor: Colors.red,
-                ),
-            );
-        }
-    } catch (e) {
-         ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-            content: Text('An error occurred: $e'),
-            backgroundColor: Colors.red,
-            ),
-        );
-    }
-  }
-
-
-  /// Launches WhatsApp with a pre-filled message.
-  Future<void> _textshareOnWhatsApp(CartProvider cartProvider) async {
-
-    // 2. Get the bill details string
-    String billDetails = await _createBillString(cartProvider);  
-
-    // 1. Get the mobile number from the controller
-    // Note: Ensure the number includes the country code (e.g., +91 for India)
     String mobileNumber = _mobileNoController.text.trim();
 
     if (mobileNumber.isEmpty || mobileNumber.length < 10) {
@@ -1019,24 +942,99 @@ class _DetailPageState extends State<DetailPage> {
         mobileNumber = '91${mobileNumber.substring(1)}';
     }
 
-    // 3. URL-encode the message
-    String encodedMessage = Uri.encodeComponent(billDetails);
-
-    // 4. Create the WhatsApp URL
-    // The wa.me URL is the recommended universal link for WhatsApp
-    Uri whatsappUrl = Uri.parse("https://wa.me/$mobileNumber?text=$encodedMessage");
-
-    // 5. Check if the URL can be launched and launch it
-    try {
-        if (await canLaunchUrl(whatsappUrl)) {
-            await launchUrl(whatsappUrl, mode: LaunchMode.externalApplication);
-        } else {
-             ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(
-                content: Text('Could not launch WhatsApp. Is it installed?'),
-                 backgroundColor: Colors.red,
-                ),
+    if (imageBytes != null) {
+      try {
+        final directory = await getExternalStorageDirectory();
+        final path = '${directory!.path}/receipt_$billNo.png';
+        final file = File(path);
+        await file.writeAsBytes(imageBytes);
+        try{
+          bool isBusinessInstalled = await whatsapp.WhatsappSharePlus.isWhatsappBusinessInstalled();
+          // print("Response: $response");
+          if(isBusinessInstalled){
+            await whatsapp.WhatsappSharePlus.shareImageToWhatsappBusiness(
+              // text: "Hello from $businessName!",
+              imagePath: file.path,
+              phone: mobileNumber,
             );
+          } else{
+            await whatsapp.WhatsappSharePlus.shareImageToWhatsapp(
+              // text: "Hello from $businessName!",
+              imagePath: file.path,
+              phone: mobileNumber,
+            );
+          }
+          
+        } catch (e){
+          if(Platform.isAndroid){
+            await _appinioSocialShare.android.shareToWhatsapp(
+              "Bill", 
+              file.path
+            );
+          }
+
+        }
+
+        return; // Exit if sharing initiated successfully
+      } catch (e) {
+        //debugPrint("Error sharing image: $e");
+      }
+    }
+  }
+
+
+  /// Launches WhatsApp with a pre-filled message.
+  Future<void> _textshareOnWhatsApp(CartProvider cartProvider) async {
+
+    String billDetails = await _createBillString(cartProvider);  
+    String mobileNumber = _mobileNoController.text.trim();
+
+    if (mobileNumber.isEmpty || mobileNumber.length < 10) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Please enter a mobile number.'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
+
+    mobileNumber = extractLast10Digits(mobileNumber);
+    if (mobileNumber.startsWith('+')) {
+        mobileNumber = mobileNumber.substring(1); // Remove '+'
+    }
+    if (mobileNumber.length == 10) {
+        mobileNumber = '91$mobileNumber';
+    } else if (mobileNumber.length == 11 && mobileNumber.startsWith('0')) {
+        mobileNumber = '91${mobileNumber.substring(1)}';
+    }
+
+    // 3. URL-encode the message
+    // String encodedMessage = Uri.encodeComponent(billDetails);
+    // Uri whatsappUrl = Uri.parse("https://wa.me/$mobileNumber?text=$encodedMessage");
+    try {
+        try{
+          bool isBusinessInstalled = await whatsapp.WhatsappSharePlus.isWhatsappBusinessInstalled();
+          // print("Response: $response");
+          if(isBusinessInstalled){
+            await whatsapp.WhatsappSharePlus.shareToWhatsappBusiness(
+              text: billDetails,
+              // imagePath: file.path,
+              phone: mobileNumber,
+            );
+          } else{
+            await whatsapp.WhatsappSharePlus.shareToWhatsapp(
+              text: billDetails,
+              // imagePath: file.path,
+              phone: mobileNumber,
+            );
+          }
+          
+        } catch (e){
+          if(Platform.isAndroid){
+            await _appinioSocialShare.android.shareToWhatsapp("Bill","");
+          }
+
         }
     } catch (e) {
          ScaffoldMessenger.of(context).showSnackBar(
@@ -1132,20 +1130,20 @@ DateTime getBusinessDate({int cutoffHour = 4}) {
                     children: [
                       Padding(
                         padding: const EdgeInsets.only(bottom: 12),
-                        child: Autocomplete<udhariCustomer>(
+                        child: Autocomplete<Parties>(
                           // 1. The Logic: How to find suggestions
                           optionsBuilder: (TextEditingValue textEditingValue) {
                             if (textEditingValue.text.isEmpty) {
-                              return const Iterable<udhariCustomer>.empty();
+                              return const Iterable<Parties>.empty();
                             }
 
                             // Get the box
-                            final store = Provider.of<ObjectBoxService>(context, listen: false).store;
-                            final box = store.box<udhariCustomer>();
+                            // final store = Provider.of<ObjectBoxService>(context, listen: false).store;
+                            final box = store.box<Parties>();
 
                             // Query: Find names containing the text (Case Insensitive)
                             final query = box.query(
-                              udhariCustomer_.name.contains(textEditingValue.text, caseSensitive: false)
+                              Parties_.customername.contains(textEditingValue.text, caseSensitive: false)
                             ).build();
                             
                             final results = query.find();
@@ -1155,15 +1153,15 @@ DateTime getBusinessDate({int cutoffHour = 4}) {
                           },
 
                           // 2. How to display the selected object as text
-                          displayStringForOption: (udhariCustomer option) => option.name,
+                          displayStringForOption: (Parties option) => option.customername,
 
                           // 3. What happens when the user TAPS a suggestion
-                          onSelected: (udhariCustomer selection) {
-                            debugPrint('You selected: ${selection.name}');
+                          onSelected: (Parties selection) {
+                            //debugPrint('You selected: ${selection.customername}');
                             
                             // Update your transaction map and state
-                            transaction['customerName'] = selection.name;
-                            transaction['mobileNo'] = selection.phone; // Auto-fill phone if available
+                            transaction['customerName'] = selection.customername;
+                            transaction['mobileNo'] = selection.mobilenumber; // Auto-fill phone if available
                             transaction['reserved'] = selection.adreess; // Auto-fill address if available
                             
                             setState(() {
@@ -1172,8 +1170,8 @@ DateTime getBusinessDate({int cutoffHour = 4}) {
                               // adreess1 = selection.adreess ?? "";
                               
                               // If you have controllers for phone/address, update them here too!
-                              _customerNameController.text = selection.name;
-                              _mobileNoController.text = selection.phone;
+                              _customerNameController.text = selection.customername;
+                              _mobileNoController.text = selection.mobilenumber;
                               _customerAdreessController.text = selection.adreess ?? "";
                             });
                           },
@@ -1208,18 +1206,6 @@ DateTime getBusinessDate({int cutoffHour = 4}) {
                           },
                         ),
                       ),
-
-                      
-                      // _buildTextField_text(
-                      //   label: 'Customer/Supplier Name',
-                      //   controller: _customerNameController,
-                      //   onChanged: (value) {
-                      //     transaction['customerName'] =  value;
-                      //     setState(() {
-                      //       _name111 = value;
-                      //     });
-                      //   },
-                      // ),
                       _buildTextField_text(
                         label: 'Customer/Supplier Adreess',
                         controller: _customerAdreessController,
@@ -1327,7 +1313,7 @@ DateTime getBusinessDate({int cutoffHour = 4}) {
                               ),
                             );
 
-                              debugPrint("return cart is $result, type: ${result.runtimeType}");
+                              //debugPrint("return cart is $result, type: ${result.runtimeType}");
 
                             // Handle the returned cart
                             if (result != null && result is List<Map<String, dynamic>>) {
@@ -1343,7 +1329,7 @@ DateTime getBusinessDate({int cutoffHour = 4}) {
                                   mode: 'editpj',
                                 )),
                               );
-                              debugPrint("return cart is $result, type: ${result.runtimeType}");
+                              //debugPrint("return cart is $result, type: ${result.runtimeType}");
                             // Handle the returned cart
                             if (result != null && result is List<Map<String, dynamic>>) {
                               // cartProvider.clearCart();
@@ -1633,7 +1619,7 @@ class __BottomBarState extends State<_BottomBar> {
   String _customermobile= "";
   String _cusomername = "";
   String _customeradd = "";
-  late Store store = Provider.of<ObjectBoxService>(context, listen: false).store;
+  late Store store;
   List<String> deliveryTypes = [];
   BillPrinter printer = BillPrinter();
   TextEditingController _receivedAmountController = TextEditingController();
@@ -1652,6 +1638,9 @@ class __BottomBarState extends State<_BottomBar> {
     _cusomername = widget.name ?? "";
     _customeradd = widget.adreess ?? "";
     print_log("Controller text set to:- $_orderType  / ${widget.ordertype}");
+    if(mounted){
+       store = Provider.of<ObjectBoxService>(context, listen: false).store;
+    }
 
   }
 
@@ -1876,8 +1865,8 @@ class __BottomBarState extends State<_BottomBar> {
       String key = "${item['id']}-${item['portion']}";
       oldCartMap[key] = item['qty'] as int;
     }
-    // debugPrint("oldCartMap.containsKey(key) ${oldCart}");
-    // debugPrint("oldCartMap.containsKey(key) ${newCart}");
+    // //debugPrint("oldCartMap.containsKey(key) ${oldCart}");
+    // //debugPrint("oldCartMap.containsKey(key) ${newCart}");
     // 2. Loop through the new cart and compare against the old map.
     for (var newItem in newCart) {
       String key = "${newItem['id']}-${newItem['portion']}";
@@ -1886,11 +1875,11 @@ class __BottomBarState extends State<_BottomBar> {
       if (oldCartMap.containsKey(key)) {
         // Item existed before. Check if quantity increased.
         int oldQty = oldCartMap[key]!;
-        // debugPrint("oldCartMap.containsKey(key) $newQty > $oldQty ${newQty > oldQty}");
+        // //debugPrint("oldCartMap.containsKey(key) $newQty > $oldQty ${newQty > oldQty}");
         if (newQty > oldQty) {
           // Quantity increased. Send the difference to the KOT.
           int qtyToSend = newQty - oldQty;
-          // debugPrint("oldCartMap.containsKey(key) ${qtyToSend}");
+          // //debugPrint("oldCartMap.containsKey(key) ${qtyToSend}");
 
           // Create a copy of the item
           Map<String, dynamic> kotItem = Map.from(newItem);
@@ -1900,7 +1889,7 @@ class __BottomBarState extends State<_BottomBar> {
           
           // Recalculate the total for the KOT
           kotItem['total'] = (double.tryParse(kotItem['sellPrice'].toString()) ?? 0.0) * qtyToSend;
-          // debugPrint("oldCartMap.containsKey(key) ${kotItem}");
+          // //debugPrint("oldCartMap.containsKey(key) ${kotItem}");
           kotItems.add(kotItem);
         }
         // If newQty <= oldQty, do nothing (item was not added or was removed)
@@ -1916,7 +1905,7 @@ class __BottomBarState extends State<_BottomBar> {
   }
 
   udhariCustomer _findOrCreateCustomer(Box<udhariCustomer> customerBox, String name, String phone,String adreess) {
-    debugPrint("currentCustomer $name ");
+    //debugPrint("currentCustomer $name ");
 
     final query = customerBox.query(udhariCustomer_.name.equals(name.trim())).build();
     udhariCustomer? existingCustomer = query.findFirst();
@@ -1924,11 +1913,11 @@ class __BottomBarState extends State<_BottomBar> {
 
     if (existingCustomer != null) {
       // Customer was found, return them
-      debugPrint("currentCustomer Found existing customer: ${existingCustomer.name}");
+      //debugPrint("Udhari currentCustomer Found existing customer: ${existingCustomer.name}");
       return existingCustomer;
     } else {
       // Customer not found, create a new one
-      debugPrint("currentCustomer Creating new customer: $name");
+      //debugPrint("Udhari currentCustomer Creating new customer: $name");
       final newCustomer = udhariCustomer(
         name: name.trim(),
         phone: phone.isNotEmpty ? phone.trim() : '',
@@ -1944,19 +1933,18 @@ class __BottomBarState extends State<_BottomBar> {
   void saveEntry(String name, String phone,String adreess, String amountController, String descriptionController) {
     
     // Get the ObjectBox service and the customer box
-    final objectbox = Provider.of<ObjectBoxService>(context, listen: false);
-    final customerBox = objectbox.store.box<udhariCustomer>();
+    Box<udhariCustomer> customerBox = store.box<udhariCustomer>();
 
     // This is the logic you wanted:
     // "i want to check the name is exist in the udhariCustomer if not create else assign to currentCustomer"
     final udhariCustomer currentCustomer = _findOrCreateCustomer(customerBox, name, phone, adreess);
-    debugPrint("currentCustomer $currentCustomer");
+    //debugPrint("Udhari currentCustomer $currentCustomer");
 
     // Now the rest of your code will work, because 'currentCustomer' is set!
-    final amount = double.parse(amountController); // You may want to use double.tryParse for safety
-    final description = descriptionController.trim();
+    double  amount = double.parse(amountController); // You may want to use double.tryParse for safety
+    String  description = descriptionController.trim();
 
-    final newTransaction = TransactionUdhari.create(
+    TransactionUdhari newTransaction = TransactionUdhari.create(
       amount: amount,
       type: TransactionType.gave,
       date: DateTime.now(),
@@ -1964,20 +1952,20 @@ class __BottomBarState extends State<_BottomBar> {
     );
 
 
-    debugPrint("currentCustomer $newTransaction");
+    //debugPrint("Udhari currentCustomer $newTransaction");
 
     // Link the transaction to the customer
     newTransaction.customer.target = currentCustomer;
 
     // Save the transaction
-    objectbox.store.box<TransactionUdhari>().put(newTransaction);
+    store.box<TransactionUdhari>().put(newTransaction);
     
     // Save the customer to update their list of transactions
     // (This is from your original code and is correct for updating the relation)
     currentCustomer.transactions.add(newTransaction);
-    objectbox.store.box<udhariCustomer>().put(currentCustomer);
+    store.box<udhariCustomer>().put(currentCustomer);
 
-    debugPrint("currentCustomer Transaction saved for customer: ${currentCustomer.name}");
+    //debugPrint("Udhari currentCustomer Transaction saved for customer: ${currentCustomer.name}");
 
     // Send SMS right after saving
     // _sendTransactionSms(currentCustomer, newTransaction);
@@ -2046,39 +2034,18 @@ class __BottomBarState extends State<_BottomBar> {
           },
         };
 
-        debugPrint("Sending FCM notification to all: ${json.encode(requestData)}");
+        //debugPrint("Sending FCM notification to all: ${json.encode(requestData)}");
 
         // Make API call
         final response = await apiCalls('s',hotelname,requestData);
 
         if (response!.statusCode == 200) {
           print_log("FCM notification sent successfully to all");
-          // ScaffoldMessenger.of(context).showSnackBar(
-          //   SnackBar(
-          //     content: Text("Order sent to kitchen successfully"),
-          //     backgroundColor: Colors.green,
-          //     duration: Duration(seconds: 2),
-          //   ),
-          // );
         } else {
           print_log("Failed to send FCM notification: ${response.statusCode}");
-          // ScaffoldMessenger.of(context).showSnackBar(
-          //   SnackBar(
-          //     content: Text("Failed to send order to kitchen"),
-          //     backgroundColor: Colors.red,
-          //     duration: Duration(seconds: 2),
-          //   ),
-          // );
         }
       } catch (e) {
         print_log_red("Error sending FCM notification: $e");
-        // ScaffoldMessenger.of(context).showSnackBar(
-        //   SnackBar(
-        //     content: Text("Error sending order to kitchen: $e"),
-        //     backgroundColor: Colors.red,
-        //     duration: Duration(seconds: 2),
-        //   ),
-        // );
       }
     }
   }
@@ -2095,7 +2062,7 @@ class __BottomBarState extends State<_BottomBar> {
           ? "${widget.table!['kot']}"
           : "Takeaway";
 
-      debugPrint("sentfcm trigger through eitbill $tableName");
+      //debugPrint("sentfcm trigger through eitbill $tableName");
 
       if (tableName == "Takeaway") {
         return;
@@ -2108,14 +2075,7 @@ class __BottomBarState extends State<_BottomBar> {
       final hotelname = prefs.getString("username") ?? '';
 
       if (hotelname == '') {
-        debugPrint("Fail to sent ");
-        // ScaffoldMessenger.of(context).showSnackBar(
-        //   SnackBar(
-        //     content: Text("Failed to send order for hotel $hotelname"),
-        //     backgroundColor: Colors.green,
-        //     duration: Duration(seconds: 2),
-        //   ),
-        // );
+        //debugPrint("Fail to sent ");
         return;
       }
 
@@ -2146,39 +2106,18 @@ class __BottomBarState extends State<_BottomBar> {
         },
       };
 
-      debugPrint("Sending FCM notification: ${json.encode(requestData)}");
+      //debugPrint("Sending FCM notification: ${json.encode(requestData)}");
 
       // Make API call
       final response = await apiCalls('s',hotelname,requestData);
 
       if (response!.statusCode == 200) {
-        debugPrint("FCM notification sent successfully");
-        // ScaffoldMessenger.of(context).showSnackBar(
-        //   SnackBar(
-        //     content: Text("Order sent to kitchen successfully"),
-        //     backgroundColor: Colors.green,
-        //     duration: Duration(seconds: 2),
-        //   ),
-        // );
+        //debugPrint("FCM notification sent successfully");
       } else {
-        debugPrint("Failed to send FCM notification: ${response.statusCode}");
-        // ScaffoldMessenger.of(context).showSnackBar(
-        //   SnackBar(
-        //     content: Text("Failed to send order to kitchen"),
-        //     backgroundColor: Colors.red,
-        //     duration: Duration(seconds: 2),
-        //   ),
-        // );
+        //debugPrint("Failed to send FCM notification: ${response.statusCode}");
       }
     } catch (e) {
-      debugPrint("Error sending FCM notification: $e");
-      // ScaffoldMessenger.of(context).showSnackBar(
-      //   SnackBar(
-      //     content: Text("Error sending order to kitchen: $e"),
-      //     backgroundColor: Colors.red,
-      //     duration: Duration(seconds: 2),
-      //   ),
-      // );
+      //debugPrint("Error sending FCM notification: $e");
     }
   }
 
@@ -2226,7 +2165,7 @@ Have a nice day!
     final tableno = (widget.table ?? {"kot":0})['kot'];
     final transactiondata = widget.transaction;
     final bool _forudhari = (!_isChecked && ( (_customermobile).isEmpty || (_cusomername).isEmpty));
-    debugPrint("!_isChecked $_forudhari ${!_isChecked}-${(_customermobile.isEmpty)}-${(_cusomername.isEmpty)}");
+    //debugPrint("!_isChecked $_forudhari ${!_isChecked}-${(_customermobile.isEmpty)}-${(_cusomername.isEmpty)}");
 
 
     return Container(
@@ -2411,13 +2350,12 @@ Have a nice day!
 
                                     // If role is captain, send FCM notification
                                     if (role == 'captain') {
-                                      await _sendFcmNotification(
-                                        newItemsForKot,
-                                      );
+                                      await _sendFcmNotification(newItemsForKot);
                                       Navigator.of(context).pop(context);
+                                      
                                     } else {
                                      if( tableno > 0){
-                                        debugPrint("PrinterCart ${tableno} and transactiondata ${transactiondata} newItemsForKot $newItemsForKot");
+                                        //debugPrint("PrinterCart ${tableno} and transactiondata ${transactiondata} newItemsForKot $newItemsForKot");
                                         await printer.printCart(
                                           context: context,
                                           cart1: newItemsForKot,
@@ -2428,12 +2366,12 @@ Have a nice day!
                                           transactionData : transactiondata,
                                           tableNo: tableno
                                         ).then((value) async {
-                                            debugPrint("PrinterCart ${tableno}");
+                                            //debugPrint("PrinterCart ${tableno}");
                                             widget.addtablecart(widget.cartProvider);
                                             Navigator.of(context).pop(context);
                                         });
                                       } else{
-                                        debugPrint("PrinterCart ${widget.cart} and transactiondata ${transactiondata} ${transactiondata['id']}");
+                                        //debugPrint("PrinterCart ${widget.cart} and transactiondata ${transactiondata} ${transactiondata['id']}");
                                         await printer.printCart(
                                           context: context,
                                           cart1: newItemsForKot,
@@ -2494,10 +2432,11 @@ Have a nice day!
                                   setState(() {
                                     _isPrinting = true;
                                   });
+                                  print_log("goint to print data");
                                   // Map<String, dynamic> editbillMap = {'ordertype':_orderType};
                                   transactiondata['orderType'] = _orderType;
                                   final prefs = await SharedPreferences.getInstance();
-                                  debugPrint(" ${tableno} PrinterCart ${widget.cart} and transactiondata ${transactiondata} ${transactiondata['id']}");
+                                  //debugPrint(" ${tableno} PrinterCart ${widget.cart} and transactiondata ${transactiondata} ${transactiondata['id']}");
                                   try {
                                     if(tableno > 0){
                                       final ttid = prefs.getInt("tt${tableno}");
@@ -2511,7 +2450,7 @@ Have a nice day!
                                                       tableNo: tableno,
                                                       );
                                       } else {
-                                        debugPrint("PrinterCart without table ${widget.cart} and transaction ${transactiondata}");
+                                        //debugPrint("PrinterCart without table ${widget.cart} and transaction ${transactiondata}");
                                         await printer.printCart(
                                           context: context,
                                           cart1: widget.cart,
@@ -2593,18 +2532,17 @@ Have a nice day!
                                     _isPrinting = true;
                                   });
 
-
-                                  final isnonzero = areAllQuantitiesZero(widget.cart);
-                                  print_log("qty check  ${isnonzero} > 0");
-                                  if(isnonzero){
-                                    ScaffoldMessenger.of(context).showSnackBar(
-                                      SnackBar(
-                                        content: Text("Please ckeck the cart"),
-                                        duration: Duration(seconds: 1),
-                                      ),
-                                    );
-                                    return;
-                                  }
+                                  // final isnonzero = areAllQuantitiesZero(widget.cart);
+                                  // print_log("qty check  ${isnonzero} > 0");
+                                  // if(isnonzero){
+                                  //   ScaffoldMessenger.of(context).showSnackBar(
+                                  //     SnackBar(
+                                  //       content: Text("Please ckeck the cart"),
+                                  //       duration: Duration(seconds: 1),
+                                  //     ),
+                                  //   );
+                                  //   return;
+                                  // }
 
                                   if(_forudhari){
                                     ScaffoldMessenger.of(context).showSnackBar(
@@ -2646,11 +2584,11 @@ Have a nice day!
                                       _sendTransactionSms(_customermobile, total.toStringAsFixed(0), recivedamount.toStringAsFixed(0), (total - recivedamount).toStringAsFixed(0),billDetails);
                                     }
 
-                                    // debugPrint("Transaction Data to be sent: transactiondata ${transactiondata}-${widget.mobileNo} $recivedamount $subtotal + $serviceCharge - $discount ${widget.subtotalNotifier.value} ${widget.serviceChargeNotifier.value} ${widget.discountNotifier.value}");
-                                    // debugPrint("!_isChecked going to udhari${!_forudhari} ${!_isChecked}-${(_customermobile)}-${(_cusomername)}");
+                                    // //debugPrint("Transaction Data to be sent: transactiondata ${transactiondata}-${widget.mobileNo} $recivedamount $subtotal + $serviceCharge - $discount ${widget.subtotalNotifier.value} ${widget.serviceChargeNotifier.value} ${widget.discountNotifier.value}");
+                                    // //debugPrint("!_isChecked going to udhari${!_forudhari} ${!_isChecked}-${(_customermobile)}-${(_cusomername)}");
                                     if (paymentMode != null && (widget.cart).isNotEmpty) {
                                       if(tableno > 0){
-                                        // debugPrint("PrinterCart ${tableno} and transactiondata ${transactiondata}");
+                                        //debugPrint("PrinterCart ${tableno} and transactiondata ${transactiondata}");
                                         await printer.printCart(
                                           context: context,
                                           cart1: widget.cart,
@@ -2662,7 +2600,7 @@ Have a nice day!
                                         );
                                         _sendsettleFcmNotification(tableno.toString());
                                       } else{
-                                        // debugPrint("PrinterCart ${widget.cart} and transaction ${transactiondata}");
+                                        // //debugPrint("PrinterCart ${widget.cart} and transaction ${transactiondata}");
                                         await printer.printCart(
                                           context: context,
                                           cart1: widget.cart,
@@ -2674,13 +2612,13 @@ Have a nice day!
                                       }
                                     // _sendsettleFcmNotification();
                                     } else {
-                                      debugPrint("Payment selection canceled OR cart is empty");
+                                      //debugPrint("Payment selection canceled OR cart is empty");
                                     }
 
                                     if(!_isChecked){
-                                      // debugPrint("!_isChecked going to udhari${!_forudhari} ${!_isChecked}-${(_customermobile.isEmpty)}-${(_cusomername.isEmpty)}");
+                                      // //debugPrint("!_isChecked going to udhari${!_forudhari} ${!_isChecked}-${(_customermobile.isEmpty)}-${(_cusomername.isEmpty)}");
                                       String descriptionController = "Bill No- ${widget.billno} on date- ${DateTime.now()}";
-                                      // debugPrint("currentCustomer $descriptionController");
+                                      // //debugPrint("currentCustomer $descriptionController");
                                       saveEntry(widget.name ?? "" , widget.mobileNo ?? "" ,widget.adreess ?? "", (total - recivedamount).toStringAsFixed(0), descriptionController);
                                     }
                                     

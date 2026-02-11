@@ -130,7 +130,7 @@ void _loadEditModeCartData() {
       }
     }
 
-    if (foundItem != null && foundItem.id != null) {
+    if (foundItem != null) {
       if (name.toLowerCase().contains('(half)')) {
         _halfControllers[foundItem.id]?.text = qty.toString();
       } else {
@@ -235,7 +235,7 @@ void _loadEditModeCartData() {
         }
       }
 
-      if (foundItem != null && foundItem.id != null) {
+      if (foundItem != null) {
         if (itemName.contains('(Half)')) {
           _halfControllers[foundItem.id]?.text = quantity.toString();
         } else if (itemName.contains('(Full)')) {
@@ -265,13 +265,13 @@ void _loadEditModeCartData() {
         item['favorites'] = !isFavorite;
 
         // 4. Update the object retrieved from the database.
-        // debugPrint("final menuItem = _menuItemBox.get(itemId); ${item['favorites']}");
+        // //debugPrint("final menuItem = _menuItemBox.get(itemId); ${item['favorites']}");
         menuItem.favorites = item['favorites'];
-        // debugPrint("final menuItem = _menuItemBox.get(itemId); ${menuItem}");
+        // //debugPrint("final menuItem = _menuItemBox.get(itemId); ${menuItem}");
 
         // 5. Save the updated object back to ObjectBox. This persists the change.
         _menuItemBox.put(menuItem);
-        // debugPrint("final menuItem = _menuItemBox.get(itemId); ${_menuItemBox.get(itemId)}");
+        // //debugPrint("final menuItem = _menuItemBox.get(itemId); ${_menuItemBox.get(itemId)}");
       });
     }
   }
@@ -300,7 +300,7 @@ void _loadEditModeCartData() {
             _selectedCategory == "All" || item.category == _selectedCategory;
         final matchesSearch =
             _searchController.text.isEmpty ||
-            (item.name?.toLowerCase().contains(
+            (item.name.toLowerCase().contains(
                   _searchController.text.toLowerCase(),
                 ) ??
                 false);
@@ -682,7 +682,7 @@ body: _displayedItems.isEmpty
           final imagePath =
               "/storage/emulated/0/Android/data/${AppConstants.test_version}/files/pictures/menu_images/${item.name}.jpeg";
           final halfPrice = double.tryParse((item.h_price ?? "0").toString()) ?? 0.0;
-          final priceToUse = (item.sellPrice != null && item.sellPrice != "0") 
+          final priceToUse = (item.sellPrice != "0") 
               ? item.sellPrice 
               : item.f_price ?? "0";
           final fullPrice = double.tryParse(priceToUse.toString()) ?? 0.0;
@@ -964,7 +964,7 @@ final formattedCart = newOrModifiedItems.map((item) {
             
             final printerCart = formattedCart;
 
-            debugPrint("printerCart $printerCart ");
+            //debugPrint("printerCart $printerCart ");
             final total = _calculateTotal();
 
             if (printerCart.isEmpty) {
@@ -1008,7 +1008,7 @@ final formattedCart = newOrModifiedItems.map((item) {
                                     try{
                                       await onPressed(); 
                                     } catch (e) {
-                                          debugPrint("got error at the on press $e");
+                                          //debugPrint("got error at the on press $e");
                                     }
                                     
                                     isPrintingNotifier.value = false;
@@ -1139,8 +1139,8 @@ final formattedCart = newOrModifiedItems.map((item) {
                                   icon: Icons.print,
                                   label: "KOT",
                                   onPressed: () async {
-                                    debugPrint("printerCart $printerCart");
-                                    debugPrint("miniPrinter $miniPrinter");
+                                    //debugPrint("printerCart $printerCart");
+                                    //debugPrint("miniPrinter $miniPrinter");
                                     if (miniPrinter) {
                                       _showPreviewAndPrint();
                                     }else{
@@ -1162,8 +1162,8 @@ final formattedCart = newOrModifiedItems.map((item) {
                                   icon: Icons.print,
                                   label: "Print",
                                   onPressed: () async {
-                                    debugPrint("printerCart $printerCart");
-                                    debugPrint("miniPrinter $miniPrinter");
+                                    //debugPrint("printerCart $printerCart");
+                                    //debugPrint("miniPrinter $miniPrinter");
                                     if (miniPrinter) {
                                       _showPreviewAndPrint();
                                     }else{

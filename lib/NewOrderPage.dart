@@ -218,7 +218,7 @@ class _NewOrderPageState extends State<NewOrderPage> with AutomaticKeepAliveClie
     _extractCategories(items_all);
     loadSelectedStyle();
     
-    debugPrint("selectedCategory $selectedCategory $billingType");
+    ////debugPrint("selectedCategory $selectedCategory $billingType");
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
       // Future.delayed(Duration(milliseconds: 15), () => _loadItems(items_all));
@@ -232,7 +232,7 @@ class _NewOrderPageState extends State<NewOrderPage> with AutomaticKeepAliveClie
       });
       // Future.delayed(Duration(milliseconds: 15), () => _filterItems(category:selectedCategory));//update selected items
       stopwatch.stop();
-      debugPrint('✅ Total loading time: ${stopwatch.elapsedMilliseconds}ms');
+      ////debugPrint('✅ Total loading time: ${stopwatch.elapsedMilliseconds}ms');
     });
   }
 
@@ -282,15 +282,15 @@ class _NewOrderPageState extends State<NewOrderPage> with AutomaticKeepAliveClie
     // final store = Provider.of<ObjectBoxService>(context, listen: false).store;
     // final itemsm = store.box<MenuItem>().getAll();
     if(cart1 != null){
-      debugPrint("updating UI with $cart1");
+      ////debugPrint("updating UI with $cart1");
       // No changes to the mapping logic
       _items = itemsm.map((item) {
         var newItem = item.copyWith(selected: false, qty: 0, h_qty: 0);
         
-        if (cart1 != null && cart1.isNotEmpty) {
+        if (cart1.isNotEmpty) {
           for (final cartItem in cart1) {
             if (cartItem['id'] == item.id) {
-              // debugPrint("newItem $newItem");
+              // ////debugPrint("newItem $newItem");
               if (cartItem['portion'].toLowerCase() == 'full') {
                 newItem = newItem.copyWith(
                   qty: cartItem['qty'] ?? 0,
@@ -301,26 +301,26 @@ class _NewOrderPageState extends State<NewOrderPage> with AutomaticKeepAliveClie
                   h_qty: cartItem['qty'] ?? 0,
                   selected: (cartItem['qty'] ?? 0) > 0
                 );
-                // debugPrint("newItem $newItem");
+                // ////debugPrint("newItem $newItem");
               }
             }
           }
         }
-        // debugPrint("newItem $newItem");
+        // ////debugPrint("newItem $newItem");
         return newItem;
       }).toList();
       
       items = _items.map((item) => item.toMap()).toList();
-      debugPrint("loded cart in the items is $items");
+      ////debugPrint("loded cart in the items is $items");
       setState(() { filteredItems = List.from(items); });
     }
   }
 
   void _loadCartData() {
     final cartProvider = Provider.of<CartProvider>(context, listen: false);
-    debugPrint("set cart to the provider to the in neworderpage ${cartProvider.cart.isEmpty} ${cartProvider.cart}");
+    ////debugPrint("set cart to the provider to the in neworderpage ${cartProvider.cart.isEmpty} ${cartProvider.cart}");
     if (cartProvider.cart.isEmpty){
-      debugPrint("set cart to the provider to the in neworderpage ${cartProvider.cart.isEmpty} ${cartProvider.cart}");
+      ////debugPrint("set cart to the provider to the in neworderpage ${cartProvider.cart.isEmpty} ${cartProvider.cart}");
       cartProvider.setCart(widget.cart1 ?? []);
     }
   }
@@ -523,7 +523,7 @@ class _NewOrderPageState extends State<NewOrderPage> with AutomaticKeepAliveClie
     
     //if available, otherwise fallback to f_price, otherwise 0
     double fPrice;
-    // debugPrint(" $billingType == REGULAR  buildItemCardWithImage_half_full");
+    // ////debugPrint(" $billingType == REGULAR  buildItemCardWithImage_half_full");
     switch (billingType) {
       case "AC":
         fPrice = double.tryParse(item['acSellPrice']?.toString() ?? '0.0')?? 0;
@@ -536,7 +536,7 @@ class _NewOrderPageState extends State<NewOrderPage> with AutomaticKeepAliveClie
         break;
       case "online Delivery Price (parcel)":
         fPrice = double.tryParse(item['onlineDeliveryPrice']?.toString() ?? '0.0')?? 0;
-        // debugPrint(" $billingType == REGULAR _ListViewHalfFullState $fPrice");
+        // ////debugPrint(" $billingType == REGULAR _ListViewHalfFullState $fPrice");
         break;
       default:
         fPrice = double.tryParse(item['f_price']?.toString() ?? '0.0') ?? 0;
@@ -545,7 +545,7 @@ class _NewOrderPageState extends State<NewOrderPage> with AutomaticKeepAliveClie
 
     // double hPrice = double.tryParse(item['h_price']?.toString() ?? '0.0') ?? 0;
     double hPrice;
-    // debugPrint(" $billingType == REGULAR  buildItemCardWithImage_half_full");
+    // ////debugPrint(" $billingType == REGULAR  buildItemCardWithImage_half_full");
     switch (billingType) {
       case "AC":
         hPrice = double.tryParse(item['acSellPriceHalf']?.toString() ?? '0.0')?? 0;
@@ -558,7 +558,7 @@ class _NewOrderPageState extends State<NewOrderPage> with AutomaticKeepAliveClie
         break;
       case "online Delivery Price (parcel)":
         hPrice = double.tryParse(item['onlineDeliveryPriceHalf']?.toString() ?? '0.0')?? 0;
-        // debugPrint(" $billingType == REGULAR _ListViewHalfFullState $fPrice");
+        // ////debugPrint(" $billingType == REGULAR _ListViewHalfFullState $fPrice");
         break;
       default:
         hPrice = double.tryParse(item['h_price']?.toString() ?? '0.0') ?? 0;
@@ -723,7 +723,7 @@ class _NewOrderPageState extends State<NewOrderPage> with AutomaticKeepAliveClie
                                         item['selected'] = true;
                                         cartProvider?.addToCart(item,'half',hPrice);
                                       });
-                                      // debugPrint("added item is ${item}");
+                                      // ////debugPrint("added item is ${item}");
                                     },
                                     child: Container(
                                       width: 25,
@@ -959,7 +959,7 @@ class _NewOrderPageState extends State<NewOrderPage> with AutomaticKeepAliveClie
       hasImage = imageFile.existsSync();
     }
     double price;
-    // debugPrint(" $billingType == REGULAR  buildItemCardWithImage_half_full");
+    // ////debugPrint(" $billingType == REGULAR  buildItemCardWithImage_half_full");
     switch (billingType) {
       case "AC":
         price = double.tryParse(item['acSellPrice']?.toString() ?? '0.0')?? 0;
@@ -972,7 +972,7 @@ class _NewOrderPageState extends State<NewOrderPage> with AutomaticKeepAliveClie
         break;
       case "online Delivery Price (parcel)":
         price = double.tryParse(item['onlineDeliveryPrice']?.toString() ?? '0.0')?? 0;
-        // debugPrint(" $billingType == REGULAR _ListViewHalfFullState $fPrice");
+        // ////debugPrint(" $billingType == REGULAR _ListViewHalfFullState $fPrice");
         break;
       default:
         price = double.tryParse(item['f_price']?.toString() ?? '0.0') ?? 0;
@@ -981,7 +981,7 @@ class _NewOrderPageState extends State<NewOrderPage> with AutomaticKeepAliveClie
 
     // double hPrice = double.tryParse(item['h_price']?.toString() ?? '0.0') ?? 0;
     double hPrice;
-    // debugPrint(" $billingType == REGULAR  buildItemCardWithImage_half_full");
+    // ////debugPrint(" $billingType == REGULAR  buildItemCardWithImage_half_full");
     switch (billingType) {
       case "AC":
         hPrice = double.tryParse(item['acSellPriceHalf']?.toString() ?? '0.0')?? 0;
@@ -994,14 +994,14 @@ class _NewOrderPageState extends State<NewOrderPage> with AutomaticKeepAliveClie
         break;
       case "online Delivery Price (parcel)":
         hPrice = double.tryParse(item['onlineDeliveryPriceHalf']?.toString() ?? '0.0')?? 0;
-        // debugPrint(" $billingType == REGULAR _ListViewHalfFullState $fPrice");
+        // ////debugPrint(" $billingType == REGULAR _ListViewHalfFullState $fPrice");
         break;
       default:
         hPrice = double.tryParse(item['h_price']?.toString() ?? '0.0') ?? 0;
         break;
     }
     
-    // debugPrint("menu items $item ");
+    // ////debugPrint("menu items $item ");
 
     return GestureDetector(
       onTap: () {
@@ -1315,7 +1315,7 @@ class _NewOrderPageState extends State<NewOrderPage> with AutomaticKeepAliveClie
   Widget _buildItemListCard(Map<String, dynamic> item, {bool isList = false}) {
 
     double price;
-    // debugPrint(" $billingType == REGULAR  _buildItemListCard");
+    // ////debugPrint(" $billingType == REGULAR  _buildItemListCard");
     switch (billingType) {
       case "AC":
         price = double.tryParse(item['acSellPrice']?.toString() ?? '0.0')?? 0;
@@ -1328,7 +1328,7 @@ class _NewOrderPageState extends State<NewOrderPage> with AutomaticKeepAliveClie
         break;
       case "online Delivery Price (parcel)":
         price = double.tryParse(item['onlineDeliveryPrice']?.toString() ?? '0.0')?? 0;
-        // debugPrint(" $billingType == REGULAR _ListViewHalfFullState $price");
+        // ////debugPrint(" $billingType == REGULAR _ListViewHalfFullState $price");
         break;
       default:
         price = double.tryParse(item['f_price']?.toString() ?? '0.0') ?? 0;
@@ -1337,7 +1337,7 @@ class _NewOrderPageState extends State<NewOrderPage> with AutomaticKeepAliveClie
 
     // double hPrice = double.tryParse(item['h_price']?.toString() ?? '0.0') ?? 0;
     double hPrice;
-    // debugPrint(" $billingType == REGULAR  buildItemCardWithImage_half_full");
+    // ////debugPrint(" $billingType == REGULAR  buildItemCardWithImage_half_full");
     switch (billingType) {
       case "AC":
         hPrice = double.tryParse(item['acSellPriceHalf']?.toString() ?? '0.0')?? 0;
@@ -1350,7 +1350,7 @@ class _NewOrderPageState extends State<NewOrderPage> with AutomaticKeepAliveClie
         break;
       case "online Delivery Price (parcel)":
         hPrice = double.tryParse(item['onlineDeliveryPriceHalf']?.toString() ?? '0.0')?? 0;
-        // debugPrint(" $billingType == REGULAR _ListViewHalfFullState $hPrice");
+        // ////debugPrint(" $billingType == REGULAR _ListViewHalfFullState $hPrice");
         break;
       default:
         hPrice = double.tryParse(item['h_price']?.toString() ?? '0.0') ?? 0;
@@ -1843,12 +1843,12 @@ class _NewOrderPageState extends State<NewOrderPage> with AutomaticKeepAliveClie
         child: Text('No items found',textScaler: TextScaler.linear(1.0), style: TextStyle(fontSize: 16)),
       );
     }
-    debugPrint(" $selectedCategory selected items $filteredItems");
+    // ////debugPrint("selected selectedCategory $selectedCategory selected items $filteredItems");
 
         return ListView.builder(
-      controller: _scrollController,
-      itemCount: filteredItems.length,
-      itemBuilder: (context, index) {
+        controller: _scrollController,
+        itemCount: filteredItems.length,
+        itemBuilder: (context, index) {
         final item = filteredItems[index];
         if (cartProvider == null) {
           return const SizedBox.shrink(); // or show an error widget
@@ -1904,7 +1904,7 @@ class _NewOrderPageState extends State<NewOrderPage> with AutomaticKeepAliveClie
   Future<String?> _getBillingType() async {
     // final prefs = await SharedPreferences.getInstance();
     // prefs.getString('selectedBillingType') ?? "REGULAR";
-    debugPrint(" $billingType == REGULAR _getBillingType");
+    // ////debugPrint(" $billingType == REGULAR _getBillingType");
     return billingType;
     
   }
@@ -1934,7 +1934,7 @@ class _NewOrderPageState extends State<NewOrderPage> with AutomaticKeepAliveClie
     
     setState(() {
       billingType = (widget.billingType != null) ? widget.billingType  : prefs.getString('selectedBillingType') ?? "REGULAR";
-      debugPrint("(billingType != null) ${(billingType != null)}  ${widget.billingType} $billingType");
+      ////debugPrint("(billingType != null) ${(billingType != null)}  ${widget.billingType} $billingType");
     });
 
 
@@ -2022,7 +2022,7 @@ class _NewOrderPageState extends State<NewOrderPage> with AutomaticKeepAliveClie
     required String categoryIdentifier,
     IconData? icon, // Optional icon
   }) {
-    // debugPrint("selectedCategory == categoryIdentifier , $selectedCategory == $categoryIdentifier");
+    // ////debugPrint("selectedCategory == categoryIdentifier , $selectedCategory == $categoryIdentifier");
     final isSelected = selectedCategory == categoryIdentifier;
 
     return GestureDetector(
@@ -2099,6 +2099,8 @@ class _NewOrderPageState extends State<NewOrderPage> with AutomaticKeepAliveClie
 
     // --- Your page's methods ---
   void _handleDetails() async{
+    final cartProviderOld = Provider.of<CartProvider>(context, listen: false);
+    cartProviderOld.removeZeroQTYFromCart();
     await Navigator.push(context, MaterialPageRoute(builder: (context) => DetailPage(hideadd: widget.hideadd)));
     final cartProvider = Provider.of<CartProvider>(context, listen: false);
     final cart = cartProvider.cart;
@@ -2110,7 +2112,7 @@ class _NewOrderPageState extends State<NewOrderPage> with AutomaticKeepAliveClie
   void _addItemsinTable() {
     final cartProvider = Provider.of<CartProvider>(context, listen: false);
     final cart = cartProvider.cart;
-    debugPrint("Save button tapped! $cart ");
+    ////debugPrint("Save button tapped! $cart ");
     // To go back to the very first screen (the "home" screen)
     Navigator.of(context).popUntil((route) => route.isFirst);
     // In a real app, you would call your showPrintOptions(context) here
@@ -2351,7 +2353,11 @@ class _NewOrderPageState extends State<NewOrderPage> with AutomaticKeepAliveClie
                           child: (widget.mode != null)
                               ? ElevatedButton(
                                   onPressed: cart.isNotEmpty
-                                      ? () => Navigator.pop(context, cart)
+                                      ? () {
+                                          final cartProviderOld = Provider.of<CartProvider>(context, listen: false);
+                                          cartProviderOld.removeZeroQTYFromCart();
+                                          Navigator.pop(context, cart);
+                                        }
                                       : null,
                                   style: ElevatedButton.styleFrom(
                                     backgroundColor: Colors.green,
@@ -2441,7 +2447,7 @@ class _ListViewHalfFullState extends State<ListViewHalfFull> {
     // reuse your existing build logic for _buildItemListCard_half_full here
     
     double fPrice;
-    // debugPrint(" $billingType == REGULAR  buildItemCardWithImage_half_full");
+    // ////debugPrint(" $billingType == REGULAR  buildItemCardWithImage_half_full");
     switch (billingType) {
       case "AC":
         fPrice = double.tryParse(item['acSellPrice']?.toString() ?? '0.0')?? 0;
@@ -2454,7 +2460,7 @@ class _ListViewHalfFullState extends State<ListViewHalfFull> {
         break;
       case "online Delivery Price (parcel)":
         fPrice = double.tryParse(item['onlineDeliveryPrice']?.toString() ?? '0.0')?? 0;
-        // debugPrint(" $billingType == REGULAR _ListViewHalfFullState $fPrice");
+        // ////debugPrint(" $billingType == REGULAR _ListViewHalfFullState $fPrice");
         break;
       default:
         fPrice = double.tryParse(item['f_price']?.toString() ?? '0.0') ?? 0;
@@ -2463,7 +2469,7 @@ class _ListViewHalfFullState extends State<ListViewHalfFull> {
 
     // double hPrice = double.tryParse(item['h_price']?.toString() ?? '0.0') ?? 0;
     double hPrice;
-    // debugPrint(" $billingType == REGULAR  buildItemCardWithImage_half_full");
+    // ////debugPrint(" $billingType == REGULAR  buildItemCardWithImage_half_full");
     switch (billingType) {
       case "AC":
         hPrice = double.tryParse(item['acSellPriceHalf']?.toString() ?? '0.0')?? 0;
@@ -2476,7 +2482,7 @@ class _ListViewHalfFullState extends State<ListViewHalfFull> {
         break;
       case "online Delivery Price (parcel)":
         hPrice = double.tryParse(item['onlineDeliveryPriceHalf']?.toString() ?? '0.0')?? 0;
-        // debugPrint(" $billingType == REGULAR _ListViewHalfFullState $hPrice");
+        // ////debugPrint(" $billingType == REGULAR _ListViewHalfFullState $hPrice");
         break;
       default:
         hPrice = double.tryParse(item['h_price']?.toString() ?? '0.0') ?? 0;
@@ -2596,8 +2602,9 @@ class _ListViewHalfFullState extends State<ListViewHalfFull> {
 
   // Half Quantity Selector Widget
   Widget _buildHalfQuantitySelector(Map<String, dynamic> item, double price, {required double fontSize}) {
-double buttonSize = 34;
+    double buttonSize = 34;
     double buttonSize1 = 19;
+    // print_log("half qty selector item $item price $price");
     return Row(
       mainAxisAlignment: MainAxisAlignment.end,
       children: [
@@ -2605,12 +2612,17 @@ double buttonSize = 34;
         GestureDetector(
           onTap: () {
             setState(() {
+              // print_log("half qty less than 1 ${item['h_qty']}");
               if (item['h_qty'] > 0) {
                 item['h_qty'] -= 1;
                 cartProvider?.addToCart(item, 'half', price);
                 if (item['h_qty'] == 0 && (item['qty'] == 0)) {
                   item['selected'] = false;
                 }
+              }
+              if(item['qty'] < 1){
+                // print_log("half qty less than 0 ${item['h_qty']}");
+                cartProvider?.removeFromCart("${item['name']} (Half)", 'Half');
               }
             });
           },
@@ -2665,7 +2677,7 @@ double buttonSize = 34;
               item['selected'] = true;
               cartProvider?.addToCart(item, 'half', price);
             });
-            // debugPrint("added item is ${item}");
+            // ////debugPrint("added item is ${item}");
           },
           child: Container(
             width: buttonSize,
@@ -2708,6 +2720,9 @@ double buttonSize = 34;
                   item['selected'] = false;
                 }
                 cartProvider?.addToCart(item, 'Full', price);
+              }
+              if(item['qty'] < 1){
+                cartProvider?.removeFromCart("${item['name']}", 'Full');
               }
             });
           },
@@ -2832,7 +2847,7 @@ double buttonSize = 34;
                     item['selected'] = false;
                     item['qty'] = 0;
                     item['h_qty'] = 0;
-                    cartProvider?.removeFromCart(item['name'], 'half');
+                    cartProvider?.removeFromCart("${item['name']} (Half)", 'half');
                     cartProvider?.removeFromCart(item['name'], 'full');
                     // updateCart(item);
                   });

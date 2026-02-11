@@ -57,8 +57,10 @@ class _PrinterSetupPageState extends State<PrinterSetupPage> with WidgetsBinding
   int _logoheight = 200; // default width
   String _qrSize = "5";
   String _paperSize = "2";
+  String _fontSizes = "fontA";
   final List<String> _qrSizes = ["1", "2", "3", "4", "5", "6", "7", "8"];
   final List<String> _paperSizes = ["2", "3","4"];
+  final List<String> _fontSizess = ["fontA", "fontB"];
   late TextEditingController _footerController = TextEditingController();
 
   thermal.BlueThermalPrinter printer = thermal.BlueThermalPrinter.instance;
@@ -231,10 +233,8 @@ class _PrinterSetupPageState extends State<PrinterSetupPage> with WidgetsBinding
        _footerController = TextEditingController(text: prefs.getString('footerText')?? "** thank you **");
 
       _selectedUUID = prefs.getString('selected_printer_uuid') ?? "49535343-8841-43f4-a8d4-ecbe34729bb3";
-      if (_selectedUUID != null) {
-        _availableUUIDs = [_selectedUUID];
-      }
-    });
+      _availableUUIDs = [_selectedUUID];
+        });
   }
 
   // Auto-save settings whenever they change
@@ -291,10 +291,8 @@ class _PrinterSetupPageState extends State<PrinterSetupPage> with WidgetsBinding
     await prefs.setInt('logoWidth', _logoWidth);
     await prefs.setInt('chunkSize', _chunkSize);
     await prefs.setInt('logoheight', _logoheight);
-    if (_selectedUUID != null) {
-      await prefs.setString('selected_printer_uuid', _selectedUUID!);
-    }
-
+    await prefs.setString('selected_printer_uuid', _selectedUUID);
+  
     ScaffoldMessenger.of(
       context,
     ).showSnackBar(SnackBar(content: Text("💾 Printer settings saved")));
@@ -478,7 +476,7 @@ Future<void> _connectKOTPrinter() async {
       setState(() {
         _availableUUIDs = uuids.toList();
         if (_availableUUIDs.isNotEmpty) {
-           if (_selectedUUID == null || !_availableUUIDs.contains(_selectedUUID)) {
+           if (!_availableUUIDs.contains(_selectedUUID)) {
              _selectedUUID = _availableUUIDs.last;
              _autoSaveSettings();
            }
@@ -638,7 +636,7 @@ Future<void> _connectKOTPrinter() async {
                 final isKOTSelected = _selectedKOTDevice?.address == device.address;
                 // final isSelected = _savedDeviceAddress == device.address;
                 // final isKOTSelected = _savedKOTDeviceAddress == device.address;
-                debugPrint("isSelected $isSelected  ${_selectedDevice?.address} == ${device.address} isKOTSelected} $isKOTSelected");
+                //debugPrint("isSelected $isSelected  ${_selectedDevice?.address} == ${device.address} isKOTSelected} $isKOTSelected");
 
                 // Determine card color
                 Color? cardColor;
@@ -747,11 +745,10 @@ Future<void> _connectKOTPrinter() async {
                         _autoSaveSettings();
                       },
                     ),
-                    if (_selectedUUID != null)
-                      Padding(
-                        padding: const EdgeInsets.only(top: 4.0),
-                        child: Text("Selected: $_selectedUUID", style: TextStyle(fontSize: 10, color: Colors.grey)),
-                      ),
+                    Padding(
+                      padding: const EdgeInsets.only(top: 4.0),
+                      child: Text("Selected: $_selectedUUID", style: TextStyle(fontSize: 10, color: Colors.grey)),
+                    ),
                   ],
                 ),
               ),
@@ -1063,6 +1060,26 @@ Future<void> _connectKOTPrinter() async {
                           _autoSaveSettings();
                         },
                         items: _paperSizes.map((size) => DropdownMenuItem(value: size,child: Text(size),)).toList(),
+                      ),
+                    ),
+                  ),
+                  Container(
+                    width: 120.0,
+                    padding: const EdgeInsets.symmetric(horizontal: 12.0), // Padding inside the border
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(4.0), // Matches border radius
+                      border: Border.all(color: Colors.grey.shade600, width: 1.0), // Mimics OutlineInputBorder
+                    ),
+                    child: DropdownButtonHideUnderline( // Hides the default underline
+                      child: DropdownButton<String>(
+                        value: _fontSizess.contains("fontA") ? "fontA" : "fontB",
+                        isExpanded: true, // Expands to fill the Container's width
+                        isDense: true, // Makes it vertically compact
+                        onChanged: (val) {
+                          setState(() => _fontSizes = val ?? "fontA");
+                          _autoSaveSettings();
+                        },
+                        items: _fontSizess.map((size) => DropdownMenuItem(value: size,child: Text(size),)).toList(),
                       ),
                     ),
                   ),

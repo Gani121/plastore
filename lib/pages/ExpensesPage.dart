@@ -27,7 +27,7 @@ class _ExpensesPageState extends State<ExpensesPage> {
   final _formKey = GlobalKey<FormState>();
   final _titleController = TextEditingController();
   final _amountController = TextEditingController();
-  late DateTime _selectedDate = DateTime.now();
+  late DateTime _selectedDate;
   String _selectedCategory = 'Food';
   File? _selectedImage; // used while adding a new expense
   String? _imagePath; // path used while adding a new expense
@@ -60,7 +60,8 @@ class _ExpensesPageState extends State<ExpensesPage> {
   Future<void> _loadExpenses() async {
     try {
 
-      _selectedDate = await getBussinessDate();
+      _selectedDate = AppConstants.businessDate!;
+      print_log("selected date in _loadExpenses $_selectedDate");
       final box = store.box<expences>();
       final prefs = await SharedPreferences.getInstance();
       final loadedExpenses = <Expense>[];
@@ -73,7 +74,7 @@ class _ExpensesPageState extends State<ExpensesPage> {
           final map = Map<String, dynamic>.from(jsonDecode(s));
           loadedExpenses.add(Expense.fromMap(map));
         } catch (e) {
-          debugPrint('Skipping malformed expense from SharedPreferences: $e');
+          //debugPrint('Skipping malformed expense from SharedPreferences: $e');
         }
       }
 
@@ -85,7 +86,7 @@ class _ExpensesPageState extends State<ExpensesPage> {
           final map = Map<String, dynamic>.from(jsonDecode(s.expence));
           loadedExpenses.add(Expense.fromMap(map));
         } catch (e) {
-          debugPrint('Skipping malformed expense entry: $e');
+          //debugPrint('Skipping malformed expense entry: $e');
         }
       }
 
@@ -138,7 +139,9 @@ class _ExpensesPageState extends State<ExpensesPage> {
         }
       } else if (newExpense != null) {
         // Add new expense
+        print_log("selected date ${newExpense.date}");
         String expence_string = jsonEncode(newExpense.toMap());
+        print_log("expence_string ${expence_string}");
         final expenseEntity = expences(expence: expence_string,);
         box.put(expenseEntity);
         
@@ -147,16 +150,17 @@ class _ExpensesPageState extends State<ExpensesPage> {
         await ExpensesService.updateTotal(_totalExpenses);
 
         final daywise = _getDaywiseExpenses();
-        final today = DateTime.now();
-        final todayNormalized = DateTime(today.year, today.month, today.day);
+        print_log("sortedEntries in _saveExpensesToPrefs $daywise");
+        final today = _selectedDate;
+        final todayNormalized = _selectedDate;
         final todayTotal = daywise[todayNormalized] ?? 0.0;
-        debugPrint('Today\'s total: ₹$todayTotal');
+        //debugPrint('$todayNormalized total: ₹$todayTotal');
 
         final prefs = await SharedPreferences.getInstance();
         await prefs.setDouble('Todayexpenses', todayTotal);
       }
     } catch (e) {
-      debugPrint('Error saving expenses: $e');
+      //debugPrint('Error saving expenses: $e');
       if (mounted) {
         ScaffoldMessenger.of(
           context,
@@ -191,7 +195,7 @@ class _ExpensesPageState extends State<ExpensesPage> {
       await prefs.setDouble('totalExpenses', total);
       await ExpensesService.updateTotal(total);
     } catch (e) {
-      debugPrint('Error saving total: $e');
+      //debugPrint('Error saving total: $e');
     }
   }
 
@@ -375,21 +379,22 @@ class _ExpensesPageState extends State<ExpensesPage> {
     final removed = expense;
     setState(() => _expenses.removeWhere((e) => e.id == expense.id));
     _saveExpensesToPrefs(id : int.tryParse(expense.id));
+    screen_massage(context, '${expense.title} deleted successfully!');
 
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('"${expense.title}" deleted successfully!'),
-        backgroundColor: Colors.red,
-        action: SnackBarAction(
-          label: 'Undo',
-          textColor: Colors.white,
-          onPressed: () {
-            setState(() => _expenses.add(removed));
-            _saveExpensesToPrefs(newExpense: removed);
-          },
-        ),
-      ),
-    );
+    // ScaffoldMessenger.of(context).showSnackBar(
+    //   SnackBar(
+    //     content: Text('"${expense.title}" deleted successfully!'),
+    //     backgroundColor: Colors.red,
+        // action: SnackBarAction(
+        //   label: 'Undo',
+        //   textColor: Colors.white,
+        //   onPressed: () {
+        //     setState(() => _expenses.add(removed));
+        //     _saveExpensesToPrefs(newExpense: removed);
+        //   },
+        // ),
+    //   ),
+    // );
   }
 
   Future<bool> _showDeleteConfirmation(Expense expense) async {
@@ -661,7 +666,7 @@ class _ExpensesPageState extends State<ExpensesPage> {
   void _printAllExpensesFromBox() async {
     final box = store.box<expences>();
     final allExpenses = box.getAll();
-    debugPrint('--- Printing all expenses from ObjectBox ---');
+    //debugPrint('--- Printing all expenses from ObjectBox ---');
     if (allExpenses.isEmpty) {
       print_log('No expenses found in the box.');
     } else {
@@ -683,6 +688,7 @@ class _ExpensesPageState extends State<ExpensesPage> {
 
     for (final expense in _expenses) {
       // Normalize the date to remove time component
+      // print_log("expense date ${expense.date}");
       final dateOnly = DateTime(
         expense.date.year,
         expense.date.month,
@@ -699,138 +705,139 @@ class _ExpensesPageState extends State<ExpensesPage> {
     // Sort by date (most recent first)
     final sortedEntries = daywiseTotals.entries.toList()
       ..sort((a, b) => b.key.compareTo(a.key));
-
+    // print_log("expense date ${sortedEntries}");
     return Map.fromEntries(sortedEntries);
   }
 
   /// ---------- Add new expense ----------
-  void _addNewExpense() {
-    
-    _clearForm(); // ensure form is empty
-    sleep(100,'m');
-    
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      builder: (BuildContext context) {
-        return Padding(
-          padding: EdgeInsets.only(
-            bottom: MediaQuery.of(context).viewInsets.bottom,
-          ),
-          child: Container(
-            padding: const EdgeInsets.all(20),
-            child: Form(
-              key: _formKey,
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Text(
-                    'Add New Expense',
-                    style: TextStyle(
-                      fontSize: 20,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.blue.shade800,
-                    ),
-                  ),
-                  const SizedBox(height: 20),
-                  _buildPhotoUploadSection(),
-                  const SizedBox(height: 15),
-                  TextFormField(
-                    controller: _titleController,
-                    decoration: const InputDecoration(
-                      labelText: 'Expense Title',
-                      border: OutlineInputBorder(),
-                      prefixIcon: Icon(Icons.title),
-                    ),
-                    validator: (value) => (value == null || value.isEmpty)
-                        ? 'Please enter a title'
-                        : null,
-                  ),
-                  const SizedBox(height: 15),
-                  TextFormField(
-                    controller: _amountController,
-                    decoration: const InputDecoration(
-                      labelText: 'Amount',
-                      border: OutlineInputBorder(),
-                      prefixIcon: Icon(Icons.attach_money),
-                    ),
-                    keyboardType: TextInputType.numberWithOptions(
-                      decimal: true,
-                    ),
-                    validator: (value) {
-                      if (value == null || value.isEmpty)
-                        return 'Please enter an amount';
-                      if (double.tryParse(value) == null)
-                        return 'Please enter a valid number';
-                      if ((double.tryParse(value) ?? 0.0) <= 0)
-                        return 'Amount must be greater than 0';
-                      return null;
-                    },
-                  ),
-                  const SizedBox(height: 15),
-                  DropdownButtonFormField<String>(
-                    value: _selectedCategory,
-                    decoration: const InputDecoration(
-                      labelText: 'Category',
-                      border: OutlineInputBorder(),
-                      prefixIcon: Icon(Icons.category),
-                    ),
-                    items: _categories
-                        .map((c) => DropdownMenuItem(value: c, child: Text(c)))
-                        .toList(),
-                    onChanged: (v) =>
-                        setState(() => _selectedCategory = v ?? 'Food'),
-                  ),
-                  const SizedBox(height: 15),
-                  ListTile(
-                    leading: const Icon(Icons.calendar_today),
-                    title: const Text('Select Date'),
-                    subtitle: Text(DateFormat('MMM dd, yyyy').format(_selectedDate),),
-                    onTap: () async {
-                      final pickedDate = await showDatePicker(
-                        context: context,
-                        initialDate: _selectedDate,
-                        firstDate: DateTime(2024),
-                        lastDate: DateTime.now(),
-                      );
-                      if (pickedDate != null)
-                        setState(() => _selectedDate = pickedDate);
-                    },
-                  ),
-                  const SizedBox(height: 20),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceAround,
+void _addNewExpense() {
+  _clearForm();
+
+  showModalBottomSheet(
+    context: context,
+    isScrollControlled: true,
+    shape: const RoundedRectangleBorder(
+      borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+    ),
+    builder: (BuildContext context) {
+      // Use StatefulBuilder so setState updates the bottom sheet UI
+      return StatefulBuilder(
+        builder: (BuildContext context, StateSetter setModalState) {
+          return Padding(
+            padding: EdgeInsets.only(
+              bottom: MediaQuery.of(context).viewInsets.bottom,
+            ),
+            child: SingleChildScrollView( // Added to prevent overflow on small screens
+              child: Container(
+                padding: const EdgeInsets.all(20),
+                child: Form(
+                  key: _formKey,
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
                     children: [
-                      ElevatedButton(
-                        onPressed: () {
-                          Navigator.pop(context);
-                          _clearForm();
-                        },
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.grey.shade300,
+                      Text(
+                        'Add New Expense',
+                        style: TextStyle(
+                          fontSize: 20,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.blue.shade800,
                         ),
-                        child: const Text('Cancel'),
                       ),
-                      ElevatedButton(
-                        onPressed: _saveExpense,
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.blue.shade800,
+                      const SizedBox(height: 20),
+                      _buildPhotoUploadSection(),
+                      const SizedBox(height: 15),
+                      TextFormField(
+                        controller: _titleController,
+                        decoration: const InputDecoration(
+                          labelText: 'Expense Title',
+                          border: OutlineInputBorder(),
+                          prefixIcon: Icon(Icons.title),
                         ),
-                        child: const Text(
-                          'Save',
-                          style: TextStyle(color: Colors.white),
+                        validator: (value) => (value == null || value.isEmpty)
+                            ? 'Please enter a title'
+                            : null,
+                      ),
+                      const SizedBox(height: 15),
+                      TextFormField(
+                        controller: _amountController,
+                        decoration: const InputDecoration(
+                          labelText: 'Amount',
+                          border: OutlineInputBorder(),
+                          prefixIcon: Icon(Icons.attach_money),
                         ),
+                        keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                        validator: (value) {
+                          if (value == null || value.isEmpty) return 'Please enter an amount';
+                          final n = double.tryParse(value);
+                          if (n == null) return 'Please enter a valid number';
+                          if (n <= 0) return 'Amount must be greater than 0';
+                          return null;
+                        },
+                      ),
+                      const SizedBox(height: 15),
+                      DropdownButtonFormField<String>(
+                        value: _selectedCategory,
+                        decoration: const InputDecoration(
+                          labelText: 'Category',
+                          border: OutlineInputBorder(),
+                          prefixIcon: Icon(Icons.category),
+                        ),
+                        items: _categories
+                            .map((c) => DropdownMenuItem(value: c, child: Text(c)))
+                            .toList(),
+                        onChanged: (v) {
+                          // Update both the local modal state and the parent state
+                          setModalState(() => _selectedCategory = v ?? 'Food');
+                          setState(() => _selectedCategory = v ?? 'Food');
+                        },
+                      ),
+                      const SizedBox(height: 15),
+                      ListTile(
+                        leading: const Icon(Icons.calendar_today),
+                        title: const Text('Select Date'),
+                        subtitle: Text(DateFormat('MMM dd, yyyy').format(_selectedDate)),
+                        onTap: () async {
+                          final pickedDate = await showDatePicker(
+                            context: context,
+                            initialDate: _selectedDate,
+                            firstDate: DateTime(2024),
+                            lastDate: DateTime.now(),
+                          );
+                          if (pickedDate != null) {
+                            setModalState(() => _selectedDate = pickedDate);
+                            setState(() => _selectedDate = pickedDate);
+                          }
+                        },
+                      ),
+                      const SizedBox(height: 20),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceAround,
+                        children: [
+                          TextButton( // Changed to TextButton for a cleaner look
+                            onPressed: () => Navigator.pop(context),
+                            child: const Text('Cancel'),
+                          ),
+                          ElevatedButton(
+                            onPressed: _saveExpense,
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: Colors.blue.shade800,
+                              foregroundColor: Colors.white,
+                            ),
+                            child: const Text('Save'),
+                          ),
+                        ],
                       ),
                     ],
                   ),
-                ],
+                ),
               ),
             ),
-          ),
-        );
-      },
-    );
-  }
+          );
+        },
+      );
+    },
+  );
+}
 
   Widget _buildPhotoUploadSection() {
     return Column(
@@ -898,12 +905,12 @@ class _ExpensesPageState extends State<ExpensesPage> {
 
   void _saveExpense() {
     if (!_formKey.currentState!.validate()) return;
-
+    print_log("selected date ${_selectedDate}");
     final newExpense = Expense(
       id: DateTime.now().millisecondsSinceEpoch.toString(),
       title: _titleController.text.trim(),
       amount: double.parse(_amountController.text),
-      date: _selectedDate,
+      date: DateTime(_selectedDate.year, _selectedDate.month, _selectedDate.day),
       category: _selectedCategory,
       photoPath: _imagePath,
     );
@@ -924,7 +931,7 @@ class _ExpensesPageState extends State<ExpensesPage> {
   void _clearForm() async {
     _titleController.clear();
     _amountController.clear();
-    _selectedDate = await getBussinessDate();
+    _selectedDate = await getBussinessDateStorage();
     _selectedCategory = 'Food';
     _selectedImage = null;
     _imagePath = null;
@@ -1082,34 +1089,36 @@ class ExpensesService {
         endDate.year,
         endDate.month,
         endDate.day,
-        23,
-        59,
-        59,
+        // 23,
+        // 59,
+        // 59,
       );
 
       double total = 0.0;
 
       for (final expenseJson in expensesJson) {
         try {
-
+          // print_log("expense ${expenseJson.expence.toString()}");
           final map = Map<String, dynamic>.from(jsonDecode(expenseJson.expence));
           final expense = Expense.fromMap(map);
 
           // Check if expense falls within the date range
-          // debugPrint("expense ${expense.date} $normalizedStart $normalizedEnd ${expense.date.isAfter(normalizedStart)} ${expense.date.isBefore(normalizedEnd)}");
-          if (expense.date.isAfter(normalizedStart) && expense.date.isBefore(normalizedEnd)) {
+          // //debugPrint("expense ${expense.date} $normalizedStart $normalizedEnd ${expense.date.isAfter(normalizedStart)} ${expense.date.isBefore(normalizedEnd)}");
+          // print_log("expense  ${(expense.date == normalizedStart)} {${expense.date} == $normalizedStart)}  normalizedEnd $normalizedEnd");
+          // print_log("expense  ${expense.date.isAfter(normalizedStart) && expense.date.isBefore(normalizedEnd)} {${expense.date.isAfter(normalizedStart)} && ${expense.date.isBefore(normalizedEnd)}}");
+          if ((expense.date.isAfter(normalizedStart) || expense.date.isAtSameMomentAs(normalizedStart)) && (expense.date.isBefore(normalizedEnd) || expense.date.isAtSameMomentAs(normalizedEnd))) {
             total += expense.amount;
             expensesmap.add(expenseJson.expence);
-            debugPrint("expense ${expenseJson}");
+            //debugPrint("expense ${expenseJson}");
           } 
         } catch (e) {
-          debugPrint('Error parsing expense: $e');
+          //debugPrint('Error parsing expense: $e');
         }
       }
 
       return {'total':total, 'expenses': jsonEncode(expensesmap)};
     } catch (e) {
-      debugPrint('Error getting date range total: $e');
+      //debugPrint('Error getting date range total: $e');
       return {'total':0.0, 'expenses': jsonEncode([])};
     }
   }
@@ -1146,7 +1155,7 @@ class ExpensesService {
             ifAbsent: () => expense.amount,
           );
         } catch (e) {
-          debugPrint('Error parsing expense: $e');
+          //debugPrint('Error parsing expense: $e');
         }
       }
 
@@ -1156,7 +1165,7 @@ class ExpensesService {
 
       return Map.fromEntries(sortedEntries);
     } catch (e) {
-      debugPrint('Error getting daywise expenses: $e');
+      //debugPrint('Error getting daywise expenses: $e');
       return {};
     }
   }

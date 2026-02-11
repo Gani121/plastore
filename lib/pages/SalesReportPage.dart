@@ -7,16 +7,40 @@ import 'package:fl_chart/fl_chart.dart';
 import 'package:share_plus/share_plus.dart';
 import 'dart:io';
 import 'package:path_provider/path_provider.dart';
+import 'package:test1/main.dart';
 import '../database_Module/ObjectBoxService.dart';
 import '../database_Module/transaction.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'ExpensesPage.dart';
 import '../objectbox.g.dart';
-import '../database_Module/expensDB.dart';
+import '../database_Module/expensDB.dart'; // Fixed typo: expensDB
 import '../utilities.dart';
 import '../database_Module/menu_item.dart';
 import '../bill_printer.dart';
 
+// Add Expense model if not already defined elsewhere
+class Expense {
+  final String title;
+  final String category;
+  final double amount;
+  final DateTime date;
+
+  Expense({
+    required this.title,
+    required this.category,
+    required this.amount,
+    required this.date,
+  });
+
+  factory Expense.fromMap(Map<String, dynamic> map) {
+    return Expense(
+      title: map['title'] ?? '',
+      category: map['category'] ?? 'Other',
+      amount: (map['amount'] is int ? (map['amount'] as int).toDouble() : map['amount']) ?? 0.0,
+      date: map['date'] is String ? DateTime.parse(map['date']) : DateTime.now(),
+    );
+  }
+}
 
 class SalesReportPage extends StatefulWidget {
   const SalesReportPage({super.key});
@@ -27,14 +51,14 @@ class SalesReportPage extends StatefulWidget {
 
 class _SalesReportPageState extends State<SalesReportPage> {
   List<Transaction> _transactions = [];
-
   double todayTotal = 0;
+  double profit = 0;
   double weekTotal = 0;
   double monthTotal = 0;
   double cashTotal = 0;
   double cardTotal = 0;
   double upiTotal = 0;
-  double otherTotal = 0; // Add this line
+  double otherTotal = 0;
   double todayExpenses = 0;
   double expensesToday = 0.0;
   double expensesDateRange = 0.0;
@@ -44,49 +68,61 @@ class _SalesReportPageState extends State<SalesReportPage> {
   Map<String, double> itemPriceMap = {};
   Map<String, int> citemQtyMap = {};
   Map<String, double> citemPriceMap = {};
-  // New state variables for order type summary
   Map<String, int> orderTypeCountMap = {};
   Map<String, double> orderTypeTotalMap = {};
   Map<String, int> adjustStock = {};
   Map<String, int> unavailabelstock = {};
-
-
-  // Date range filter
+  Map<String, int> purchesprice = {};
   DateTime? fromDate;
   DateTime? toDate;
-  late Store store = Provider.of<ObjectBoxService>(context, listen: false).store;
+  late Store store;
   String giveamount = "0";
   bool _showMoreOptions = false;
   String takeamount = "0";
+  bool _isLoading = false;
 
   @override
   void initState() {
     super.initState();
+    store = Provider.of<ObjectBoxService>(context, listen: false).store;
     fromDate = getDateWithFourAMOffset();
     toDate = getDateWithFourAMOffset();
     Future.delayed(const Duration(milliseconds: 200), _loadTransactions);
   }
 
+  // Helper method to format date
+  String formatDate(DateTime date) {
+    return DateFormat('dd MMM yyyy, hh:mm a').format(date);
+  }
+
+  // Helper method to get data from SharedPreferences
+  Future<String> getDatafromPrefs(String key) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      return prefs.getString(key) ?? "0";
+    } catch (e) {
+      return "0";
+    }
+  }
+
   DateTime getDateWithFourAMOffset() {
-    final now = DateTime.now();
-    final fourAMToday = DateTime(now.year, now.month, now.day, 4);
-    return now.isBefore(fourAMToday)
-        ? DateTime(now.year, now.month, now.day - 1)
-        : DateTime(now.year, now.month, now.day);
+    // final now = getBussinessDateStorage(); // DateTime.now();
+    // final fourAMToday = DateTime(now.year, now.month, now.day, 4);
+      return AppConstants.businessDate ?? DateTime.now();
   }
 
   Future<void> _pickFromDate() async {
     final picked = await showDatePicker(
       context: context,
       initialDate: fromDate ?? DateTime.now(),
-      firstDate: DateTime(2000),
+      firstDate: DateTime(2025),
       lastDate: DateTime.now(),
     );
     if (picked != null) {
       setState(() {
         fromDate = picked;
       });
-      _loadTransactions();
+      await _loadTransactions();
     }
   }
 
@@ -101,37 +137,48 @@ class _SalesReportPageState extends State<SalesReportPage> {
       setState(() {
         toDate = picked;
       });
-      _loadTransactions();
+      await _loadTransactions();
     }
   }
 
-  Future<Map<String, int>> _loadMenu() async {
-
+  Map<String, int> _loadMenu() {
     try {
-      final store = Provider.of<ObjectBoxService>(context, listen: false).store;
       final menuItemBox = store.box<MenuItem>();
       final itemsAll = menuItemBox.getAll();
       final items = itemsAll.map((item) => item.toMap()).toList();
       Map<String, int> adjustStock1 = {};
+      Map<String, int> _purchesprice = {};
 
       for (var tx in items) {
         if (tx['adjustStock'] != null && tx['adjustStock'] > 0) {
-          print_log("_loadMenu $tx ${tx['adjustStock']}");
           final raw = tx['adjustStock'];
           final value = raw is int ? raw : int.tryParse(raw.toString()) ?? 0;
           adjustStock1["${tx['name']}"] = value;
+
+          final purchasePrice = tx['purchasePrice'];
+          final purchasePriceValue = purchasePrice is int ? purchasePrice : int.tryParse(purchasePrice.toString()) ?? 0;
+          _purchesprice["${tx['name']}"] = purchasePriceValue;
+          // print_log("massage $tx");
+          // print_log("massage $purchasePrice ${purchasePrice.runtimeType}");
+          // print_log("massage $purchasePriceValue ${purchasePriceValue.runtimeType}");
         }
       }
+      
+      if (mounted) {
+        setState(() {
+          purchesprice = _purchesprice;
+        });
+      }
+      
       return adjustStock1;
     } catch (e, st) {
       print_log_red('Error in _loadMenu: $e\n$st');
       return <String, int>{};
     }
   }
-    Future<Map<String, int>> _loadUnavailabelstock() async {
-
+    
+  Future<Map<String, int>> _loadUnavailabelstock() async {
     try {
-      final store = Provider.of<ObjectBoxService>(context, listen: false).store;
       final menuItemBox = store.box<MenuItem>();
       final itemsAll = menuItemBox.getAll();
       final items = itemsAll.map((item) => item.toMap()).toList();
@@ -139,7 +186,6 @@ class _SalesReportPageState extends State<SalesReportPage> {
 
       for (var tx in items) {
         if (tx['adjustStock'] != null && tx['adjustStock'] <= 0) {
-          print_log("_loadMenu $tx ${tx['adjustStock']}");
           final raw = tx['adjustStock'];
           final value = raw is int ? raw : int.tryParse(raw.toString()) ?? 0;
           adjustStock1["${tx['name']}"] = value;
@@ -153,169 +199,203 @@ class _SalesReportPageState extends State<SalesReportPage> {
   }
 
   Future<void> _loadTransactions() async {
-    giveamount = await getDatafromPrefs("You_will_give");
-    takeamount = await getDatafromPrefs("You_will_get");
-    final store = Provider.of<ObjectBoxService>(context, listen: false).store;
-    final box = store.box<Transaction>();
-    final transactions = box.getAll();
+    if (!mounted) return;
+    
+    setState(() {
+      _isLoading = true;
+    });
 
-    DateTime now = DateTime.now();
-    DateTime today;
-    if (fromDate == toDate) {
-      if (fromDate != null) {
-        today = DateTime(fromDate!.year, fromDate!.month, fromDate!.day);
+    try {
+      Map<String, int> _adjustStock2 = await _loadMenu();
+      Map<String, int> _unavailabelstock = await _loadUnavailabelstock();
+
+      giveamount = await getDatafromPrefs("You_will_give");
+      takeamount = await getDatafromPrefs("You_will_get");
+      
+      // First, load purchase prices from menu items
+      final purchasePriceMap = purchesprice;
+      
+      final box = store.box<Transaction>();
+      final transactions = box.getAll();
+
+      DateTime now = DateTime.now();
+      DateTime today;
+      if (fromDate == toDate) {
+        if (fromDate != null) {
+          today = DateTime(fromDate!.year, fromDate!.month, fromDate!.day);
+        } else {
+          today = DateTime(now.year, now.month, now.day);
+        }
       } else {
         today = DateTime(now.year, now.month, now.day);
       }
-    } else {
-      today = DateTime(now.year, now.month, now.day);
-    }
 
-    DateTime startOfWeek = now.subtract(Duration(days: now.weekday - 1));
-    DateTime startOfMonth = DateTime(now.year, now.month, 1);
+      DateTime startOfWeek = now.subtract(Duration(days: now.weekday - 1));
+      DateTime startOfMonth = DateTime(now.year, now.month, 1);
 
-    double tTotal = 0, wTotal = 0, mTotal = 0;
-    double cTotal = 0, crTotal = 0, uTotal = 0;
-    Map<String, int> qtyMap = {};
-    Map<String, double> priceMap = {};
-    Map<String, int> cqtyMap = {};
-    Map<String, double> cpriceMap = {};
-    // New maps for order type aggregation
-    Map<String, int> tempOrderTypeCount = {};
-    Map<String, double> tempOrderTypeTotal = {};
+      double tTotal = 0, wTotal = 0, mTotal = 0, _profit = 0;
+      double cTotal = 0, crTotal = 0, uTotal = 0, oTotal = 0;
+      Map<String, int> qtyMap = {};
+      Map<String, double> priceMap = {};
+      Map<String, int> cqtyMap = {};
+      Map<String, double> cpriceMap = {};
+      Map<String, int> tempOrderTypeCount = {};
+      Map<String, double> tempOrderTypeTotal = {};
 
+      DateTime from = fromDate != null
+          ? DateTime(fromDate!.year, fromDate!.month, fromDate!.day)
+          : DateTime(2000);
+      DateTime to = toDate != null
+          ? DateTime(toDate!.year, toDate!.month, toDate!.day, 23, 59, 59)
+          : DateTime.now();
 
-    DateTime from = fromDate != null
-        ? DateTime(fromDate!.year, fromDate!.month, fromDate!.day)
-        : DateTime(2000);
-    DateTime to = toDate != null
-        ? DateTime(toDate!.year, toDate!.month, toDate!.day, 23, 59, 59)
-        : DateTime.now();
+      // Load expenses data
+      double expensesTodayTotal = 0.0;
+      double expensesDateRangeTotal = 0.0;
+      Map<DateTime, double> daywiseExpenses = {};
+      List<String> expensesListData = [];
 
-    // 🔹 Get expenses data from SharedPreferences
-    double expensesTodayTotal = 0.0;
-    double expensesDateRangeTotal = 0.0;
-    Map<DateTime, double> daywiseExpenses = {};
+      try {
+        final todayNormalized = AppConstants.businessDate!;
+        final expensesBox = store.box<expences>();
+        final expensesJson = expensesBox.getAll();
+        final daywiseData = await ExpensesService.getDaywiseExpenses(expensesJson);
 
-    try {
-      // Get today's expenses total
-      final todayNormalized = DateTime(now.year, now.month, now.day);
+        expensesTodayTotal = daywiseData[todayNormalized] ?? 0.0;
+
+        Map<String, dynamic> expenceMap = await ExpensesService.getDateRangeTotal(from, to, expensesJson);
+        expensesDateRangeTotal = expenceMap['total'] ?? 0.0;
+        expensesListData = List<String>.from(jsonDecode(expenceMap['expenses'] ?? '[]'));
+        print_log("expense expensesListData $expensesListData");
+        daywiseExpenses = daywiseData;
+      } catch (e) {
+        //debugPrint('Error loading expenses data: $e');
+      }
+
+      // Process transactions
+      for (var tx in transactions) {
+        if (tx.time.isBefore(from) || tx.time.isAfter(to)) continue;
+
+        final transactionTotal = tx.total;
+        double transactionProfit = 0.0;
+
+        if (tx.time.isAfter(from) && tx.time.isBefore(to)) {
+          tTotal += transactionTotal;
+        }
+        
+        if (tx.time.isAfter(startOfWeek)) wTotal += transactionTotal;
+        if (tx.time.isAfter(startOfMonth)) mTotal += transactionTotal;
+
+        // Parse cart data
+        List<dynamic> cartItems = [];
+        try {
+          if (tx.cartData != null && tx.cartData.isNotEmpty) {
+            cartItems = jsonDecode(tx.cartData);
+          }
+        } catch (e) {
+          //debugPrint('Error parsing cart data: $e');
+        }
+
+        // Calculate profit for this transaction
+        for (var item in cartItems) {
+          try {
+            final itemName = item['name']?.toString() ?? '';
+            final sellPrice = (item['sellPrice'] is int ? (item['sellPrice'] as int).toDouble() : double.tryParse(item['sellPrice']?.toString() ?? '') ?? 0.0);
+            
+            final qty = int.tryParse(item['qty']?.toString() ?? '') ?? 0;
+            
+            // Get purchase price from the map we loaded earlier
+            final purchasePrice = purchasePriceMap[itemName] ?? 0;
+            print_log("purchasePrice  $sellPrice - ${purchasePrice.toDouble()} * $qty");
+            // Calculate profit for this item: (sellPrice - purchasePrice) * quantity
+            final itemProfit = (sellPrice - purchasePrice.toDouble()) * qty;
+            transactionProfit += itemProfit;
+            
+            // Update item-wise statistics
+            qtyMap[itemName] = (qtyMap[itemName] ?? 0) + qty;
+            priceMap[itemName] = (priceMap[itemName] ?? 0) + (sellPrice * qty);
+            
+            final itemCategory = item['portion']?.toString() ?? 'Uncategorized';
+            cqtyMap[itemCategory] = (cqtyMap[itemCategory] ?? 0) + qty;
+            cpriceMap[itemCategory] = (cpriceMap[itemCategory] ?? 0) + (sellPrice * qty);
+            
+          } catch (e) {
+            //debugPrint('Error processing cart item: $e');
+          }
+        }
+        
+        _profit += transactionProfit;
+
+        // Process payment modes
+        switch (tx.payment_mode.toUpperCase()) {
+          case "CASH":
+            cTotal += transactionTotal;
+            break;
+          case "CARD":
+            crTotal += transactionTotal;
+            break;
+          case "UPI":
+            uTotal += transactionTotal;
+            break;
+          case "OTHER":
+            cTotal += tx.cashamount?.toDouble() ?? 0.0;
+            uTotal += tx.upiamount?.toDouble() ?? 0.0;
+            break;
+          default:
+            oTotal += transactionTotal;
+            //debugPrint('Uncategorized payment mode: ${tx.payment_mode} - Amount: $transactionTotal');
+            break;
+        }
+
+        // Aggregate by orderType
+        final orderType = tx.orderType?.isNotEmpty == true ? tx.orderType! : 'Other';
+        tempOrderTypeCount[orderType] = (tempOrderTypeCount[orderType] ?? 0) + 1;
+        tempOrderTypeTotal[orderType] = (tempOrderTypeTotal[orderType] ?? 0) + transactionTotal;
+      }
+
+      final prefs = await SharedPreferences.getInstance();
+      final storedExpenses = prefs.getDouble('Todayexpenses') ?? 0.0;
+
       
-      final box = store.box<expences>();
-      final expensesJson = box.getAll();
-      final daywiseData = await ExpensesService.getDaywiseExpenses(expensesJson);
 
-      expensesTodayTotal = daywiseData[todayNormalized] ?? 0.0;
-
-      // Get date range expenses total
-      Map<String,dynamic> expenceMap = await ExpensesService.getDateRangeTotal(from,to,expensesJson);
-      expensesDateRangeTotal = expenceMap['total'] ?? 0.0;
-      expensesList = List<String>.from(jsonDecode(expenceMap['expenses'] ?? []));
-      debugPrint("expensesList $expensesList");
-
-      // Get all daywise expenses for display
-      daywiseExpenses = daywiseData;
-    } catch (e) {
-      debugPrint('Error loading expenses data: $e');
-    }
-
-    for (var tx in transactions) {
-      if (tx.time.isBefore(from) || tx.time.isAfter(to)) continue;
-
-      if (tx.time.isAfter(from) && tx.time.isBefore(to)) tTotal += tx.total;
-      if (tx.time.isAfter(startOfWeek)) wTotal += tx.total;
-      if (tx.time.isAfter(startOfMonth)) mTotal += tx.total;
-
-      switch (tx.payment_mode.toUpperCase()) {
-        case "CASH":
-          cTotal += tx.total;
-          break;
-        case "CARD":
-          crTotal += tx.total;
-          break;
-        case "UPI":
-          uTotal += tx.total;
-          break;
-        case "OTHER": // Handle split payments
-          cTotal += tx.cashamount?.toDouble() ?? 0.0;
-          uTotal += tx.upiamount?.toDouble() ?? 0.0;
-          break;
-        default:
-          // Handle any other payment methods that are not settled
-          otherTotal += tx.total;
-          debugPrint('Uncategorized payment mode: ${tx.payment_mode} - Amount: ${tx.total}');
-          break;
+      if (mounted) {
+        setState(() {
+          _transactions = transactions.reversed.toList();
+          todayTotal = tTotal;
+          weekTotal = wTotal;
+          monthTotal = mTotal;
+          cashTotal = cTotal;
+          cardTotal = crTotal;
+          upiTotal = uTotal;
+          otherTotal = oTotal;
+          profit = _profit;
+          itemQtyMap = qtyMap;
+          itemPriceMap = priceMap;
+          citemQtyMap = cqtyMap;
+          citemPriceMap = cpriceMap;
+          todayExpenses = storedExpenses;
+          expensesToday = expensesTodayTotal;
+          expensesDateRange = expensesDateRangeTotal;
+          orderTypeCountMap = tempOrderTypeCount;
+          orderTypeTotalMap = tempOrderTypeTotal;
+          daywiseExpensesMap = daywiseExpenses;
+          adjustStock = _adjustStock2;
+          unavailabelstock = _unavailabelstock;
+          expensesList = expensesListData;
+          _isLoading = false;
+        });
       }
-
-      // Aggregate by orderType
-      final orderType = tx.orderType?.isNotEmpty == true ? tx.orderType! : 'Other';
-      tempOrderTypeCount[orderType] = (tempOrderTypeCount[orderType] ?? 0) + 1;
-      tempOrderTypeTotal[orderType] = (tempOrderTypeTotal[orderType] ?? 0) + tx.total;
-
-      for (var item in tx.decodedCart) {
-        // print_log( "items in the salse report page $item");
-        final name = item['name'].toString();
-        final qty = int.tryParse(item['qty'].toString()) ?? 0;
-        final price = double.tryParse(item['sellPrice'].toString()) ?? 0.0;
-        final item_category = item['portion'].toString();
-
-        qtyMap[name] = (qtyMap[name] ?? 0) + qty;
-        priceMap[name] = (priceMap[name] ?? 0) + (price * qty);
-        cqtyMap[item_category] = (cqtyMap[item_category] ?? 0) + qty;
-        cpriceMap[item_category] = (cpriceMap[item_category] ?? 0) + (price * qty);
+    } catch (e, st) {
+      //debugPrint('Error in _loadTransactions: $e\n$st');
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error loading transactions: $e')),
+        );
       }
     }
-
-    // 🔹 Read today's expenses from SharedPreferences (if you still need this)
-    final prefs = await SharedPreferences.getInstance();
-    final storedExpenses = prefs.getDouble('Todayexpenses') ?? 0.0;
-
-    Map<String, int> _adjustStock2 = await _loadMenu();
-    Map<String, int> _unavailabelstock = await _loadUnavailabelstock();
-
-
-    setState(() {
-      _transactions = transactions.reversed.toList();
-      todayTotal = tTotal;
-      weekTotal = wTotal;
-      monthTotal = mTotal;
-      cashTotal = cTotal;
-      cardTotal = crTotal;
-      upiTotal = uTotal;
-      itemQtyMap = qtyMap;
-      itemPriceMap = priceMap;
-      citemQtyMap = cqtyMap;
-      citemPriceMap = cpriceMap;
-      todayExpenses = storedExpenses;
-
-      // 🔹 Set the new expenses data
-      expensesToday = expensesTodayTotal;
-      expensesDateRange = expensesDateRangeTotal;
-      orderTypeCountMap = tempOrderTypeCount;
-      orderTypeTotalMap = tempOrderTypeTotal;
-      daywiseExpensesMap = daywiseExpenses;
-      adjustStock = _adjustStock2;
-      unavailabelstock = _unavailabelstock;
-    });
-  }
-
-
-  List<MapEntry<String, int>> getTopItemsByQty() {
-    final entries = itemQtyMap.entries.toList();
-    entries.sort((a, b) => b.value.compareTo(a.value));
-    return entries.toList();
-  }
-
-  List<MapEntry<String, double>> getTopItemsByPrice() {
-    final entries = itemPriceMap.entries.toList();
-    entries.sort((a, b) => b.value.compareTo(a.value));
-    return entries.toList();
-  }
-
-  List<MapEntry<String, int>> ordertype_tran_total() {
-    final entries = itemQtyMap.entries.toList();
-    entries.sort((a, b) => b.value.compareTo(a.value));
-    return entries.toList();
   }
 
   Future<void> _shareReport() async {
@@ -323,8 +403,6 @@ class _SalesReportPageState extends State<SalesReportPage> {
     final formattedDate = DateFormat('dd MMM yyyy, hh:mm a').format(now);
 
     final DateTime today = DateTime.now();
-
-    // Check if today is selected (both from and to dates are today)
     final bool isTodaySelected =
         fromDate != null &&
         toDate != null &&
@@ -335,7 +413,6 @@ class _SalesReportPageState extends State<SalesReportPage> {
         toDate!.month == today.month &&
         toDate!.year == today.year;
 
-    // Date range is selected if both dates are provided AND it's not today
     final bool isDateRangeSelected =
         fromDate != null && toDate != null && !isTodaySelected;
 
@@ -369,53 +446,62 @@ class _SalesReportPageState extends State<SalesReportPage> {
     reportBuffer.writeln("💵 Cash: ₹ ${cashTotal.toStringAsFixed(2)}");
     reportBuffer.writeln("💳 Card: ₹ ${cardTotal.toStringAsFixed(2)}");
     reportBuffer.writeln("📱 UPI: ₹ ${upiTotal.toStringAsFixed(2)}");
-    reportBuffer.writeln("📱 Not Settled:₹ ${otherTotal.toStringAsFixed(2)}");
+    reportBuffer.writeln("📱 Not Settled: ₹ ${otherTotal.toStringAsFixed(2)}");
 
     reportBuffer.writeln("");
-    final String giveamount = await getDatafromPrefs("You_will_give");
-    final String takeamount = await getDatafromPrefs("You_will_get");
+    final giveamount = await getDatafromPrefs("You_will_give");
+    final takeamount = await getDatafromPrefs("You_will_get");
     reportBuffer.writeln("Udhari Get and Give:");
-    reportBuffer.writeln("You_will_give $giveamount:");
-    reportBuffer.writeln("You_will_get ${takeamount}");
+    reportBuffer.writeln("You_will_give: ₹ $giveamount");
+    reportBuffer.writeln("You_will_get: ₹ $takeamount");
 
     reportBuffer.writeln("");
     reportBuffer.writeln("💰 $expensesLabel:");
     reportBuffer.writeln("₹ ${displayExpenses.toStringAsFixed(2)}");
     
     reportBuffer.writeln("");
-    // Show today's expenses as reference when date range is selected
     if (isDateRangeSelected && expensesToday > 0) {
-      reportBuffer.writeln("Today's expenses:- ₹${expensesToday.toStringAsFixed(2)}",);
+      reportBuffer.writeln("Today's expenses:- ₹${expensesToday.toStringAsFixed(2)}");
     }
 
     reportBuffer.writeln("");
-    reportBuffer.writeln("💼 Net Total (Sales - Expenses):");
-    reportBuffer.writeln("₹ ${(todayTotal).toStringAsFixed(2)}",);
+    reportBuffer.writeln("💼 Sales:");
+    reportBuffer.writeln("₹ ${(todayTotal).toStringAsFixed(2)}");
 
     reportBuffer.writeln("");
     if (expensesList.isNotEmpty) {
-      reportBuffer.writeln("Today's Expenses List:",);
+      reportBuffer.writeln("Today's Expenses List:");
       for (String ex in expensesList) {
-        Map<String, dynamic> expence = jsonDecode(ex);
-        String Sdate = expence['date'];
-        DateTime _date = DateTime.parse(Sdate);
-        reportBuffer.writeln("${expence['title']} - ${expence['category']} - ${formatDate(_date)} - ₹ ${expence['amount']}");
+        try {
+          Map<String, dynamic> expence = jsonDecode(ex);
+          String sDate = expence['date'];
+          DateTime _date = DateTime.parse(sDate);
+          reportBuffer.writeln("${expence['title']} - ${expence['category']} - ${formatDate(_date)} - ₹ ${expence['amount']}");
+        } catch (e) {
+          reportBuffer.writeln("Error parsing expense entry");
+        }
       }
     }
 
-    await Share.share(
-      reportBuffer.toString(),
+    await SharePlus.instance.share(ShareParams(
+      text: reportBuffer.toString(),
       subject: 'Sales Report - $formattedDate',
+      // title: "Date Range: ${DateFormat('dd MMM yyyy').format(fromDate!)} → ${DateFormat('dd MMM yyyy').format(toDate!)}"
+      )
     );
   }
 
   @override
   Widget build(BuildContext context) {
-
     return Scaffold(
       appBar: AppBar(
         title: const Text('Sales Report'),
         actions: [
+          IconButton(
+            icon: const Icon(Icons.refresh),
+            onPressed: _loadTransactions,
+            tooltip: 'Refresh',
+          ),
           IconButton(
             icon: const Icon(Icons.share),
             onPressed: _shareReport,
@@ -446,44 +532,41 @@ class _SalesReportPageState extends State<SalesReportPage> {
           ),
         ],
       ),
-      body: SingleChildScrollView(
-        child: Column(
-          children: [
-            // 🔹 Updated Date filter section
-            _buildDateFilterSection(),
-            _buildSectionTitle("Sales Summary"),
-            _buildSummaryCard(),
-            _buildOrderTypeSummaryCard(), // New card for order type summary
-            _buildSectionTitle("Expenses Summary"),
-            _buildTransactionList(),
-            _buildportionWiseSummaryCard(),
-            _buildadjustStockSummaryCard(),
-            _builditemWiseSummaryCard(),
-            _buildUnavailabelstockSummaryCard(),
-            if (!_showMoreOptions)
-              Padding(
-                padding: const EdgeInsets.all(16.0),
-                child: ElevatedButton(
-                  onPressed: () {
-                    setState(() {
-                      _showMoreOptions = true;
-                    });
-                  },
-                  child: const Text('More Options'),
-                ),
+      body: _isLoading
+          ? const Center(child: CircularProgressIndicator())
+          : SingleChildScrollView(
+              child: Column(
+                children: [
+                  _buildDateFilterSection(),
+                  _buildSectionTitle("Sales Summary"),
+                  _buildSummaryCard(),
+                  if (orderTypeTotalMap.isNotEmpty) _buildOrderTypeSummaryCard(),
+                  _buildSectionTitle("Expenses Summary"),
+                  _buildExpensesList(),
+                  if (citemPriceMap.isNotEmpty) _buildportionWiseSummaryCard(),
+                  if (adjustStock.isNotEmpty) _buildadjustStockSummaryCard(),
+                  if (itemPriceMap.isNotEmpty) _builditemWiseSummaryCard(),
+                  if (_showMoreOptions && unavailabelstock.isNotEmpty)
+                    _buildUnavailabelstockSummaryCard(),
+                  if (!_showMoreOptions)
+                    Padding(
+                      padding: const EdgeInsets.all(16.0),
+                      child: ElevatedButton(
+                        onPressed: () {
+                          setState(() {
+                            _showMoreOptions = true;
+                          });
+                        },
+                        child: const Text('More Options'),
+                      ),
+                    ),
+                ],
               ),
-          ],
-        ),
-      ),
+            ),
     );
   }
 
   Widget _buildOrderTypeSummaryCard() {
-    if (orderTypeTotalMap.isEmpty) {
-      return const SizedBox.shrink();
-    }
-
-    // Sort the entries by total amount in descending order
     final sortedEntries = orderTypeTotalMap.entries.toList()
       ..sort((a, b) => b.value.compareTo(a.value));
 
@@ -526,12 +609,15 @@ class _SalesReportPageState extends State<SalesReportPage> {
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Text(
-                      '$orderType ($count Orders)',
-                      style: const TextStyle(fontSize: 15),
+                    Flexible(
+                      child: Text(
+                        '$orderType ($count Orders)',
+                        style: const TextStyle(fontSize: 15),
+                        overflow: TextOverflow.ellipsis,
+                      ),
                     ),
                     Text(
-                      '${totalAmount}',
+                      '₹${totalAmount.toStringAsFixed(2)}',
                       style: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold),
                     ),
                   ],
@@ -545,11 +631,6 @@ class _SalesReportPageState extends State<SalesReportPage> {
   }
 
   Widget _builditemWiseSummaryCard() {
-    if (itemPriceMap.isEmpty) {
-      return const SizedBox.shrink();
-    }
-
-    // Sort the entries by total amount in descending order
     final sortedEntries = itemPriceMap.entries.toList()
       ..sort((a, b) => b.value.compareTo(a.value));
 
@@ -583,21 +664,24 @@ class _SalesReportPageState extends State<SalesReportPage> {
             ),
             const Divider(),
             ...sortedEntries.map((entry) {
-              final orderType = entry.key;
+              final itemName = entry.key;
               final totalAmount = entry.value;
-              final count = itemQtyMap[orderType] ?? 0;
+              final count = itemQtyMap[itemName] ?? 0;
 
               return Padding(
                 padding: const EdgeInsets.symmetric(vertical: 4.0),
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Text(
-                      '$orderType (QTY:- $count)',
-                      style: const TextStyle(fontSize: 15),
+                    Flexible(
+                      child: Text(
+                        '$itemName (QTY: $count)',
+                        style: const TextStyle(fontSize: 15),
+                        overflow: TextOverflow.ellipsis,
+                      ),
                     ),
                     Text(
-                      '₹ ${totalAmount.toStringAsFixed(2)}',
+                      '₹${totalAmount.toStringAsFixed(2)}',
                       style: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold),
                     ),
                   ],
@@ -611,11 +695,6 @@ class _SalesReportPageState extends State<SalesReportPage> {
   }
 
   Widget _buildportionWiseSummaryCard() {
-    if (citemPriceMap.isEmpty) {
-      return const SizedBox.shrink();
-    }
-
-    // Sort the entries by total amount in descending order
     final sortedEntries = citemPriceMap.entries.toList()
       ..sort((a, b) => b.value.compareTo(a.value));
 
@@ -631,7 +710,7 @@ class _SalesReportPageState extends State<SalesReportPage> {
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 const Text(
-                  'Sales by portion-Wise',
+                  'Sales by Portion-Wise',
                   style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                 ),
                 IconButton(
@@ -649,21 +728,24 @@ class _SalesReportPageState extends State<SalesReportPage> {
             ),
             const Divider(),
             ...sortedEntries.map((entry) {
-              final orderType = entry.key;
+              final portion = entry.key;
               final totalAmount = entry.value;
-              final count = citemQtyMap[orderType] ?? 0;
+              final count = citemQtyMap[portion] ?? 0;
 
               return Padding(
                 padding: const EdgeInsets.symmetric(vertical: 4.0),
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Text(
-                      '$orderType (QTY:- $count)',
-                      style: const TextStyle(fontSize: 15),
+                    Flexible(
+                      child: Text(
+                        '$portion (QTY: $count)',
+                        style: const TextStyle(fontSize: 15),
+                        overflow: TextOverflow.ellipsis,
+                      ),
                     ),
                     Text(
-                      '₹ ${totalAmount.toStringAsFixed(2)}',
+                      '₹${totalAmount.toStringAsFixed(2)}',
                       style: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold),
                     ),
                   ],
@@ -677,11 +759,6 @@ class _SalesReportPageState extends State<SalesReportPage> {
   }
 
   Widget _buildadjustStockSummaryCard() {
-    if (adjustStock.isEmpty) {
-      return const SizedBox.shrink();
-    }
-
-    // Sort the entries by total amount in descending order
     final sortedEntries = adjustStock.entries.toList()
       ..sort((a, b) => b.value.compareTo(a.value));
 
@@ -712,21 +789,23 @@ class _SalesReportPageState extends State<SalesReportPage> {
             ),
             const Divider(),
             ...sortedEntries.map((entry) {
-              final orderType = entry.key;
-              final totalAmount = entry.value;
-              // final count = citemQtyMap[orderType] ?? 0;
+              final itemName = entry.key;
+              final stockCount = entry.value;
 
               return Padding(
                 padding: const EdgeInsets.symmetric(vertical: 4.0),
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Text(
-                      '$orderType',
-                      style: const TextStyle(fontSize: 15),
+                    Flexible(
+                      child: Text(
+                        itemName,
+                        style: const TextStyle(fontSize: 15),
+                        overflow: TextOverflow.ellipsis,
+                      ),
                     ),
                     Text(
-                      '${totalAmount.toStringAsFixed(0)}  -Qty',
+                      '$stockCount Qty',
                       style: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold),
                     ),
                   ],
@@ -740,15 +819,6 @@ class _SalesReportPageState extends State<SalesReportPage> {
   }
 
   Widget _buildUnavailabelstockSummaryCard() {
-    // Conditionally render based on _showMoreOptions
-    if (!_showMoreOptions) {
-      return const SizedBox.shrink();
-    }
-    if (unavailabelstock.isEmpty && _showMoreOptions) {
-      return const SizedBox.shrink();
-    }
-
-    // Sort the entries by total amount in descending order
     final sortedEntries = unavailabelstock.entries.toList()
       ..sort((a, b) => b.value.compareTo(a.value));
 
@@ -787,8 +857,17 @@ class _SalesReportPageState extends State<SalesReportPage> {
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Text(itemName, style: const TextStyle(fontSize: 15)),
-                    Text('$stockCount', style: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold)),
+                    Flexible(
+                      child: Text(
+                        itemName,
+                        style: const TextStyle(fontSize: 15),
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                    Text(
+                      '$stockCount Qty',
+                      style: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold),
+                    ),
                   ],
                 ),
               );
@@ -799,121 +878,115 @@ class _SalesReportPageState extends State<SalesReportPage> {
     );
   }
 
-
-  Widget _buildTransactionList() {
-  if (expensesList.isEmpty) {
-    return Container(
-      padding: EdgeInsets.all(16),
-      child: Text(
-        "No transactions found",
-        style: TextStyle(
-          fontSize: 16,
-          color: Colors.grey,
+  Widget _buildExpensesList() {
+    if (expensesList.isEmpty) {
+      return Container(
+        padding: const EdgeInsets.all(16),
+        child: Text(
+          "No expenses found",
+          style: TextStyle(
+            fontSize: 16,
+            color: Colors.grey,
+          ),
+          textAlign: TextAlign.center,
         ),
-        textAlign: TextAlign.center,
+      );
+    }
+
+    return ListView.builder(
+      shrinkWrap: true,
+      physics: const NeverScrollableScrollPhysics(),
+      itemCount: expensesList.length,
+      itemBuilder: (context, index) {
+        try {
+          final expenseMap = jsonDecode(expensesList[index]);
+          final expense = Expense.fromMap(expenseMap);
+          return _buildExpenseCard(expense);
+        } catch (e) {
+          //debugPrint("Error parsing expense: $e");
+          return Container();
+        }
+      },
+    );
+  }
+
+  Widget _buildExpenseCard(Expense expense) {
+    return Card(
+      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+      elevation: 2,
+      child: ListTile(
+        leading: Container(
+          width: 50,
+          height: 50,
+          decoration: BoxDecoration(
+            color: Colors.blue.shade100,
+            borderRadius: BorderRadius.circular(8),
+          ),
+          child: Icon(
+            _getCategoryIcon(expense.category),
+            color: Colors.blue.shade800,
+            size: 24,
+          ),
+        ),
+        title: Text(
+          expense.title,
+          style: const TextStyle(
+            fontSize: 16,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+        subtitle: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const SizedBox(height: 4),
+            Text(
+              expense.category,
+              style: TextStyle(
+                fontSize: 14,
+                color: Colors.grey[600],
+              ),
+            ),
+            const SizedBox(height: 2),
+            Text(
+              formatDate(expense.date),
+              style: TextStyle(
+                fontSize: 12,
+                color: Colors.grey[500],
+              ),
+            ),
+          ],
+        ),
+        trailing: Text(
+          "₹${expense.amount.toStringAsFixed(2)}",
+          style: TextStyle(
+            fontSize: 16,
+            fontWeight: FontWeight.bold,
+            color: Colors.red[700],
+          ),
+        ),
       ),
     );
   }
 
-  return ListView.builder(
-    shrinkWrap: true,
-    physics: NeverScrollableScrollPhysics(),
-    itemCount: expensesList.length,
-    itemBuilder: (context, index) {
-      try {
-        // Parse the expense JSON string to Map
-        final expenseMap = jsonDecode(expensesList[index]);
-        final expense = Expense.fromMap(expenseMap);
-        
-        return _buildExpenseCard(expense);
-      } catch (e) {
-        debugPrint("Error parsing expense: $e");
-        return Container(); // Return empty container on error
-      }
-    },
-  );
-}
-
-Widget _buildExpenseCard(Expense expense) {
-  debugPrint("expensesList _buildExpenseCard $expense");
-  return Card(
-    margin: EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-    elevation: 2,
-    child: ListTile(
-      leading: Container(
-        width: 50,
-        height: 50,
-        decoration: BoxDecoration(
-          color: Colors.grey,
-          borderRadius: BorderRadius.circular(8),
-        ),
-        child: Icon(
-          _getCategoryIcon(expense.category),
-          color: Colors.white,
-          size: 24,
-        ),
-      ),
-      title: Text(
-        expense.title,
-        style: TextStyle(
-          fontSize: 16,
-          fontWeight: FontWeight.bold,
-        ),
-      ),
-      subtitle: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          SizedBox(height: 4),
-          Text(
-            expense.category,
-            style: TextStyle(
-              fontSize: 14,
-              color: Colors.grey[600],
-            ),
-          ),
-          SizedBox(height: 2),
-          Text(
-            formatDate(expense.date), // Formatted date
-            style: TextStyle(
-              fontSize: 12,
-              color: Colors.grey[500],
-            ),
-          ),
-        ],
-      ),
-      trailing: Text(
-        "₹${expense.amount.toStringAsFixed(2)}",
-        style: TextStyle(
-          fontSize: 16,
-          fontWeight: FontWeight.bold,
-          color: Colors.green[700],
-        ),
-      ),
-    ),
-  );
-}
-
-
-IconData _getCategoryIcon(String category) {
-  switch (category.toLowerCase()) {
-    case 'food':
-      return Icons.restaurant;
-    case 'utilities':
-      return Icons.bolt;
-    case 'transport':
-      return Icons.directions_car;
-    case 'shopping':
-      return Icons.shopping_bag;
-    case 'entertainment':
-      return Icons.movie;
-    case 'healthcare':
-      return Icons.medical_services;
-    default:
-      return Icons.money;
+  IconData _getCategoryIcon(String category) {
+    switch (category.toLowerCase()) {
+      case 'food':
+        return Icons.restaurant;
+      case 'utilities':
+        return Icons.bolt;
+      case 'transport':
+        return Icons.directions_car;
+      case 'shopping':
+        return Icons.shopping_bag;
+      case 'entertainment':
+        return Icons.movie;
+      case 'healthcare':
+        return Icons.medical_services;
+      default:
+        return Icons.money;
+    }
   }
-}
 
-  // In your build method, update the date filter section:
   Widget _buildDateFilterSection() {
     return Padding(
       padding: const EdgeInsets.all(12),
@@ -924,7 +997,7 @@ IconData _getCategoryIcon(String category) {
               Expanded(
                 child: ElevatedButton.icon(
                   onPressed: _pickFromDate,
-                  icon: Icon(Icons.calendar_today, size: 16),
+                  icon: const Icon(Icons.calendar_today, size: 16),
                   label: Text(
                     fromDate != null
                         ? "From: ${DateFormat('dd MMM yyyy').format(fromDate!)}"
@@ -936,11 +1009,11 @@ IconData _getCategoryIcon(String category) {
                   ),
                 ),
               ),
-              SizedBox(width: 12),
+              const SizedBox(width: 12),
               Expanded(
                 child: ElevatedButton.icon(
                   onPressed: _pickToDate,
-                  icon: Icon(Icons.calendar_today, size: 16),
+                  icon: const Icon(Icons.calendar_today, size: 16),
                   label: Text(
                     toDate != null
                         ? "To: ${DateFormat('dd MMM yyyy').format(toDate!)}"
@@ -954,8 +1027,6 @@ IconData _getCategoryIcon(String category) {
               ),
             ],
           ),
-
-          // Reset Date Range Button
           if (isDateRangeSelected)
             Padding(
               padding: const EdgeInsets.only(top: 8.0),
@@ -967,8 +1038,8 @@ IconData _getCategoryIcon(String category) {
                   });
                   _loadTransactions();
                 },
-                icon: Icon(Icons.refresh, size: 16),
-                label: Text('Reset to Today'),
+                icon: const Icon(Icons.refresh, size: 16),
+                label: const Text('Reset to Today'),
                 style: ElevatedButton.styleFrom(
                   backgroundColor: Colors.orange.shade50,
                   foregroundColor: Colors.orange.shade800,
@@ -982,8 +1053,6 @@ IconData _getCategoryIcon(String category) {
 
   Widget _buildSummaryCard() {
     final DateTime today = DateTime.now();
-
-    // Check if today is selected (both from and to dates are today)
     final bool isTodaySelected =
         fromDate != null &&
         toDate != null &&
@@ -994,26 +1063,22 @@ IconData _getCategoryIcon(String category) {
         toDate!.month == today.month &&
         toDate!.year == today.year;
 
-    // Date range is selected if both dates are provided AND it's not today
-    final bool isDateRangeSelected =
-        fromDate != null && toDate != null && !isTodaySelected;
-
-    debugPrint("isDateRangeSelected $isDateRangeSelected");
+    final bool isDateRangeSelected = fromDate != null && toDate != null && !isTodaySelected;
     
-    final double displayExpenses = isDateRangeSelected
-                                    ? expensesDateRange
-                                    : expensesToday;
-    final String expensesLabel = isDateRangeSelected
-                                  ? "Date Range Expenses"
-                                  : "Today's Expenses";
+    final double displayExpenses = isDateRangeSelected ? expensesDateRange : expensesToday;
+    final String expensesLabel = isDateRangeSelected ? "Date Range Expenses" : "Today's Expenses";
 
     return Container(
-      padding: EdgeInsets.all(12),
-      color: Colors.green.shade50,
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: Colors.green.shade50,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.green.shade200),
+      ),
+      margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Date Range Info (if selected and not today)
           if (isDateRangeSelected)
             Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -1030,45 +1095,42 @@ IconData _getCategoryIcon(String category) {
                   "${DateFormat('dd MMM yyyy').format(fromDate!)} → ${DateFormat('dd MMM yyyy').format(toDate!)}",
                   style: TextStyle(fontSize: 14, color: Colors.blue.shade600),
                 ),
-                SizedBox(height: 8),
+                const SizedBox(height: 8),
               ],
             ),
-
-          // Sales Totals
           Text(
             isDateRangeSelected
                 ? "Selected Range Sales: ₹ ${todayTotal.toStringAsFixed(2)}"
                 : "Today's Sales: ₹ ${todayTotal.toStringAsFixed(2)}",
-            style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+            style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
           ),
           Text(
             "This Week: ₹ ${weekTotal.toStringAsFixed(2)}",
-            style: TextStyle(fontSize: 16),
+            style: const TextStyle(fontSize: 16),
           ),
           Text(
             "This Month: ₹ ${monthTotal.toStringAsFixed(2)}",
-            style: TextStyle(fontSize: 16),
+            style: const TextStyle(fontSize: 16),
           ),
-          Divider(),
-
-          // Payment Modes
-          Text("By Payment Mode:",style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),),
+          const Divider(),
+          const Text(
+            "By Payment Mode:",
+            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+          ),
           Text("💵 Cash: ₹ ${cashTotal.toStringAsFixed(2)}"),
           Text("💳 Card: ₹ ${cardTotal.toStringAsFixed(2)}"),
           Text("📱 UPI: ₹ ${upiTotal.toStringAsFixed(2)}"),
           Text("📱 Not Settled: ₹ ${otherTotal.toStringAsFixed(2)}"),
-          Divider(),
-          // Payment Modes
-          Text("Udhari Get and Give:",style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),),
-          Text("You_will_give: ₹ ${giveamount}"),
-          Text("You_will_get: ₹ ${takeamount}"),
-          Divider(),
-
-
-
-          // Expenses Section
+          const Divider(),
+          const Text(
+            "Udhari Get and Give:",
+            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+          ),
+          Text("You_will_give: ₹ $giveamount"),
+          Text("You_will_get: ₹ $takeamount"),
+          const Divider(),
           Container(
-            padding: EdgeInsets.all(8),
+            padding: const EdgeInsets.all(8),
             decoration: BoxDecoration(
               color: Colors.red.shade50,
               borderRadius: BorderRadius.circular(8),
@@ -1078,19 +1140,16 @@ IconData _getCategoryIcon(String category) {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  "💰 $expensesLabel:- ₹ ${displayExpenses.toStringAsFixed(2)}",
+                  "💰 $expensesLabel: ₹ ${displayExpenses.toStringAsFixed(2)}",
                   style: TextStyle(
                     fontWeight: FontWeight.bold,
                     fontSize: 16,
                     color: Colors.red.shade800,
                   ),
                 ),
-                SizedBox(height: 4),
-
-                // Show today's expenses as reference when date range is selected
                 if (isDateRangeSelected && expensesToday > 0)
                   Padding(
-                    padding: EdgeInsets.only(top: 4),
+                    padding: const EdgeInsets.only(top: 4),
                     child: Text(
                       "(Today's expenses: ₹ ${expensesToday.toStringAsFixed(2)})",
                       style: TextStyle(
@@ -1103,11 +1162,9 @@ IconData _getCategoryIcon(String category) {
               ],
             ),
           ),
-
-          // Combined Total (Sales - Expenses)
-          SizedBox(height: 8),
+          const SizedBox(height: 8),
           Container(
-            padding: EdgeInsets.all(8),
+            padding: const EdgeInsets.all(8),
             decoration: BoxDecoration(
               color: Colors.blue.shade50,
               borderRadius: BorderRadius.circular(8),
@@ -1116,20 +1173,52 @@ IconData _getCategoryIcon(String category) {
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Text(
-                  "Net Total:",
+                const Text(
+                  "SALES:",
                   style: TextStyle(
                     fontWeight: FontWeight.bold,
                     fontSize: 16,
-                    color: Colors.blue.shade800,
+                    color: Colors.blue,
                   ),
                 ),
                 Text(
                   "₹ ${(todayTotal).toStringAsFixed(2)}",
+                  style: const TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.blue,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 8),
+          
+          // Net Profit (after expenses)
+          Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: profit >= 0 ? Colors.green.shade50 : Colors.red.shade50,
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(color: profit >= 0 ? Colors.green.shade200 : Colors.red.shade200),
+            ),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  "PROFIT:",
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 16,
+                    color: profit >= 0 ? Colors.green.shade800 : Colors.red.shade800,
+                  ),
+                ),
+                Text(
+                  "₹ ${profit.toStringAsFixed(2)}",
                   style: TextStyle(
                     fontSize: 18,
                     fontWeight: FontWeight.bold,
-                    color: Colors.blue.shade700,
+                    color: profit >= 0 ? Colors.green.shade700 : Colors.red.shade700,
                   ),
                 ),
               ],
@@ -1150,13 +1239,13 @@ IconData _getCategoryIcon(String category) {
 
   Widget _buildSectionTitle(String title) {
     return Padding(
-      padding: EdgeInsets.symmetric(vertical: 10, horizontal: 12),
+      padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 12),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
           Text(
             title,
-            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
+            style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
           ),
           IconButton(
             icon: const Icon(Icons.print),
@@ -1185,6 +1274,4 @@ IconData _getCategoryIcon(String category) {
       ),
     );
   }
-
-
 }

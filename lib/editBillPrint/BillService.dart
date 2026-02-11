@@ -13,7 +13,7 @@ class BillService {
         ? 1
         : existingCounters.first.lastBillNo;
 
-    debugPrint("Next bill number: $billNo");
+    //debugPrint("Next bill number: $billNo");
     return billNo;
   }
 }

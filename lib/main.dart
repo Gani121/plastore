@@ -119,7 +119,7 @@ class MyApp extends StatelessWidget {
           // These lines are correct
           localizationsDelegates: AppLocalizations.localizationsDelegates,
           supportedLocales: AppLocalizations.supportedLocales,
-          theme: ThemeData(primarySwatch: Colors.red),
+          theme: ThemeData(primarySwatch: Colors.blue),
 
           // --- ADD THIS BUILDER FOR TEXT SCALING ---
           // ✅ CORRECT
@@ -161,8 +161,13 @@ DateTime getBusinessDate({int cutoffHour = 4}) {
   final now = DateTime.now();
   // Check if the current hour is before the cutoff time (e.g., 00:00 to 03:59)
   if (now.hour < cutoffHour) {
-    return now.subtract(const Duration(days: 1));
+    DateTime businessDate = now.subtract(const Duration(days: 1));
+    AppConstants.businessDate = DateTime(businessDate.year, businessDate.month, businessDate.day);;
+    print_log_red("business date saved ${AppConstants.businessDate}");
+    return businessDate;
   } else {
+    AppConstants.businessDate = DateTime(now.year, now.month, now.day);
+    print_log_red("business date saved ${AppConstants.businessDate}");
     return now;
   }
 }
@@ -186,7 +191,7 @@ DateTime getBusinessDate({int cutoffHour = 4}) {
 //     }
     
 //     await prefs.setString('device_id', deviceId);
-//     debugPrint("📱 Device ID initialized: $deviceId");
+//     //debugPrint("📱 Device ID initialized: $deviceId");
 //   }
 
 class DostiKitchenPage extends StatefulWidget {
@@ -250,19 +255,20 @@ class _DostiKitchenPageState extends State<DostiKitchenPage> {
     final prefs = await SharedPreferences.getInstance();
     final businessDate = getBusinessDate(cutoffHour: 4);
     String? ddd = prefs.getString(AppConstants.businessDateKey);
-    print_log('✅ Business date saved: ${ddd!.split("T")[0]} != ${(businessDate.toIso8601String()).split("T")[0]} ${ddd!.split("T")[0] != (businessDate.toIso8601String()).split("T")[0]}');
-    if(ddd!.split("T")[0] != (businessDate.toIso8601String()).split("T")[0]){
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text("${AppLocalizations.of(context)!.businessDateChanged} ${(businessDate.toIso8601String()).split("T")[0]}"),
-          backgroundColor: Colors.red,
-          duration: Duration(seconds: 3),
-        ),
-      );
-    }
+    print_log('✅ Business date saved: ${ddd!.split("T")[0]} != ${(businessDate.toIso8601String()).split("T")[0]} ${ddd.split("T")[0] != (businessDate.toIso8601String()).split("T")[0]}');
+    // if(ddd.split("T")[0] != (businessDate.toIso8601String()).split("T")[0]){
+    //   ScaffoldMessenger.of(context).showSnackBar(
+    //     SnackBar(
+    //       content: Text("${AppLocalizations.of(context)!.businessDateChanged} ${(businessDate.toIso8601String()).split("T")[0]}"),
+    //       backgroundColor: Colors.red,
+    //       duration: Duration(seconds: 3),
+    //     ),
+    //   );
+    // }
     await prefs.setString(AppConstants.businessDateKey, businessDate.toIso8601String());
     setState(() {
       _selectedDate = businessDate;
+      AppConstants.businessDate = businessDate;
     });
   }
 
@@ -425,14 +431,12 @@ class _DostiKitchenPageState extends State<DostiKitchenPage> {
         return 0; 
       }
 
-      if (txDate != null &&
-          txDate.year == now.year &&
+      if (txDate.year == now.year &&
           txDate.month == now.month &&
           txDate.day == now.day && // only today
           tx['payment_mode'] == 'CASH') {
         return sum + (tx['total'] as int? ?? 0); // Regular cash transaction
-      } else if (txDate != null &&
-          txDate.year == now.year &&
+      } else if (txDate.year == now.year &&
           txDate.month == now.month &&
           txDate.day == now.day && tx['payment_mode'] == "other") {
         return sum + (tx['cashamount'] as int? ?? 0); // Cash part of a split payment
@@ -456,14 +460,12 @@ class _DostiKitchenPageState extends State<DostiKitchenPage> {
         // Handle cases where the string might be invalid
         return 0; 
       }
-      if (txDate != null &&
-          txDate.year == now.year &&
+      if (txDate.year == now.year &&
           txDate.month == now.month &&
           txDate.day == now.day &&
           tx['payment_mode'] == 'UPI') {
         return sum + (tx['total'] as int? ?? 0); // Regular UPI transaction
-      } else if (txDate != null &&
-          txDate.year == now.year &&
+      } else if (txDate.year == now.year &&
           txDate.month == now.month &&
           txDate.day == now.day && tx['payment_mode'] == "other"){
         return sum + (tx['upiamount'] as int? ?? 0); // UPI part of a split payment
@@ -557,43 +559,32 @@ class _DostiKitchenPageState extends State<DostiKitchenPage> {
 
   void _printTransaction(Map<String, dynamic> tx) async {
     try {
-      // debugPrint("Printing transaction: $tx");
+      // //debugPrint("Printing transaction: $tx");
 
       // The await here is important for the try-catch to work on this async call
+      tx['udhari'] = false;
       await printer.printCart(
         context: context,
         cart1: (tx['cart'] as List).cast<Map<String, dynamic>>(),
         total: tx['total'],
         mode: "onlyPrint",
         payment_mode: "",
+        transactionData : tx,
       );
     } on PlatformException catch (e) {
       // This block ONLY runs for platform-related errors (like Bluetooth)
-      debugPrint("❌ Printer PlatformException: ${e.message}");
+      //debugPrint("❌ Printer PlatformException: ${e.message}");
 
       // Safety check before using context in an async function
       if (!context.mounted) return;
-
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text(
-            '❌ Printer error. Please check if it is on and paired.',
-          ),
-          backgroundColor: Colors.red,
-        ),
-      );
+      screen_massage(context, '❌ Printer error. Please check if it is on and paired.');
     } catch (e) {
       // This block catches all OTHER errors (like bad data, null values, etc.)
-      debugPrint("❌ An unexpected error occurred in _printTransaction: $e");
+      //debugPrint("❌ An unexpected error occurred in _printTransaction: $e");
 
       if (!context.mounted) return;
-
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('An unexpected error occurred: $e'),
-          backgroundColor: Colors.deepOrange,
-        ),
-      );
+      screen_massage(context, 'An unexpected error occurred: $e');
+      
     }
   }
 
@@ -1066,7 +1057,7 @@ class _DostiKitchenPageState extends State<DostiKitchenPage> {
                                             final selectedPayment = _selectedPayments[transactionKey];
                                             final transaction = box.get(tx['id'],);
                                             if (transaction != null) {
-                                              // debugPrint('Settling ${tx['tableNo']} with $selectedPayment',);
+                                              // //debugPrint('Settling ${tx['tableNo']} with $selectedPayment',);
                                               transaction.payment_mode = selectedPayment!;
                                               transaction.status = 'settle';
                                               box.put(transaction);
@@ -1132,8 +1123,8 @@ class _DostiKitchenPageState extends State<DostiKitchenPage> {
         crossAxisAlignment: CrossAxisAlignment.end,
         children: [
           FloatingActionButton.extended(
-            label: Text(AppLocalizations.of(context)!.newOrder),
-            icon: Icon(Icons.add),
+            label: Text(AppLocalizations.of(context)!.newOrder,style:TextStyle(color:Colors.white,fontSize: 20,fontWeight: FontWeight.w800)),
+            icon: Icon(Icons.add,color: Colors.white,),
             backgroundColor: themeProvider.primaryColor,
             onPressed: () async {
               _initializeAndStoreBusinessDate();
@@ -1297,17 +1288,17 @@ class _LiveTimeBarState extends State<LiveTimeBar> {
     final prefs = await SharedPreferences.getInstance();
     String? ddd = prefs.getString(AppConstants.businessDateKey);
     _date = businessDate.toIso8601String().toString().split("T")[0];
-    if(ddd != businessDate.toIso8601String()){
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text("${AppLocalizations.of(context)!.businessDateChanged} $_date"),
-          backgroundColor: Colors.red,
-          duration: Duration(seconds: 3),
-        ),
-      );
-    }
+    // if(ddd != businessDate.toIso8601String()){
+    //   ScaffoldMessenger.of(context).showSnackBar(
+    //     SnackBar(
+    //       content: Text("${AppLocalizations.of(context)!.businessDateChanged} $_date"),
+    //       backgroundColor: Colors.red,
+    //       duration: Duration(seconds: 3),
+    //     ),
+    //   );
+    // }
     await prefs.setString(AppConstants.businessDateKey, businessDate.toIso8601String());
-    // debugPrint('✅ Business date saved: ${ddd}');
+    // //debugPrint('✅ Business date saved: ${ddd}');
   }
 
   void _updateTime() {
@@ -1316,7 +1307,7 @@ class _LiveTimeBarState extends State<LiveTimeBar> {
         _currentTime = DateFormat('hh:mm:ss a').format(DateTime.now());
       });
     } catch (e) {
-      debugPrint("time is not required $e ");
+      //debugPrint("time is not required $e ");
     }
   }
 
@@ -1329,15 +1320,60 @@ class _LiveTimeBarState extends State<LiveTimeBar> {
 
   @override
   Widget build(BuildContext context) {
+    final themeProvider = Provider.of<ThemeProvider>(context);
     final statusText = _isOnline ? 'Online' : 'Offline';
-    final barColor = _isOnline ? Colors.lightGreenAccent.shade700 : Colors.grey.shade400;
+    final barColor = _isOnline ? themeProvider.primaryColor : Colors.grey.shade400;
+    final gradientColors = _isOnline 
+        ? [themeProvider.primaryColor, themeProvider.primaryColor.withOpacity(0.8)]
+        : [Colors.grey.shade400, Colors.grey.shade600];
+    
     return Container(
-      padding: EdgeInsets.all(4),
-      alignment: Alignment.centerLeft,
-      color: barColor,
-      child: Text(
-        "$_date  $_currentTime  •  $statusText",
-        style: TextStyle(color: Colors.black, fontSize: 12),
+      padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: gradientColors,
+          begin: Alignment.centerLeft,
+          end: Alignment.centerRight,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.1),
+            blurRadius: 4,
+            offset: Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Row(
+            children: [
+              Icon(
+                _isOnline ? Icons.cloud_done : Icons.cloud_off,
+                color: Colors.white,
+                size: 16,
+              ),
+              SizedBox(width: 8),
+              Text(
+                statusText,
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 12,
+                  fontWeight: FontWeight.bold,
+                  letterSpacing: 0.5,
+                ),
+              ),
+            ],
+          ),
+          Text(
+            "$_date  •  $_currentTime",
+            style: TextStyle(
+              color: Colors.white.withOpacity(0.9),
+              fontSize: 12,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+        ],
       ),
     );
   }

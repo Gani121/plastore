@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:test1/utilities.dart';
 import 'NewPartyPage.dart'; 
 import 'package:test1/NewOrderPage.dart'; 
 import 'package:test1/database_Module/party_database.dart'; 
@@ -23,6 +24,8 @@ class _PartyListPageState extends State<PartyListPage> {
   late Store store = Provider.of<ObjectBoxService>(context, listen: false).store;
 
   // Filter State Variables
+  bool _isSearching = false;
+  final TextEditingController _searchController = TextEditingController();
   String _selectedMainFilter = 'All'; 
   String? _selectedSubFilter; 
   
@@ -98,7 +101,7 @@ class _PartyListPageState extends State<PartyListPage> {
 
     if (partiesToUpdate.isNotEmpty) {
       box.putMany(partiesToUpdate);
-      print("Reset completion status for ${partiesToUpdate.length} parties.");
+      print_log("Reset completion status for ${partiesToUpdate.length} parties.");
     }
   }
 
@@ -122,14 +125,15 @@ class _PartyListPageState extends State<PartyListPage> {
 
   void _applyFilters() {
     setState(() {
+      List<Parties> tempParties;
       if (_selectedMainFilter == 'All') {
-        _displayList = List.from(_allParties);
+        tempParties = List.from(_allParties);
       } else if (_selectedSubFilter == null) {
         // If main filter is selected but sub-filter is empty, show all or nothing?
         // Usually showing all until sub-filter is picked is better UX
-        _displayList = List.from(_allParties); 
+        tempParties = List.from(_allParties); 
       } else {
-        _displayList = _allParties.where((party) {
+        tempParties = _allParties.where((party) {
           switch (_selectedMainFilter) {
             case 'Category':
               return party.category == _selectedSubFilter;
@@ -142,6 +146,17 @@ class _PartyListPageState extends State<PartyListPage> {
           }
         }).toList();
       }
+
+      if (_searchController.text.isNotEmpty) {
+        final query = _searchController.text.toLowerCase();
+        tempParties = tempParties.where((party) {
+          final name = party.customername.toLowerCase();
+          final mobile = party.mobilenumber?.toLowerCase() ?? '';
+          return name.contains(query) || mobile.contains(query);
+        }).toList();
+      }
+
+      _displayList = tempParties;
     });
   }
 
@@ -163,14 +178,42 @@ class _PartyListPageState extends State<PartyListPage> {
       length: 2,
       child: Scaffold(
         appBar: AppBar(
-          backgroundColor: Colors.deepPurple,
-          title: Text('Party List', style: TextStyle(fontSize: 18)),
+          backgroundColor: Color.fromARGB(255, 255, 255, 255),
+          title: _isSearching
+              ? TextField(
+                  controller: _searchController,
+                  autofocus: true,
+                  style:  TextStyle(color: Color.fromARGB(255, 0, 0, 0)),
+                  cursorColor:  Color.fromARGB(255, 0, 0, 0),
+                  decoration:  InputDecoration(
+                    hintText: 'Search Name or Mobile...',
+                    hintStyle: TextStyle(color: Color.fromARGB(179, 0, 0, 0)),
+                    border: InputBorder.none,
+                  ),
+                  onChanged: (val) => _applyFilters(),
+                )
+              : const Text('Party List', style: TextStyle(fontSize: 18)),
           actions: [
-            IconButton(icon: Icon(Icons.search), onPressed: () {}),
-            IconButton(icon: Icon(Icons.refresh), onPressed: _loadPartiesFromObjectBox),
+            IconButton(
+                icon: Icon(_isSearching ? Icons.close : Icons.search),
+                onPressed: () {
+                  setState(() {
+                    if (_isSearching) {
+                      _isSearching = false;
+                      _searchController.clear();
+                      _applyFilters();
+                    } else {
+                      _isSearching = true;
+                    }
+                  });
+                }),
+            if (!_isSearching)
+              IconButton(
+                  icon: Icon(Icons.refresh),
+                  onPressed: _loadPartiesFromObjectBox),
           ],
           bottom: TabBar(
-            indicatorColor: Colors.white,
+            indicatorColor: Color.fromARGB(255, 0, 4, 255),
             tabs: [
               Tab(text: 'PARTIES (${_displayList.length})'),
               Tab(text: 'CATEGORIES'),

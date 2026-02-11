@@ -18,7 +18,6 @@ import 'package:http/http.dart' as http;
 import 'package:permission_handler/permission_handler.dart';
 import 'package:flutter_blue_plus/flutter_blue_plus.dart' as bl;
 import 'package:blue_thermal_printer/blue_thermal_printer.dart' as thermal;
-// import 'package:pos_universal_printer/pos_universal_printer.dart' as pos;
 import 'package:esc_pos_utils_plus/esc_pos_utils_plus.dart';
 import '/objectbox.g.dart';
 import 'package:intl/intl.dart';
@@ -32,6 +31,7 @@ import './printer_pages/cat_protocol.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
 import 'database_Module/tableCart.dart';
+import './printer_service.dart';
 
   enum PrintQuality {
     light,
@@ -70,9 +70,10 @@ class BillPrinter {
   static const List<int> resetBuffer = [0x1B, 0x40]; // ESC @
   static const List<int> initCommand = [27, 64]; // ESC @
   int maxChunkSize = 200;
+  late PaperSize _paperSize = PaperSize.mm58;
 
   Future<bool> printCart111111111({
-    // required BuildContext context,
+    required BuildContext context,
     required List<Map<String, dynamic>> cart1,
     required int total,
     required String mode,
@@ -88,53 +89,18 @@ class BillPrinter {
       final cart =  (oldcart1 != null) ? oldcart1 : cart1;
       final _tableno = tableNo ?? 0;
       final prefs = await SharedPreferences.getInstance();
-      SERVICE_UUID = prefs.getString('selected_printer_uuid') ?? "49535343-8841-43f4-a8d4-ecbe34729bb3";
-      maxChunkSize =  prefs.getInt('chunkSize') ?? 200;
-      // final int billNo = (transactionData?['billNo'] == null) ? getNextBillNo(context) : transactionData?['billNo'];
-      // final box = store.box<Transaction>();
-      // int pageback1 = 0;
-      // if (mode == "settle1") pageback1 = 2;
-      // if (_tableno > 0) pageback1 = 1;
-
-      debugPrint("check printer is connected total $total mode $mode payment_mode $payment_mode  $transactionData billNo  $cart");
-
-      // KOT_Print = mode.toLowerCase().contains("kot") || payment_mode.toLowerCase().contains("kot");
-      
-      bool settle_button_enabled = prefs.getBool("settle_button_enabled") ?? false;
-      // bool otherprinter = prefs.getBool("otherprinter") ?? false;
-
-
-
-      final device = await _getSavedPrinter1(KOTmode:true);
-      if (device != null || settle_button_enabled ) {
-        bool isConnected = await _isConnected();
-        debugPrint("check printer is connected ${isConnected} $transactionData");
-
-        if (!isConnected || settle_button_enabled ) {
           bytes = [];
-
-          print_log("settle_button_enabled mode ${isConnected}  payment_mode $payment_mode settle_button_enabled $settle_button_enabled");
-
-          bool isconnected =  await _connectToPrinter(device);
-          if(!isconnected){
-          return false;
-          }
-
-          switch (mode.toLowerCase()) {
-            case "only_kot":
-              await sendKotToPrinter1(cart:cart,tableNumber: _tableno, kotNumber:  transactionData?['billNo'],transactionData:transactionData);
-              // return true;
-              break;
-          
-          }
+          _generator = Generator(PaperSize.mm58, await CapabilityProfile.load());
+          // Business header
+          await sendDataToPrinter(context: context, cart1:cart, total:total, billNo: 123,tableNumber: _tableno ,transactionData:transactionData);
 
 
           stopwatch.stop();
-          debugPrint("send print function Processing time: ${stopwatch.elapsedMilliseconds}ms and ${stopwatch.elapsedMilliseconds/1000} s");
-        } else {
-          await _disconnect(); 
-        }
-      }
+          //debugPrint("send print function Processing time: ${stopwatch.elapsedMilliseconds}ms and ${stopwatch.elapsedMilliseconds/1000} s");
+        // } else {
+        //   await _disconnect(); 
+        // }
+      // }
     } catch (e) {
       print_log_red("❌ Error while printing in printCart: $e");
       // Navigator.pop(context);
@@ -176,13 +142,14 @@ class BillPrinter {
       // if (mode == "settle1") pageback1 = 2;
       if (_tableno > 0) pageback1 = 1;
 
-      debugPrint("check printer is connected total $total mode $mode payment_mode $payment_mode  $transactionData billNo $billNo $cart");
+      print_log("check printer is connected total $total mode $mode payment_mode $payment_mode  $transactionData billNo $billNo _tableno $_tableno newItemsForKot $cart");
 
       KOT_Print = mode.toLowerCase().contains("kot") || payment_mode.toLowerCase().contains("kot");
       
       bool settle_button_enabled = prefs.getBool("settle_button_enabled") ?? false;
       bool otherprinter = prefs.getBool("otherprinter") ?? false;
       if(settle_button_enabled){
+        print_log("in settel transection only");
           await settel_update(
               context: context,
               prefs: prefs,
@@ -208,10 +175,32 @@ class BillPrinter {
 
       //------------------------------------Start code---------------------------------
 
-      if(otherprinter){
-        await printnewprinter(context: context, cart1:cart, total:total, billNo: billNo,tableNumber: _tableno,transactionData:transactionData);
+      // final device = await _getSavedPrinter(KOTmode:KOT_Print,context: context);
+      String address = "";
+      if(KOT_Print){
+        address = prefs.getString('saved_KOT_printer_address') ?? "";
+      } else{
+        address = prefs.getString('saved_printer_address') ?? "";
+      }
+      bytes = [];
 
-        await settel_update(
+      // print_log("settle_button_enabled mode ${isConnected}  payment_mode $payment_mode settle_button_enabled $settle_button_enabled");
+
+      bool isconnected =  await _connectToPrinter(address);
+      if(!isconnected){
+      return false;
+      }
+
+      switch (mode.toLowerCase()) {
+        case "only_kot":
+          await sendKotToPrinter(context: context,cart:cart1,tableNumber: _tableno, kotNumber:  transactionData?['billNo'],transactionData:transactionData);
+          return true;
+        case "onlyprint":
+          await sendDataToPrinter(context: context, cart1:cart, total:total, billNo: billNo,tableNumber: _tableno ,transactionData:transactionData);
+          return true;
+        case "onlysettle":
+          await _disconnect();
+          await settel_update(
             context: context,
             prefs: prefs,
             box: box,
@@ -225,154 +214,34 @@ class BillPrinter {
             transactionData:transactionData,
           );
           return true;
-
-        }
-
-
-
-
-      final device = await _getSavedPrinter(KOTmode:KOT_Print,context: context);
-      if (device != null || settle_button_enabled ) {
-        bool isConnected = await _isConnected();
-        debugPrint("check printer is connected ${isConnected} $transactionData");
-
-        if (!isConnected || settle_button_enabled ) {
-          bytes = [];
-
-          print_log("settle_button_enabled mode ${isConnected}  payment_mode $payment_mode settle_button_enabled $settle_button_enabled");
-
-          bool isconnected =  await _connectToPrinter(device);
-          if(!isconnected){
-          return false;
-          }
-
-          switch (mode.toLowerCase()) {
-            case "only_kot":
-              await sendKotToPrinter(context: context,cart:cart,tableNumber: _tableno, kotNumber:  transactionData?['billNo'],transactionData:transactionData);
-              return true;
-            case "onlyprint":
-              await sendDataToPrinter(context: context, cart1:cart, total:total, billNo: billNo,tableNumber: _tableno ,transactionData:transactionData);
-              return true;
-            case "onlysettle":
-              await _disconnect();
-              
-              final ttid = prefs.getInt("tt$tableNo");
-              final isnonzero = areAllQuantitiesZero(cart);
-              print_log("qty check  ${isnonzero} > 0");
-              if(isnonzero){
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                    content: Text("Please ckeck the cart"),
-                    duration: Duration(seconds: 1),
-                  ),
-                );
-                return false;
-              }
-              int id;
-              if(ttid != null){
-                id = ttid;
-                await updateTransactionToObjectBox(
-                  context: context,
-                  cart: cart,
-                  total: total,
-                  tableNo: _tableno,
-                  pageback: pageback1,
-                  payment_mode: payment_mode,
-                  status: mode,
-                  id: ttid.toString(),
-                  transactionData:transactionData,
-                );
-                // int gotId = int.parse(ttid.toString());
-                sendTransactionToServer(box, ttid);
-              } else {
-
-                id  = await saveTransactionToObjectBox(
-                  context: context,
-                  cart: cart,
-                  total: total,
-                  tableNo: _tableno,
-                  pageback: pageback1,
-                  payment_mode: payment_mode,
-                  status: mode,
-                  transactionData:transactionData
-                );
-              }
-              
-              final key = "table${tableNo}";
-              final message = 'clear table cart data $key';
-              print_log_red('$message');
-              // prefs.remove(key);
-              deletetablecart(_tableno);
-              debugPrint("saveTransactionToObjectBox with id - $id  table $key ");
-              sendTransactionToServer(box, id);
-              prefs.remove("tt$tableNo",);
-              return true;
-          }
-
-          if(payment_mode.toLowerCase().contains("kot")){
-
-            await sendKotToPrinter(context: context,cart:cart,tableNumber: _tableno,kotNumber: transactionData?['billNo'],transactionData:transactionData);
-          }else{
-
-            await sendDataToPrinter(context: context, cart1:cart, total:total, billNo: billNo,tableNumber: _tableno,transactionData:transactionData);
-          }
-          
-          late final String id;
-          final isnonzero = areAllQuantitiesZero(cart);
-          print_log("qty check  ${isnonzero} > 0");
-          if(isnonzero){
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: Text("Please ckeck the cart"),
-                duration: Duration(seconds: 1),
-              ),
-            );
-            return false;
-          }
-          if (payment_mode.contains("_")) {
-            List pm = payment_mode.split("_");
-            String paymentMode = pm[0];
-            id = pm[1];
-            debugPrint("updateTransactionToObjectBox ID is $id and mode $payment_mode");
-            await updateTransactionToObjectBox(
-              context: context,
-              cart: cart,
-              total: total,
-              tableNo: _tableno,
-              pageback: pageback1,
-              payment_mode: paymentMode,
-              status: mode,
-              id: id,
-              transactionData:transactionData,
-            );
-            int gotId = int.parse(id);
-            sendTransactionToServer(box, gotId);
-            
-          } else {
-            int id  = await saveTransactionToObjectBox(
-              context: context,
-              cart: cart,
-              total: total,
-              tableNo: _tableno,
-              pageback: pageback1,
-              payment_mode: payment_mode,
-              status: mode,
-              transactionData:transactionData,
-            );
-
-            debugPrint("saveTransactionToObjectBox with id - $id ");
-            sendTransactionToServer(box, id);
-            if (_tableno > 0){
-              prefs.setInt("tt$tableNo", id);
-            }
-          }
-
-          stopwatch.stop();
-          debugPrint("send print function Processing time: ${stopwatch.elapsedMilliseconds}ms and ${stopwatch.elapsedMilliseconds/1000} s");
-        } else {
-          await _disconnect(); 
-        }
       }
+
+      if(payment_mode.toLowerCase().contains("kot")){
+        await sendKotToPrinter(context: context,cart:cart1,tableNumber: _tableno,kotNumber: transactionData?['billNo'],transactionData:transactionData);
+      }else{
+        await sendDataToPrinter(context: context, cart1:cart, total:total, billNo: billNo,tableNumber: _tableno,transactionData:transactionData);
+      }
+
+
+      // *******     printing dne going to settel    *********************
+
+      await settel_update(
+        context: context,
+        prefs: prefs,
+        box: box,
+        cart: cart,
+        oldcart1: oldcart1,
+        total: total,
+        tableNo: _tableno,
+        pageback: pageback1,
+        payment_mode: payment_mode,
+        mode: mode,
+        transactionData:transactionData,
+      );
+
+      stopwatch.stop();
+      print_log("send print function Processing time: ${stopwatch.elapsedMilliseconds}ms and ${stopwatch.elapsedMilliseconds/1000} s");
+      
     } catch (e) {
       print_log_red("❌ Error while printing in printCart: $e");
       Navigator.pop(context);
@@ -443,7 +312,7 @@ Future<List<int>> _getLogoBytes(String imagePath, {int printerWidth = 384}) asyn
     img.Image? image = img.decodeImage(bytes);
     
     if (image == null) {
-      debugPrint("❌ Invalid image at $imagePath");
+      //debugPrint("❌ Invalid image at $imagePath");
       return [0x1B, 0x40];
     }
     
@@ -490,11 +359,11 @@ Future<List<int>> _getLogoBytes(String imagePath, {int printerWidth = 384}) asyn
     }
     
     cmd.add(0x0A); // End raster
-    debugPrint("✅ Logo: ${cmd.length} bytes (${mono.width}x${mono.height})");
+    //debugPrint("✅ Logo: ${cmd.length} bytes (${mono.width}x${mono.height})");
     return cmd;
     
   } catch (e) {
-    debugPrint("❌ Logo error: $e");
+    //debugPrint("❌ Logo error: $e");
     return [0x1B, 0x40];
   }
 }
@@ -512,7 +381,7 @@ Future<void> printBillWithLogo(thermal.BlueThermalPrinter bluetooth) async {
   
   
   final completeBytes = Uint8List.fromList(bytes);
-  debugPrint("Total bytes: ${completeBytes.length}"); // e.g., 450
+  //debugPrint("Total bytes: ${completeBytes.length}"); // e.g., 450
   
   await printInChunks(bluetooth, completeBytes);
   await bluetooth.paperCut();
@@ -574,7 +443,7 @@ Future<void> printBillWithLogo(thermal.BlueThermalPrinter bluetooth) async {
 
 
     address = prefs.getString('saved_printer_address');
-    debugPrint("Looking for saved printer with address: $address");
+    //debugPrint("Looking for saved printer with address: $address");
     
     if (address == null) {
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Printer Is Not Selected")));
@@ -583,12 +452,12 @@ Future<void> printBillWithLogo(thermal.BlueThermalPrinter bluetooth) async {
 
       // Method 1: Check bonded devices first (already paired)
       List<thermal.BluetoothDevice> bondedDevices = await printer.getBondedDevices();
-      debugPrint("Found ${bondedDevices.length} bonded devices");
+      //debugPrint("Found ${bondedDevices.length} bonded devices");
       
       for (var _device in bondedDevices) {
-        debugPrint("Bonded: ${_device.name} - ${_device.address}");
+        //debugPrint("Bonded: ${_device.name} - ${_device.address}");
         if (_device.address == address) {
-          debugPrint("✅ Found saved printer in bonded devices!");
+          //debugPrint("✅ Found saved printer in bonded devices!");
           device = _device;
           break;
         }
@@ -596,9 +465,9 @@ Future<void> printBillWithLogo(thermal.BlueThermalPrinter bluetooth) async {
 
       // Method 2: If not bonded, create a device from address and connect
       if (device == null) {
-        debugPrint("🔄 Printer not bonded, creating device from address...");
+        //debugPrint("🔄 Printer not bonded, creating device from address...");
         device = thermal.BluetoothDevice("Printer", address);
-        debugPrint("✅ Created device from address: ${device.address}");
+        //debugPrint("✅ Created device from address: ${device.address}");
       }
 
       bool? isConnected = await printer.isConnected;
@@ -648,7 +517,7 @@ Future<void> printBillWithLogo(thermal.BlueThermalPrinter bluetooth) async {
       printer.printCustom("Time:- $dateTime", 1, 0);
 
       if (customerName ) {
-          debugPrint("⚠️ check printer is connected tota --$transactionData---");
+          //debugPrint("⚠️ check printer is connected tota --$transactionData---");
           printer.printCustom("TO Customer:- ", 1, 1);
           printer.printCustom("Name: ${transactionData?['customerName'] ?? " "}", 0, 0);
           printer.printCustom("Mobile NO: ${transactionData?['mobileNo'] ?? " "}", 0, 0);
@@ -725,14 +594,10 @@ Future<void> printBillWithLogo(thermal.BlueThermalPrinter bluetooth) async {
 
     if (tableNo > 0){
       final ttid = prefs.getInt("tt$tableNo");
-      final isnonzero = areAllQuantitiesZero(cart);
-      print_log("qty check  ${isnonzero} > 0");
-      if (isnonzero) {
-        screen_massage(context, "Please ckeck the cart");
-        return false;
-      }
+      print_log("this is $tableNo table order of ttid $ttid ");
       int id;
       if (ttid != null) {
+        print_log("Got table id $ttid goint to update transection");
         id = ttid;
         await updateTransactionToObjectBox(
           context: context,
@@ -742,11 +607,11 @@ Future<void> printBillWithLogo(thermal.BlueThermalPrinter bluetooth) async {
           pageback: pageback,
           payment_mode: payment_mode,
           status: mode,
-          id: ttid.toString(),
+          id: ttid,
           transactionData: transactionData,
         );
-        sendTransactionToServer(box, ttid);
       } else {
+        print_log("Not get table id goint to new transection");
         id = await saveTransactionToObjectBox(
           context: context,
           cart: cart,
@@ -758,35 +623,33 @@ Future<void> printBillWithLogo(thermal.BlueThermalPrinter bluetooth) async {
           transactionData: transactionData,
         );
       }
+      
 
-      final key = "table${tableNo}";
-      final message = 'clear table cart data $key';
-      debugPrint('\x1B[31m $message \x1B[0m');
-      deletetablecart(tableNo);
-      debugPrint("saveTransactionToObjectBox with id - $id  table $key ");
-      sendTransactionToServer(box, id);
-      prefs.remove("tt$tableNo");
+      if(mode.toLowerCase().contains("settle")){
+        final key = "table${tableNo}";
+        deletetablecart(tableNo);
+        prefs.remove("tt$tableNo");
+        print_log("removed table cart data and transection with id - $id  table $key ");
+        try{
+          await sendTransactionToServer(box, id);
+          print_log("✅ Transaction saved to server with ID: $id");
+        }catch(e){
+          print_log_red( "Transaction not saved to server with ID: $e" );
+          // screen_massage(context, "Transaction not saved to ObjectBox with ID: $e");
+        }
+      } else{
+        prefs.setInt("tt$tableNo", id);
+      }
+      
       return true;
     } else {
-
-      late final String id;
-      final final_cart = (oldcart1 != null) ? oldcart1 : cart;
-      final isnonzero = areAllQuantitiesZero(final_cart);
-      print_log("qty check  ${isnonzero} > 0");
-      if(isnonzero){
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text("Please ckeck the cart"),
-            duration: Duration(seconds: 1),
-          ),
-        );
-        return false;
-      }
+      print_log("in settel transection settel_update");
+      late int id;
       if (payment_mode.contains("_")) {
         List pm = payment_mode.split("_");
         String paymentMode = pm[0];
-        id = pm[1];
-        debugPrint("updateTransactionToObjectBox ID is $id and mode $payment_mode");
+        id = int.tryParse(pm[1]) ?? 0;
+        print_log("in settel transection updateTransactionToObjectBox ID is $id and mode $payment_mode");
         await updateTransactionToObjectBox(
           context: context,
           cart: cart,
@@ -798,11 +661,9 @@ Future<void> printBillWithLogo(thermal.BlueThermalPrinter bluetooth) async {
           id: id,
           transactionData:transactionData,
         );
-        int gotId = int.parse(id);
-        sendTransactionToServer(box, gotId);
-        
       } else {
-        int id  = await saveTransactionToObjectBox(
+        print_log("in settel transection savetransetin");
+        id  = await saveTransactionToObjectBox(
           context: context,
           cart: cart,
           total: total,
@@ -813,12 +674,16 @@ Future<void> printBillWithLogo(thermal.BlueThermalPrinter bluetooth) async {
           transactionData:transactionData,
         );
 
-        debugPrint("saveTransactionToObjectBox with id - $id ");
-        sendTransactionToServer(box, id);
-        if (tableNo > 0){
-          prefs.setInt("tt$tableNo", id);
+      }
+      print_log("in settel transection got id fron transection is $id");
+      if(!mode.toLowerCase().contains("kot")){
+        try{
+          await sendTransactionToServer(box, id);
+          print_log("✅ Transaction sent to server with ID: $id");
+        }catch(e){
+          print_log_red( "Transaction not saved to server with ID: $e" );
+          // screen_massage(context, "Transaction not saved to ObjectBox with ID: $e");
         }
-        
       }
       return true;
     }
@@ -831,553 +696,102 @@ Future<void> printBillWithLogo(thermal.BlueThermalPrinter bluetooth) async {
     final query = box.query(tableCart_.tableNo.equals(tableNo)).build();
     tableCart? existingTableCart = query.findFirst();
     query.close();
-    debugPrint("✅ Updated cart for table #$tableNo in ObjectBox. existingTableCart $existingTableCart");
+    //debugPrint("✅ Updated cart for table #$tableNo in ObjectBox. existingTableCart $existingTableCart");
 
     // 5. If the cart is empty, remove the entry from the database
     if (existingTableCart != null) {
       box.remove(existingTableCart.id);
-      debugPrint("🗑️ Removed empty cart for table #$tableNo from ObjectBox.");
+      //debugPrint("🗑️ Removed empty cart for table #$tableNo from ObjectBox.");
     }
   }
 
 
   // Bluetooth connection methods
-  Future<bool> _connectToPrinter(bl.BluetoothDevice? device,{BuildContext? context}) async {
+  Future<bool> _connectToPrinter(String macAddress) async {
     try {
-      if(device != null){
-        // Connect to the device
-        try{
-          await device.connect(license: bl.License.free);
-        }catch (e) {
-          await device.connect(license: bl.License.free,timeout: Duration(seconds: 10));
-        }
-        
-        // Discover services
-        // List<bl.BluetoothService> services = await device.discoverServices();
-        // debugPrint("✅ Found ${services.length} services");
-        
-        // for (int i = 0; i < services.length; i++) {
-        //   bl.BluetoothService service = services[i];
-        //   // debugPrint("--- Service $service ---");
-        //   // debugPrint("--- Service ${i + 1} ---");
-        //   // debugPrint("Service UUID: ${service.uuid}");
-        //   // debugPrint("Service UUID (full): ${service.uuid.toString()}");
-          
-        //   for (int j = 0; j < service.characteristics.length; j++) {
-        //     bl.BluetoothCharacteristic characteristic = service.characteristics[j];
-        //     debugPrint("  Characteristic ${j + 1}:");
-        //     debugPrint("    UUID: ${characteristic.uuid}");
-        //     debugPrint("    Properties: ${characteristic.properties}");
-        //     debugPrint("    Read: ${characteristic.properties.read}");
-        //     debugPrint("    Write: ${characteristic.properties.write}");
-        //     debugPrint("    WriteWithoutResponse: ${characteristic.properties.writeWithoutResponse}");
-        //     debugPrint("    Notify: ${characteristic.properties.notify}");
-        //     debugPrint("    Indicate: ${characteristic.properties.indicate}");
-        //   }
-        //   debugPrint(""); // Empty line for readability
-        // }
-        // Initialize generator
-        final prefs = await SharedPreferences.getInstance();
-        String paperSize = prefs.getString('paperSize') ?? '2';
-        debugPrint("--- paperSize $paperSize ---");
-        final list_profile = await CapabilityProfile.getAvailableProfiles();
-        for(var i in list_profile){
-          print_log("await CapabilityProfile.load() ${i}");
-        }
+      final prefs = await SharedPreferences.getInstance();
 
-        _generator = Generator((paperSize == "2") ? PaperSize.mm58 : (paperSize == "3") ? PaperSize.mm72 : PaperSize.mm80, await CapabilityProfile.load());
-        _connectedDevice = device;
-        
-        debugPrint("✅ Connected to printer: ${device.platformName}");
-        return true;
+
+      final list_profile = await CapabilityProfile.getAvailableProfiles();
+      for(var i in list_profile){
+        print_log("await CapabilityProfile.load() ${i}");
       }
-      return false;
+      
+      String paperSize = prefs.getString('paperSize') ?? '2';
+      switch (paperSize) {
+        case "2": // 2-inch
+          _paperSize = PaperSize.mm58;
+          print_log("selected pepr size is 2 inch/58mm $_paperSize");
+          break;
+        case "3": // 2.8-inch (72mm)
+          _paperSize = PaperSize.mm72;
+          print_log("selected pepr size is 3 inch/72mm $_paperSize");
+          break;
+        case "4": // 3-inch
+          _paperSize = PaperSize.mm80;
+          print_log("selected pepr size is 4 inch/80mm $_paperSize");
+          break;
+        default:
+          _paperSize = PaperSize.mm58;
+          print_log("selected pepr size is 2 inch/58mm $_paperSize");
+      }
+
+      _generator = Generator(_paperSize, await CapabilityProfile.load());
+
+      final connected = await PrinterService.connectToPrinterUsingMac(macAddress);
+      print_log("connected true $connected");
+      await PrinterService.Initialize_Printer();
+      sleep(2, "s");
+
+      return connected;
     } catch (e) {
-      debugPrint("❌ Error connecting to printer: $e");
+      //debugPrint("❌ Error connecting to printer: $e");
       return false;
     }
   }
 
-  Future<bool> _isConnected({BuildContext? context}) async {
-    return _connectedDevice != null && _connectedDevice!.isConnected;
+  Future<bool> _isConnected() async {
+    final isconnected = PrinterService.isconnected();
+    return isconnected;
   }
 
-  Future<void> _disconnect({BuildContext? context}) async {
-    if (_connectedDevice != null) {
-      await _connectedDevice!.disconnect();
+  Future<void> _disconnect() async {
+
+    try {
+
+      sleep(3, "s");
+      final dis = await PrinterService.disconnect();
+      print_log("connected true $dis");
+
+    } catch (e) {
+
+      //debugPrint("❌ Error sending chunk $e");
+
     }
-    _connectedDevice = null;
     _generator = null;
+
   }
 
   Future<void> _sendToPrinter({Uint8List? imageBytes, required BuildContext context}) async {
     
-    // List< bl.BluetoothCharacteristic> writuuid = [];
-    if (_connectedDevice == null || !_connectedDevice!.isConnected) {
-      throw Exception("Printer not connected");
-    }
-    final prefs = await SharedPreferences.getInstance();
-    final bool miniPrinter = prefs.getBool('miniPrinter') ?? false;
-    final bool miniPrinterKOT = prefs.getBool('miniPrinterKOT') ?? false  ;
-    
-    // Discover services
-    List<bl.BluetoothService> services = await _connectedDevice!.discoverServices();
-    bl.BluetoothCharacteristic? printerCharacteristic;
-    
-    debugPrint("Data for printer miniPrinter-$miniPrinter && !miniPrinterKOT-${!miniPrinterKOT} || (miniPrinterKOT-$miniPrinterKOT && KOT_Print-$KOT_Print  miniPrinter-${( (miniPrinter && !KOT_Print) || (miniPrinterKOT && KOT_Print))}");
-    if( (miniPrinter && !KOT_Print) || (miniPrinterKOT && KOT_Print)){
-      
-      print_log("in mini printer");
-      // for (bl.BluetoothService service in services) {
-      //   // printerCharacteristic = service.characteristics.firstWhere((c) => c.uuid.toString() == SERVICE_UUID);
-      //   for (bl.BluetoothCharacteristic characteristic in service.characteristics) {
-      //     print_log("🔍 finding printer characteristic in miniPrinter: ${characteristic.uuid.toString()} characteristic ${characteristic}");
-      //     // break;
-      //   }
-      // }
-      // for (bl.BluetoothService service in services) {
-      //   for (bl.BluetoothCharacteristic characteristic in service.characteristics) {
-      //     // Use the characteristic from Service 3 that has write capabilities
-      //     print_log("🔍 finding printer characteristic:${characteristic.uuid.toString()} ==  $SERVICE_UUID");
-      //     print_log("   finding printer characteristic ${characteristic}");
-          
-      //     if (characteristic.uuid.toString() == SERVICE_UUID) {
-      //       printerCharacteristic = characteristic;
-      //       print_log("✅ Found printer characteristic: ${characteristic.uuid}");
-      //       break;
-      //     } 
-          
-      //   }
-      //   if (printerCharacteristic != null) break;
-      // }
-      print_log("in mini printer2");
-      // final bl.Guid CAT_PRINT_SRV = bl.Guid("0000ae30-0000-1000-8000-00805f9b34fb");
-      // final bl.Guid CAT_PRINT_TX_CHAR = bl.Guid("0000ae01-0000-1000-8000-00805f9b34fb");
-
-      // final service = services.firstWhere((s) => s.uuid == CAT_PRINT_SRV);
-      // print_log("service in print$service");
-      // printerCharacteristic = service.characteristics.firstWhere((c) => c.uuid.toString() == CAT_PRINT_TX_CHAR);
-      // final services = await device.discoverServices();
-
-
-      
-      print("✅ services $services");
-      // BluetoothCharacteristic? tx;
-      // final service = services.firstWhere((s) => s.uuid == CAT_PRINT_SRV);
-      // for (var s in services) {
-      //   print("Checking Service UUID: services ------------ ${s.uuid}");
-      //   for (var c in s.characteristics) {
-      //     print("Checking Char UUID s.characteristics --------- : ${c.uuid}");
-      //     if ((c.uuid).toString().toLowerCase() == "ae01") {
-      //       printerCharacteristic = c;
-      //       print("🎯 Match found for Characteristic!");
-      //       // break;
-      //     }
-      //   }
-      // }
-
-      for (bl.BluetoothService service in services) {
-        for (bl.BluetoothCharacteristic characteristic in service.characteristics) {
-          // Use the characteristic from Service 3 that has write capabilities
-          print_log("🔍 finding printer characteristic:${characteristic.uuid.toString()} ==  $SERVICE_UUID");
-          print_log("   finding printer characteristic ${characteristic}");
-          
-          if (characteristic.uuid.toString() == SERVICE_UUID) {
-            printerCharacteristic = characteristic;
-            print_log("✅ Found printer characteristic: ${characteristic.uuid}");
-            break;
-          }
-        }
-        if (printerCharacteristic != null) break;
-      }
-
-
-
-      print_log("service in print ${printerCharacteristic!.uuid}");
-      if (printerCharacteristic == null) print_log("printerCharacteristic in print ${printerCharacteristic}");
-      final printer = CatPrinter(printerCharacteristic!);
-      final prefs = await SharedPreferences.getInstance();
-      final speed = prefs.getInt('speed') ?? 32;
-      final energy = prefs.getInt('energy') ?? 35000;
-      final finishFeed = 50;
-      await printer.prepare(speed, energy);
-    print_log("in mini printer3");
-
-      final img.Image? originalImage = await img.decodeImage(imageBytes!); //bytes ti image
-      print_log("massage");
-      Uint8List processedBitmap;
-      if (originalImage != null) {
-        processedBitmap = _processImageForPrinter(
-          originalImage.buffer.asUint8List(),
-          originalImage.width,
-          originalImage.height,
-          printerWidth
-        );
-      }else{
-        debugPrint("Error: Failed to decode PNG image.");
-        return;
-      }
-      final pitch = printerWidth ~/ 8; // 384 / 8 = 48 bytes per line
-      int blankLines = 0;
-      print_log("in mini printer4");
-      for (int y = 0; y < processedBitmap.length ~/ pitch; y++) {
-        final start = y * pitch;
-        final end = start + pitch;
-        if (end > processedBitmap.length) break;
-        final line = processedBitmap.sublist(start, end);
-        if (line.every((byte) => byte == 0)) {
-          blankLines += 1; // It's a blank line, just count it
-        } else {
-          if (blankLines > 0) {
-            await printer.feed(2);  //to increase the gap of line
-            blankLines = 0; // Reset the counter
-          }
-          print_log("in mini printer5");
-          await printer.draw(line);
-          await Future.delayed(const Duration(milliseconds: 1));
-        }
-      }
-      await printer.finish(finishFeed);
-      print_log("in mini printer6");
-      await Future.delayed(const Duration(milliseconds: 200));
-      // return;
-
-    } else {
-
-
-
-      print_log("⚠️ bytes.length --${bytes.length}---");
-      
-      // for (bl.BluetoothService service in services) {
-      //   for (bl.BluetoothCharacteristic characteristic in service.characteristics) {
-      //     // print_log("🔍 Checking characteristic: ${characteristic.uuid.toString()}");
-      //     // print_log("   Full info: $characteristic");
-      //     print_log("🔍 finding printer characteristic:${characteristic.uuid.toString()} -- characteristic ${characteristic}");
-      //     final properties = characteristic.properties;
-          
-      //     // final properties = characteristic.properties;
-      //     if (properties.write || properties.writeWithoutResponse) {
-      //       // print_log("✅ Found writable characteristic: ${characteristic.uuid}");
-      //       print_log("   Properties: Write: ${properties.write}, WriteWithoutResponse: ${properties.writeWithoutResponse} For ${characteristic.uuid}");
-
-      //       if(characteristic.uuid.toString() == SERVICE_UUID){
-            
-      //       writuuid.add(characteristic);
-            
-      //       }
-      //     }
-      //   }
-      // }
-
-
-
-      for (bl.BluetoothService service in services) {
-        for (bl.BluetoothCharacteristic characteristic in service.characteristics) {
-          // Use the characteristic from Service 3 that has write capabilities
-          print_log("🔍 finding printer characteristic:${characteristic.uuid.toString()} ==  $SERVICE_UUID");
-          print_log("   finding printer characteristic ${characteristic}");
-          
-          if (characteristic.uuid.toString() == SERVICE_UUID) {
-            printerCharacteristic = characteristic;
-            print_log("✅ Found printer characteristic: ${characteristic.uuid}");
-            break;
-          }
-        }
-        if (printerCharacteristic != null) break;
-      }
-   
-      if (printerCharacteristic != null) {
-
-        
-        // print_log("writuuod == $writuuid");
-
-        // ESC @ command (Initialize printer)
-        // List<int> resetCommand = [0x1B, 0x40];
-        // bytes.insertAll(0, [0x1B, 0x40, 0x1B, 0x33, 0x00]); // ESC @ (Initialize Printer)
-        // List<int> configCommands = [
-        //   0x1B, 0x40,       // Reset
-        //   // 0x1B, 0x4D, 0x01, // Force Font B (Small)
-        //   0x1D, 0x21, 0x00, // Force Normal Size (1x1)
-        //   // 0x1B, 0x33, 0x14  // Set tight line spacing
-        // ];
-
-        // // bytes.insertAll(0, configCommands);
-        // try {
-        //   await printerCharacteristic.write(configCommands, withoutResponse: false);
-        //   await Future.delayed(const Duration(milliseconds: 100));
-        //   // debugPrint("✅ Printer buffer cleared command sent.");
-        // } catch (e) {
-        //   debugPrint("❌ Failed to clear printer buffer: $e");
-        // }
-        // Split data into chunks to avoid exceeding maximum length
-
-      
-        // const int maxChunkSize = 200; // Use 200 to be safe (printer reported max 237)
-        print_log_red("Sending data by using UUID --${printerCharacteristic.uuid} ");
-        print_log("📦 Sending ${bytes.length} bytes in chunks of $maxChunkSize");
-        
-        for (int i = 0; i < bytes.length; i += maxChunkSize) {
-          int end = (i + maxChunkSize < bytes.length) ? i + maxChunkSize : bytes.length;
-          List<int> chunk = bytes.sublist(i, end);
-          
-          // debugPrint("🔄 Sending chunk ${(i ~/ maxChunkSize) + 1}: ${chunk.length} bytes");
-          
-          try {
-            // Try writeWithoutResponse first (faster for thermal printers)
-            await printerCharacteristic.write(chunk,withoutResponse:true);
-            // debugPrint("✅ Chunk ${(i ~/ maxChunkSize) + 1} sent successfully");
-            
-            // Small delay between chunks to prevent overwhelming the printer
-            await Future.delayed(Duration(milliseconds: 30));
-            
-          } catch (e) {
-            debugPrint("❌ Error sending chunk ${(i ~/ maxChunkSize) + 1}: $e");
-            // Try with response if withoutResponse fails
-            try {
-              await printerCharacteristic.write(chunk, withoutResponse: false);
-              // debugPrint("✅ Chunk ${(i ~/ maxChunkSize) + 1} sent with response");
-            } catch (e2) {
-              print_log_red("❌ Failed to send data by using UUID ${(i ~/ maxChunkSize) + 1} by uiid ${printerCharacteristic.uuid} with response: $e2");
-              // throw Exception("Failed to send data to printer");
-            }
-          }
-          // finally{
-          //   bytes = [];
-          // }
-        }
-      } else{
-        screen_massage(context, "❌ Printer characteristic not found");
-        print_log_red("❌ Printer characteristic not found");
-        // throw Exception("Printer characteristic not found");
-      }
-
 
       // SC588 Beep Commands
       // List<int> beepCommand = [0x1B, 0x42, 0x03, 0x05];
-      // await printerCharacteristic.write([0x1B, 0x42, 0x01, 0x02], withoutResponse: false);
-    
-    
-    }
-    bytes = [];
-    debugPrint("🎉 All data sent successfully to printer!");
-  }
-
-  Future<void> _sendToPrinter11({Uint8List? imageBytes}) async {
-    
-    // List< bl.BluetoothCharacteristic> writuuid = [];
-    if (_connectedDevice == null || !_connectedDevice!.isConnected) {
-      throw Exception("Printer not connected");
-    }
-    final prefs = await SharedPreferences.getInstance();
-    final bool miniPrinter = prefs.getBool('miniPrinter') ?? false;
-    final bool miniPrinterKOT = prefs.getBool('miniPrinterKOT') ?? false  ;
-    
-    // Discover services
-    List<bl.BluetoothService> services = await _connectedDevice!.discoverServices();
-    bl.BluetoothCharacteristic? printerCharacteristic;
-    
-    debugPrint("Data for printer miniPrinter-$miniPrinter && miniPrinterKOT-${!miniPrinterKOT} || (miniPrinterKOT-$miniPrinterKOT && KOT_Print-$KOT_Print  miniPrinter-${( (miniPrinter && !KOT_Print) || (miniPrinterKOT && KOT_Print))}");
-    if( (miniPrinter && !KOT_Print) || (miniPrinterKOT && KOT_Print)){
-      
-      print_log("in mini printer");
-      for (bl.BluetoothService service in services) {
-        // printerCharacteristic = service.characteristics.firstWhere((c) => c.uuid.toString() == SERVICE_UUID);
-        for (bl.BluetoothCharacteristic characteristic in service.characteristics) {
-          print_log("🔍 finding printer characteristic in miniPrinter: ${characteristic.uuid.toString()} characteristic ${characteristic}");
-          // break;
-        }
-      }
-      for (bl.BluetoothService service in services) {
-        for (bl.BluetoothCharacteristic characteristic in service.characteristics) {
-          // Use the characteristic from Service 3 that has write capabilities
-          print_log("🔍 finding printer characteristic:${characteristic.uuid.toString()} ==  $SERVICE_UUID");
-          print_log("   finding printer characteristic ${characteristic}");
-          
-          if (characteristic.uuid.toString() == SERVICE_UUID) {
-            printerCharacteristic = characteristic;
-            print_log("✅ Found printer characteristic: ${characteristic.uuid}");
-            break;
-          } 
-          
-        }
-        if (printerCharacteristic != null) break;
-      }
-      print_log("in mini printer2");
-      // final bl.Guid CAT_PRINT_SRV = bl.Guid("0000ae30-0000-1000-8000-00805f9b34fb");
-      // final bl.Guid CAT_PRINT_TX_CHAR = bl.Guid("0000ae01-0000-1000-8000-00805f9b34fb");
-
-      // final service = services.firstWhere((s) => s.uuid == CAT_PRINT_SRV);
-      // print_log("service in print$service");
-      // printerCharacteristic = service.characteristics.firstWhere((c) => c.uuid.toString() == CAT_PRINT_TX_CHAR);
-      // print_log("service in print ${printerCharacteristic.uuid}");
-      if (printerCharacteristic == null) print_log("printerCharacteristic in print ${printerCharacteristic}");
-      final printer = CatPrinter(printerCharacteristic!);
-      final prefs = await SharedPreferences.getInstance();
-      final speed = prefs.getInt('speed') ?? 32;
-      final energy = prefs.getInt('energy') ?? 35000;
-      final finishFeed = 50;
-      await printer.prepare(speed, energy);
-    print_log("in mini printer3");
-
-      final img.Image? originalImage = await img.decodeImage(imageBytes!); //bytes ti image
-      print_log("massage");
-      Uint8List processedBitmap;
-      if (originalImage != null) {
-        processedBitmap = _processImageForPrinter(
-          originalImage.buffer.asUint8List(),
-          originalImage.width,
-          originalImage.height,
-          printerWidth
-        );
-      }else{
-        debugPrint("Error: Failed to decode PNG image.");
-        return;
-      }
-      final pitch = printerWidth ~/ 8; // 384 / 8 = 48 bytes per line
-      int blankLines = 0;
-      print_log("in mini printer4");
-      for (int y = 0; y < processedBitmap.length ~/ pitch; y++) {
-        final start = y * pitch;
-        final end = start + pitch;
-        if (end > processedBitmap.length) break;
-        final line = processedBitmap.sublist(start, end);
-        if (line.every((byte) => byte == 0)) {
-          blankLines += 1; // It's a blank line, just count it
-        } else {
-          if (blankLines > 0) {
-            await printer.feed(2);  //to increase the gap of line
-            blankLines = 0; // Reset the counter
-          }
-          print_log("in mini printer5");
-          await printer.draw(line);
-          await Future.delayed(const Duration(milliseconds: 1));
-        }
-      }
-      await printer.finish(finishFeed);
-      print_log("in mini printer6");
-      await Future.delayed(const Duration(milliseconds: 200));
-      // return;
-
-    } else {
-
-
 
       print_log("⚠️ bytes.length --${bytes.length}---");
-      
-      // for (bl.BluetoothService service in services) {
-      //   for (bl.BluetoothCharacteristic characteristic in service.characteristics) {
-      //     // print_log("🔍 Checking characteristic: ${characteristic.uuid.toString()}");
-      //     // print_log("   Full info: $characteristic");
-      //     print_log("🔍 finding printer characteristic:${characteristic.uuid.toString()} -- characteristic ${characteristic}");
-      //     final properties = characteristic.properties;
-          
-      //     // final properties = characteristic.properties;
-      //     if (properties.write || properties.writeWithoutResponse) {
-      //       // print_log("✅ Found writable characteristic: ${characteristic.uuid}");
-      //       print_log("   Properties: Write: ${properties.write}, WriteWithoutResponse: ${properties.writeWithoutResponse} For ${characteristic.uuid}");
 
-      //       if(characteristic.uuid.toString() == SERVICE_UUID){
-            
-      //       writuuid.add(characteristic);
-            
-      //       }
-      //     }
-      //   }
-      // }
+      try {
 
+        await PrinterService.sendPrintRequest(bytes);
+        sleep(3, "s");
 
-
-      for (bl.BluetoothService service in services) {
-        for (bl.BluetoothCharacteristic characteristic in service.characteristics) {
-          // Use the characteristic from Service 3 that has write capabilities
-          print_log("🔍 finding printer characteristic:${characteristic.uuid.toString()} ==  $SERVICE_UUID");
-          print_log("   finding printer characteristic ${characteristic}");
-          
-          if (characteristic.uuid.toString() == SERVICE_UUID) {
-            printerCharacteristic = characteristic;
-            print_log("✅ Found printer characteristic: ${characteristic.uuid}");
-            break;
-          } 
-          
-        }
-        if (printerCharacteristic != null) break;
+      } catch (e) {
+        //debugPrint("❌ Error sending chunk $e");
       }
-   
-      if (printerCharacteristic != null) {
-
-        
-        // print_log("writuuod == $writuuid");
-
-        // ESC @ command (Initialize printer)
-        // List<int> resetCommand = [0x1B, 0x40];
-        // bytes.insertAll(0, [0x1B, 0x40, 0x1B, 0x33, 0x00]); // ESC @ (Initialize Printer)
-        // List<int> configCommands = [
-        //   0x1B, 0x40,       // Reset
-        //   // 0x1B, 0x4D, 0x01, // Force Font B (Small)
-        //   0x1D, 0x21, 0x00, // Force Normal Size (1x1)
-        //   // 0x1B, 0x33, 0x14  // Set tight line spacing
-        // ];
-
-        // // bytes.insertAll(0, configCommands);
-        // try {
-        //   await printerCharacteristic.write(configCommands, withoutResponse: false);
-        //   await Future.delayed(const Duration(milliseconds: 100));
-        //   // debugPrint("✅ Printer buffer cleared command sent.");
-        // } catch (e) {
-        //   debugPrint("❌ Failed to clear printer buffer: $e");
-        // }
-        // Split data into chunks to avoid exceeding maximum length
-
-      
-        // const int maxChunkSize = 200; // Use 200 to be safe (printer reported max 237)
-        print_log_red("Sending data by using UUID --${printerCharacteristic.uuid} ");
-        print_log("📦 Sending ${bytes.length} bytes in chunks of $maxChunkSize");
-        
-        for (int i = 0; i < bytes.length; i += maxChunkSize) {
-          int end = (i + maxChunkSize < bytes.length) ? i + maxChunkSize : bytes.length;
-          List<int> chunk = bytes.sublist(i, end);
-          
-          // debugPrint("🔄 Sending chunk ${(i ~/ maxChunkSize) + 1}: ${chunk.length} bytes");
-          
-          try {
-            // Try writeWithoutResponse first (faster for thermal printers)
-            await printerCharacteristic.write(chunk,withoutResponse:true);
-            // debugPrint("✅ Chunk ${(i ~/ maxChunkSize) + 1} sent successfully");
-            
-            // Small delay between chunks to prevent overwhelming the printer
-            await Future.delayed(Duration(milliseconds: 30));
-            
-          } catch (e) {
-            debugPrint("❌ Error sending chunk ${(i ~/ maxChunkSize) + 1}: $e");
-            // Try with response if withoutResponse fails
-            try {
-              await printerCharacteristic.write(chunk, withoutResponse: false);
-              // debugPrint("✅ Chunk ${(i ~/ maxChunkSize) + 1} sent with response");
-            } catch (e2) {
-              print_log_red("❌ Failed to send data by using UUID ${(i ~/ maxChunkSize) + 1} by uiid ${printerCharacteristic.uuid} with response: $e2");
-              // throw Exception("Failed to send data to printer");
-            }
-          }
-          // finally{
-          //   bytes = [];
-          // }
-        }
-      } else{
-        // screen_massage(context, "❌ Printer characteristic not found");
-        print_log_red("❌ Printer characteristic not found");
-        // throw Exception("Printer characteristic not found");
-      }
-
-
-      // SC588 Beep Commands
-      // List<int> beepCommand = [0x1B, 0x42, 0x03, 0x05];
-      // await printerCharacteristic.write([0x1B, 0x42, 0x01, 0x02], withoutResponse: false);
-    
-    
-    }
     bytes = [];
-    debugPrint("🎉 All data sent successfully to printer!");
+    //debugPrint("🎉 All data sent successfully to printer!");
   }
+
 
   void printByUUID(bl.BluetoothCharacteristic printerCharacteristics) async{
     const int maxChunkSize = 200; // Use 200 to be safe (printer reported max 237)
@@ -1388,22 +802,22 @@ Future<void> printBillWithLogo(thermal.BlueThermalPrinter bluetooth) async {
       int end = (i + maxChunkSize < bytes.length) ? i + maxChunkSize : bytes.length;
       List<int> chunk = bytes.sublist(i, end);
       
-      debugPrint("🔄 Sending chunk ${(i ~/ maxChunkSize) + 1}: ${chunk.length} bytes");
+      //debugPrint("🔄 Sending chunk ${(i ~/ maxChunkSize) + 1}: ${chunk.length} bytes");
       
       try {
         // Try writeWithoutResponse first (faster for thermal printers)
         await printerCharacteristics.write(chunk,withoutResponse:true);
-        debugPrint("✅ Chunk ${(i ~/ maxChunkSize) + 1} sent successfully");
+        //debugPrint("✅ Chunk ${(i ~/ maxChunkSize) + 1} sent successfully");
         
         // Small delay between chunks to prevent overwhelming the printer
         await Future.delayed(Duration(milliseconds: 30));
         
       } catch (e) {
-        debugPrint("❌ Error sending chunk ${(i ~/ maxChunkSize) + 1}: $e");
+        //debugPrint("❌ Error sending chunk ${(i ~/ maxChunkSize) + 1}: $e");
         // Try with response if withoutResponse fails
         try {
           await printerCharacteristics.write(chunk, withoutResponse: false);
-          // debugPrint("✅ Chunk ${(i ~/ maxChunkSize) + 1} sent with response");
+          // //debugPrint("✅ Chunk ${(i ~/ maxChunkSize) + 1} sent with response");
         } catch (e2) {
           print_log_red("❌ Failed to send data by using UUID ${(i ~/ maxChunkSize) + 1} by uiid ${printerCharacteristics.uuid} with response: $e2");
           // throw Exception("Failed to send data to printer");
@@ -1477,11 +891,11 @@ Future<void> printBillWithLogo(thermal.BlueThermalPrinter bluetooth) async {
 
 
 
-  Future<List<int>> _setPrintQuality(PrintQuality quality,{BuildContext? context}) async {
+  Future<List<int>> _setPrintQuality(PrintQuality quality) async {
     try {
       
       
-      bytes += _generator!.reset();
+      // bytes += _generator!.reset();
       
       switch (quality) {
         case PrintQuality.light:
@@ -1504,7 +918,7 @@ Future<void> printBillWithLogo(thermal.BlueThermalPrinter bluetooth) async {
           break;
           
         case PrintQuality.maximum:
-        debugPrint("🎛️ Setting print quality: $quality");
+        //debugPrint("🎛️ Setting print quality: $quality");
           // Maximum darkness (slowest, best for images)
           bytes += _generator!.rawBytes([0x1B, 0x37, 0x32, 0x32, 0xFA]); // Max heating
           bytes += _generator!.rawBytes([0x1B, 0x45, 0x01]); // Emphasis on
@@ -1515,11 +929,11 @@ Future<void> printBillWithLogo(thermal.BlueThermalPrinter bluetooth) async {
           break;
       }
       
-      debugPrint("✅ Print quality set to: $quality");
+      //debugPrint("✅ Print quality set to: $quality");
       return bytes;
       
     } catch (e) {
-      debugPrint("❌ Error setting print quality: $e");
+      //debugPrint("❌ Error setting print quality: $e");
       return bytes;
     }
   }
@@ -1529,9 +943,9 @@ Future<void> printBillWithLogo(thermal.BlueThermalPrinter bluetooth) async {
     final store = Provider.of<ObjectBoxService>(context, listen: false).store;
     final billCounterBox = store.box<BillCounter>();
     final existingCounters = billCounterBox.getAll();
-    debugPrint("next bill number ${existingCounters}");
+    //debugPrint("next bill number ${existingCounters}");
     int billNo = (existingCounters.isEmpty) ? 1 : existingCounters.first.lastBillNo;
-    debugPrint("next bill number ${billNo}");
+    //debugPrint("next bill number ${billNo}");
     return billNo;
   }
 
@@ -1544,7 +958,7 @@ Future<void> printBillWithLogo(thermal.BlueThermalPrinter bluetooth) async {
         : null;
 
     final nextBillNo = billNo + 1;
-    debugPrint("✅ Saving next Bill No to ObjectBox: $nextBillNo");
+    //debugPrint("✅ Saving next Bill No to ObjectBox: $nextBillNo");
 
     if (existingCounter != null) {
       existingCounter.lastBillNo = existingCounter.lastBillNo + 1;
@@ -1554,7 +968,7 @@ Future<void> printBillWithLogo(thermal.BlueThermalPrinter bluetooth) async {
       billCounterBox.put(newCounter);
     }
 
-    debugPrint("✅ BillCounter saved successfully with billNo: $nextBillNo");
+    //debugPrint("✅ BillCounter saved successfully with billNo: $nextBillNo");
   }
 
   Future<void> getavailabeldevice({BuildContext? context}) async {
@@ -1606,7 +1020,7 @@ Future<void> printBillWithLogo(thermal.BlueThermalPrinter bluetooth) async {
     required int tableNumber,
   }) async {
     try{
-    debugPrint("recived cart to send to printer total $total and cart $cart1 billNo $billNo transactionData $transactionData");
+    print_log("recived cart to send to printer total $total and cart $cart1 billNo $billNo tableNumber $tableNumber transactionData $transactionData");
     List<Map<String, dynamic>> cart = cart1.map((item) => Map<String, dynamic>.from(item)).toList();
     
     final prefs = await SharedPreferences.getInstance();
@@ -1632,7 +1046,8 @@ Future<void> printBillWithLogo(thermal.BlueThermalPrinter bluetooth) async {
     bool _printQRlogo = prefs.getBool('printQRlogo') ?? true;
     
     int headerFontSizePref = prefs.getInt('headerFontSize') ?? 2;
-    int itemFontSizePref = (prefs.getDouble('fontSize') ?? 1).toInt();
+    int itemFontSize = (prefs.getDouble('fontSize') ?? 1).toInt();
+    //  int itemFontSize = (prefs.getDouble('fontSize') ?? 1).round().clamp(1, 3);
 
     // Get print quality from settings or use maximum
     PrintQuality quality = PrintQuality.maximum;
@@ -1668,13 +1083,17 @@ Future<void> printBillWithLogo(thermal.BlueThermalPrinter bluetooth) async {
     }
 
     if (_generator == null) {
+      print_log_red("Printer not initialized");
       throw Exception("Printer not initialized");
     }
 
-      // Logo
-      // debugPrint("⚠️ bytes.length --${bytes.length}---");
-      await _setPrintQuality(quality);
-      // debugPrint("⚠️ bytes.length --${bytes.length}---");
+    String address = prefs.getString('saved_printer_address') ?? "";
+
+
+    final maxLineWidth = _getMaxLineWidth(_paperSize); // first line width
+    final itemNameMaxWidth = _getItemNameMaxWidth(_paperSize); // second line width
+
+
       if (marathi){
 
         await sendLogotoPrinter(isImg:true,context: context);
@@ -1699,7 +1118,7 @@ Future<void> printBillWithLogo(thermal.BlueThermalPrinter bluetooth) async {
           // final path = '${directory!.path}/receipt_$billNo.png';
           // final file = File(path);
           // await file.writeAsBytes(imageBytes);
-          // debugPrint("Receipt image saved to: $path");
+          // //debugPrint("Receipt image saved to: $path");
 
           img.Image? original = img.decodeImage(imageBytes);
           if (original != null) {
@@ -1708,8 +1127,8 @@ Future<void> printBillWithLogo(thermal.BlueThermalPrinter bluetooth) async {
             
             // Convert to grayscale for better thermal printing
             final grayscale = img.grayscale(original);
-            bytes += _generator!.reset();
-            bytes += _generator!.clearStyle();
+            // bytes += _generator!.reset();
+            // bytes += _generator!.clearStyle();
             bytes += _generator!.image(grayscale);
             // bytes += _generator!.feed(2);
             // bytes += _generator!.cut();
@@ -1731,25 +1150,14 @@ Future<void> printBillWithLogo(thermal.BlueThermalPrinter bluetooth) async {
           bytes = [];
         }
 
-        debugPrint("before clear total $total and cart $cart");
+        //debugPrint("before clear total $total and cart $cart");
         // cart.clear();
-        await _disconnect(); 
+        await _disconnect();  
         return;
 
       } else{
 
         await sendLogotoPrinter(context: context);
-
-
-        // Force a new line so the printer knows we are starting fresh
-        bytes += _generator!.reset();
-        bytes += _generator!.clearStyle();
-        // bytes += _generator!.emptyLines(1);
-
-        // // Method 1A: Try Devanagari code table
-        // bytes += _generator!.setGlobalCodeTable('Devanagari');
-        // // OR Method 1B: Try Indian languages code table  
-        // bytes += _generator!.setGlobalCodeTable('Indic');
 
         if(printName){
           // Business header
@@ -1843,7 +1251,7 @@ Future<void> printBillWithLogo(thermal.BlueThermalPrinter bluetooth) async {
 
 
         if (customerName ) {
-          debugPrint("⚠️ check printer is connected tota --$transactionData---");
+          //debugPrint("⚠️ check printer is connected tota --$transactionData---");
           bytes += _generator!.hr();
           bytes += _generator!.text(
             "TO Customer:- ",
@@ -1920,47 +1328,44 @@ Future<void> printBillWithLogo(thermal.BlueThermalPrinter bluetooth) async {
         bytes += _generator!.hr();
         // bytes += _generator!.feed(1);
 
-        // Cart items
-        for (var item in cart) {
-          String name = item['name'] ?? 'Item';
-          int qty = item['qty'] ?? 0;
-          final dynamic rawPrice = item['sellPrice'];
-          final int rate = rawPrice is num
-              ? rawPrice.toInt()
-              : int.tryParse(rawPrice.toString().replaceAll(',', '')) ??
-                    double.tryParse(rawPrice.toString())?.toInt() ??
-                    0;
-          
-          // debugPrint("rate  $rate and $cart");
-          int itemTotal = qty * rate;
+      // ---------------- CART ITEMS ----------------
+      for (var item in cart) {
+        String name = item['name'] ?? '';
+        int qty = item['qty'] ?? 0;
+        int rate = (item['sellPrice'] is num)
+            ? (item['sellPrice'] as num).toInt()
+            : int.tryParse(item['sellPrice'].toString()) ?? 0;
+        int amt = qty * rate;
 
-          // Handle long item names by wrappingitem['qty']
-          // const int maxNameWidth = 25;
-          // List<String> wrapped = _wrapText(name, maxNameWidth);
-          
-          bytes += _generator!.row([
-            PosColumn(
-              text: name,
-              width: 7,
-              styles: PosStyles(fontType: PosFontType.fontA, bold: true, height: getTextSize(itemFontSizePref)),
-            ),
-            PosColumn(
-              text: qty.toString(),
-              width: 1,
-              styles: PosStyles(align: PosAlign.right,bold: true,  fontType: PosFontType.fontA, height: getTextSize(itemFontSizePref)),
-            ),
-            PosColumn(
-              text: rate.toString(),
-              width: 2,
-              styles: PosStyles(align: PosAlign.right,bold: true,  fontType: PosFontType.fontA, height: getTextSize(itemFontSizePref)),
-            ),
-            PosColumn(
-              text: itemTotal.toString(),
-              width: 2,
-              styles: PosStyles(align: PosAlign.right,bold: true,  fontType: PosFontType.fontA, height: getTextSize(itemFontSizePref)),
-            ),
-          ]);
+        // Handle long item names with dynamic width
+        List<String> nameLines = _splitItemNameForPrinting(name,maxLineWidth: itemNameMaxWidth);
+
+        // Format item line with proper alignment - USE maxLineWidth here
+        String itemLine = _formatItemLine(nameLines[0],qty,rate,amt, maxLineWidth);
+
+        bytes += _generator!.text(
+          itemLine,
+          styles: PosStyles(
+            bold: true,
+            fontType: PosFontType.fontA,
+            height: _textSizeFromInt(itemFontSize),
+          ),
+        );
+
+        // If item name has multiple lines, print remaining lines
+        if (nameLines.length > 1) {
+          for (int i = 1; i < nameLines.length; i++) {
+            bytes += _generator!.text(
+              "  ${nameLines[i]}",
+              styles: PosStyles(
+                bold: true,
+                fontType: PosFontType.fontA,
+                height: _textSizeFromInt(itemFontSize),
+              ),
+            );
+          }
         }
+      }
 
         bytes += _generator!.hr();
 
@@ -1975,7 +1380,7 @@ Future<void> printBillWithLogo(thermal.BlueThermalPrinter bluetooth) async {
                 styles: PosStyles(fontType: PosFontType.fontA, height: PosTextSize.size1),
               ),
               PosColumn(
-                text: '${transactionData['discount']}',
+                text: '${transactionData['discount']} ',
                 width: 6,
                 styles: PosStyles(align: PosAlign.right, fontType: PosFontType.fontA, height: PosTextSize.size1),
               ),
@@ -2004,12 +1409,12 @@ Future<void> printBillWithLogo(thermal.BlueThermalPrinter bluetooth) async {
         bytes += _generator!.row([
           PosColumn(
             text: 'TOTAL:',
-            width: 5,
+            width: 4,
             styles: PosStyles(bold: true, height: PosTextSize.size2, width: PosTextSize.size2, fontType: PosFontType.fontB),
           ),
           PosColumn(
-            text: 'Rs.$total',
-            width: 7,
+            text: '$total ',
+            width: 8,
             styles: PosStyles(align: PosAlign.right, bold: true, height: PosTextSize.size2, width: PosTextSize.size2, fontType: PosFontType.fontB),
           ),
         ]);
@@ -2018,29 +1423,27 @@ Future<void> printBillWithLogo(thermal.BlueThermalPrinter bluetooth) async {
             PosColumn(
               text: 'Recived',
               width: 5,
-              styles: PosStyles(bold: true, height: PosTextSize.size2, width: PosTextSize.size2, fontType: PosFontType.fontB),
+              styles: PosStyles(bold: true, height: PosTextSize.size2, width: PosTextSize.size1, fontType: PosFontType.fontA),
             ),
             PosColumn(
-              text: 'Rs.${transactionData['recivedamount'] ?? 0}',
+              text: '${transactionData['recivedamount'] ?? 0} ',
               width: 7,
-              styles: PosStyles(align: PosAlign.right, bold: true, height: PosTextSize.size2, width: PosTextSize.size2, fontType: PosFontType.fontB),
+              styles: PosStyles(align: PosAlign.right, bold: true, height: PosTextSize.size1, width: PosTextSize.size2, fontType: PosFontType.fontA),
             ),
           ]);
           bytes += _generator!.row([
             PosColumn(
               text: 'Pending',
               width: 5,
-              styles: PosStyles(bold: true, height: PosTextSize.size2, width: PosTextSize.size2, fontType: PosFontType.fontB),
+              styles: PosStyles(bold: true, height: PosTextSize.size2, width: PosTextSize.size1, fontType: PosFontType.fontA),
             ),
             PosColumn(
-              text: 'Rs.${transactionData['pendingamount']?? 0}',
+              text: '${transactionData['pendingamount']?? 0} ',
               width: 7,
-              styles: PosStyles(align: PosAlign.right, bold: true, height: PosTextSize.size2, width: PosTextSize.size2, fontType: PosFontType.fontB),
+              styles: PosStyles(align: PosAlign.right, bold: true, height: PosTextSize.size2, width: PosTextSize.size1, fontType: PosFontType.fontA),
             ),
           ]);
         }
-
-        // bytes += _generator!.feed(1); // Commented out to reduce gap
 
         // QR Code
         if (printQr && upiId != null && upiId.isNotEmpty) {
@@ -2072,35 +1475,170 @@ Future<void> printBillWithLogo(thermal.BlueThermalPrinter bluetooth) async {
             height: PosTextSize.size1, // Set height to minimum
           ),
         );
-
-        bytes += _generator!.feed(2);
-        // bytes += _generator!.cut();
-
-        debugPrint("⚠️ bytes.length --${bytes.length}---");
-        // Send to printer
-        // bytes += _generator!.beep();
+        // bytes += _generator!.emptyLines(3);
+        bytes += _generator!.feed(4);
+        
+        
         await _sendToPrinter(context: context);
 
-        // debugPrint("before clear total $total and cart $cart");
-        cart.clear();
-        await _disconnect(); 
+         await _disconnect();  
+
         
-        // debugPrint("✅ Receipt sent to printer successfully");
+        cart.clear();
+
       }
       }catch(e){
-        print_log_red("error message $e");
+        print_log_red("error message in senddatatoprinter $e");
       }
 
   }
 
+  List<String> _splitItemNameForPrinting(
+    String name, {
+    required int maxLineWidth,
+  }) {
+    if (maxLineWidth <= 0) return [];
 
+    final List<String> lines = [];
 
+    if (name.length <= maxLineWidth) {
+      return [name];
+    }
 
+    final words = name.split(' ');
+    String currentLine = '';
 
+    for (final word in words) {
+      final testLine = currentLine.isEmpty ? word : '$currentLine $word';
 
+      if (testLine.length <= maxLineWidth) {
+        currentLine = testLine;
+      } else {
+        if (currentLine.isNotEmpty) {
+          lines.add(currentLine);
+        }
 
+        if (word.length > maxLineWidth) {
+          int start = 0;
+          while (start < word.length) {
+            final end = (start + maxLineWidth > word.length)
+                ? word.length
+                : start + maxLineWidth;
+            lines.add(word.substring(start, end));
+            start = end;
+          }
+          currentLine = '';
+        } else {
+          currentLine = word;
+        }
+      }
 
+      if (lines.length >= 2) break;
+    }
 
+    if (currentLine.isNotEmpty && lines.length < 2) {
+      lines.add(currentLine);
+    }
+
+    // ---- SAFE ellipsis handling ----
+    if (lines.length > 1) {
+      final ellipsis = '...';
+
+      if (maxLineWidth > ellipsis.length && lines[1].length > maxLineWidth) {
+        final cut = maxLineWidth - ellipsis.length;
+        lines[1] = lines[1].substring(0, cut) + ellipsis;
+      } else if (lines[1].length > maxLineWidth) {
+        lines[1] = lines[1].substring(0, maxLineWidth);
+      }
+    }
+
+    return lines.take(2).toList();
+  }
+
+  int _getItemNameMaxWidth(PaperSize size) {
+    switch (size) {
+      case PaperSize.mm58:
+        return 20; // 2-inch
+      case PaperSize.mm72:
+        return 26; // 2.8-inch
+      case PaperSize.mm80:
+        return 28; // 3-inch
+      default:
+        return 24;
+    }
+  }
+
+  String _formatItemLine(
+    String itemName,
+    int qty,
+    int rate,
+    int amount,
+    int maxWidth,
+  ) {
+    // Adjust column widths based on maxWidth (paper size)
+    int itemWidth = (maxWidth * 0.50).round();
+    int qtyWidth = 8;
+    int rateWidth = 10;
+    int amtWidth = 11;
+
+    // For 2-inch paper, reduce widths
+    if (maxWidth < 32) {
+      // 2-inch paper
+      itemWidth = (maxWidth * 0.55).round();
+      qtyWidth = 3;
+      rateWidth = 4;
+      amtWidth = 5;
+    }
+
+    // Truncate item name if too long
+    String formattedItem = itemName;
+    if (formattedItem.length > itemWidth) {
+      formattedItem = formattedItem.substring(0, itemWidth);
+    }
+
+    String itemText = formattedItem.padRight(itemWidth);
+    String qtyText = qty.toString().padLeft(qtyWidth);
+    String rateText = rate.toString().padLeft(rateWidth);
+    String amtText = amount.toString().padLeft(amtWidth);
+
+    return '$itemText $qtyText $rateText $amtText';
+  }
+
+  int _getMaxLineWidth(PaperSize size) {
+    switch (size) {
+      case PaperSize.mm58:
+        return 30; // 2-inch
+      case PaperSize.mm72:
+        return 40; // 2.8-inch
+      case PaperSize.mm80:
+        return 46; // 3-inch
+      default:
+        return 30;
+    }
+  }
+
+  PosTextSize _textSizeFromInt(int size) {
+    switch (size) {
+      case 1:
+        return PosTextSize.size1;
+      case 2:
+        return PosTextSize.size2;
+      case 3:
+        return PosTextSize.size3;
+      case 4:
+        return PosTextSize.size4;
+      case 5:
+        return PosTextSize.size5;
+      case 6:
+        return PosTextSize.size6;
+      case 7:
+        return PosTextSize.size7;
+      case 8:
+        return PosTextSize.size8;
+      default:
+        return PosTextSize.size1;
+    }
+  }
 
 
 
@@ -2124,7 +1662,7 @@ Future<void> printBillWithLogo(thermal.BlueThermalPrinter bluetooth) async {
         final file = File(imagePath);
 
         if (!await file.exists()) {
-          debugPrint("❌ Logo file not found at: $imagePath");
+          //debugPrint("❌ Logo file not found at: $imagePath");
           return;
         }
 
@@ -2132,7 +1670,7 @@ Future<void> printBillWithLogo(thermal.BlueThermalPrinter bluetooth) async {
         final img.Image? original = img.decodeImage(imageBytes);
 
         if (original == null) {
-          debugPrint("❌ Failed to decode image at: $imagePath");
+          //debugPrint("❌ Failed to decode image at: $imagePath");
           return;
         }
 
@@ -2143,28 +1681,30 @@ Future<void> printBillWithLogo(thermal.BlueThermalPrinter bluetooth) async {
         
 
         if (_generator == null) {
-          debugPrint("❌ _generator is not initialized.");
+          //debugPrint("❌ _generator is not initialized.");
           return;
         }
 
         // bytes ??= <int>[]; // Initialize if null
         // bytes += _generator!.image(grayscale);
-        bytes += _generator!.reset();
-        bytes += _generator!.clearStyle();
+        // bytes += _generator!.reset();
+        // bytes += _generator!.clearStyle();
         bytes += _generator!.image(grayscale);
         // bytes += _generator!.feed(1);
 
-        // debugPrint("🖨️ Sending logo to printer...");
-        await _sendToPrinter(imageBytes:resizedBytes,context: context);
+        // //debugPrint("🖨️ Sending logo to printer...");
+        // await _sendToPrinter(imageBytes:resizedBytes,context: context);
 
-        bytes = [];
-        await Future.delayed(Duration(milliseconds: 500));
+        
+
+        // bytes = [];
+        // await Future.delayed(Duration(milliseconds: 500));
 
 
-        debugPrint("✅ Logo printed successfully.");
+        //debugPrint("✅ Logo printed successfully.");
       } catch (e, stack) {
-        debugPrint("❌ Error printing logo: $e");
-        debugPrint("Stack trace: $stack");
+        //debugPrint("❌ Error printing logo: $e");
+        //debugPrint("Stack trace: $stack");
       }
     }
   }
@@ -2190,7 +1730,7 @@ Future<void> printBillWithLogo(thermal.BlueThermalPrinter bluetooth) async {
       bool printQr = prefs.getBool('printQR') ?? false;
 
       if (printQr && upiId != null && upiId.isNotEmpty) {
-        debugPrint("🖨️ Generating QR Code...");
+        //debugPrint("🖨️ Generating QR Code...");
 
         // 2. Clean Business Name (Remove special chars that might break UPI)
         // It is safer to keep the name simple for the UPI string
@@ -2235,12 +1775,12 @@ Future<void> printBillWithLogo(thermal.BlueThermalPrinter bluetooth) async {
         qrUiImage.dispose(); 
 
         if (originalQrImage == null) {
-          debugPrint("❌ Failed to decode QR image");
+          //debugPrint("❌ Failed to decode QR image");
           return;
         }
 
         if (_generator == null) {
-          debugPrint("❌ _generator not initialized");
+          //debugPrint("❌ _generator not initialized");
           return;
         }
 
@@ -2258,7 +1798,7 @@ Future<void> printBillWithLogo(thermal.BlueThermalPrinter bluetooth) async {
         // 4. Paste the QR code onto the white canvas
         img.compositeImage(centeredCanvas, originalQrImage, dstX: dstX, dstY: dstY);
 
-        bytes += _generator!.reset();
+        // bytes += _generator!.reset();
         bytes += _generator!.image(centeredCanvas, align: PosAlign.center);
 
         await _sendToPrinter(imageBytes: pngBytes,context: context);
@@ -2266,173 +1806,13 @@ Future<void> printBillWithLogo(thermal.BlueThermalPrinter bluetooth) async {
         bytes = [];
         await Future.delayed(const Duration(milliseconds: 500));
         
-        debugPrint("✅ QR printed successfully.");
+        //debugPrint("✅ QR printed successfully.");
       }
     } catch (e, stack) {
-      debugPrint("❌ Error printing QR: $e");
-      debugPrint("Stack trace: $stack");
+      //debugPrint("❌ Error printing QR: $e");
+      //debugPrint("Stack trace: $stack");
     }
   }
-
-
-  /// Prints a Kitchen Order Ticket (KOT)
-  Future<void> sendKotToPrinter1({
-    required List<Map<String, dynamic>> cart,
-    required int tableNumber,
-    int? kotNumber = 1,
-    required Map<String, dynamic>? transactionData,
-  }) async {
-    if (_generator == null) {
-      throw Exception("Printer not initialized");
-      
-    }
-    final prefs = await SharedPreferences.getInstance();
-    bool marathi = prefs.getBool('marathi') ?? false;
-    PrintQuality quality = PrintQuality.maximum;
-    final String dateTime = DateFormat('dd-MMM-yyyy hh:mm a').format(DateTime.now());
-
-    List<Map<String, dynamic>> kotCart = cart.map((item) => Map<String, dynamic>.from(item)).toList();
-
-    try {
-      await _setPrintQuality(quality);
-      if (marathi){
-        Uint8List? imageBytes = await generateKOTImage(cart1: cart,tableNumber:tableNumber,kotNumber: transactionData?['billNo'],transactionData:transactionData);
-        if (imageBytes != null) {
-
-          // Example: Save to file (requires path_provider package)
-          final directory = await getDownloadsDirectory();
-          final path = '${directory!.path}/receipt_1.png';
-          final file = File(path);
-          await file.writeAsBytes(imageBytes);
-          debugPrint("Receipt image saved to: $path");
-
-          img.Image? original = img.decodeImage(imageBytes);
-          if (original != null) {
-            
-            // Convert to grayscale for better thermal printing
-            final grayscale = img.grayscale(original);
-            bytes += _generator!.image(grayscale);
-            // bytes += _generator!.feed(2);
-            // bytes += _generator!.cut();
-          }
-
-          await _sendToPrinter11(imageBytes:imageBytes);
-
-          // kotCart.clear();
-          // cart.clear();
-          await _disconnect(); 
-          return;
-        }
-      } else { 
-
-        // KOT Header
-        bytes += _generator!.text(
-          "KOT",
-          styles: PosStyles(
-            align: PosAlign.center,
-            bold: true,
-            height: PosTextSize.size2,
-            width: PosTextSize.size2,
-            fontType: PosFontType.fontB,
-          ),
-        );
-
-        if(transactionData?['reserved_field'] != null){
-          if(("${transactionData?['reserved_field']}").isNotEmpty){
-            bytes += _generator!.text(
-              "Order ID - ${transactionData?['reserved_field']}",
-              styles: PosStyles(
-                bold: true,
-                fontType: PosFontType.fontA,
-                height: PosTextSize.size1, // Set height to minimum
-              ),
-            );
-          }
-        }
-        bytes += _generator!.text(
-            (tableNumber == 0 || tableNumber == null) ? "Bill No: ${transactionData?['billNo']}/OrderType: ${transactionData?['orderType']}" : "KOT No: $kotNumber / Table No: $tableNumber",
-            styles: PosStyles(
-              bold: true,
-              align: PosAlign.center,
-              fontType: PosFontType.fontA,
-            ),
-          );
-
-
-        bytes += _generator!.text(
-          "KOT Time:- $dateTime",
-          styles: PosStyles(
-            align: PosAlign.center,
-            fontType: PosFontType.fontA,
-          ),
-        );
-        
-        
-        // Item header
-        bytes += _generator!.row([
-          PosColumn(
-            text: 'Item',
-            width: 8,
-            styles: PosStyles(bold: true, fontType: PosFontType.fontA),
-          ),
-          PosColumn(
-            text: 'Note  Qty',
-            width: 4,
-            styles: PosStyles(align: PosAlign.right, bold: true, fontType: PosFontType.fontA),
-          ),
-        ]);
-
-        bytes += _generator!.hr();
-        // bytes += _generator!.feed(1);
-
-        // Item List
-        for (var item in kotCart) {
-          String name = item['name'] ?? 'Item';
-          int qty = item['qty'] ?? 0;
-          String note = item['note'] ?? ' ';
-          
-          // const int maxNameWidth = 20;
-          // List<String> wrapped = _wrapText(name, maxNameWidth);
-          
-          // for (int i = 0; i < wrapped.length; i++) {
-          //   if (i == 0) {
-              bytes += _generator!.row([
-                PosColumn(
-                  text: name,
-                  width: 7,
-                  styles: PosStyles(fontType: PosFontType.fontA,bold: true),
-                ),
-                PosColumn(
-                  text: note,
-                  width: 4,
-                  styles: PosStyles(align: PosAlign.center,fontType: PosFontType.fontA,bold: true),
-                ),
-                PosColumn(
-                  text: "$qty",
-                  width: 1,
-                  styles: PosStyles(align: PosAlign.right, fontType: PosFontType.fontA,bold: true),
-                ),
-              ]);
-        }
-
-        bytes += _generator!.hr();
-        bytes += _generator!.feed(2);
-        // bytes += _generator!.cut();
-
-        await _sendToPrinter11();
-        kotCart.clear();
-        await _disconnect(); 
-        
-        debugPrint("✅ KOT for Table #$tableNumber sent to printer.");
-      }
-
-    } catch (e) {
-      debugPrint("❌ Error printing KOT: $e");
-      // screen_massage(context, "❌ Error printing KOT: $e");
-      rethrow;
-    }
-  }
-
 
 
 
@@ -2456,7 +1836,7 @@ Future<void> printBillWithLogo(thermal.BlueThermalPrinter bluetooth) async {
     List<Map<String, dynamic>> kotCart = cart.map((item) => Map<String, dynamic>.from(item)).toList();
 
     try {
-      await _setPrintQuality(quality);
+      // await _setPrintQuality(quality);
       if (marathi){
         Uint8List? imageBytes = await generateKOTImage(cart1: cart,tableNumber:tableNumber,kotNumber: transactionData?['billNo'],transactionData:transactionData);
         if (imageBytes != null) {
@@ -2466,7 +1846,7 @@ Future<void> printBillWithLogo(thermal.BlueThermalPrinter bluetooth) async {
           final path = '${directory!.path}/receipt_1.png';
           final file = File(path);
           await file.writeAsBytes(imageBytes);
-          debugPrint("Receipt image saved to: $path");
+          //debugPrint("Receipt image saved to: $path");
 
           img.Image? original = img.decodeImage(imageBytes);
           if (original != null) {
@@ -2512,7 +1892,7 @@ Future<void> printBillWithLogo(thermal.BlueThermalPrinter bluetooth) async {
           }
         }
         bytes += _generator!.text(
-            (tableNumber == 0 || tableNumber == null) ? "Bill No: ${transactionData?['billNo']}/OrderType: ${transactionData?['orderType']}" : "KOT No: $kotNumber / Table No: $tableNumber",
+            (tableNumber == 0) ? "Bill No: ${transactionData?['billNo']}/OrderType: ${transactionData?['orderType']}" : "KOT No: $kotNumber / Table No: $tableNumber",
             styles: PosStyles(
               bold: true,
               align: PosAlign.center,
@@ -2533,12 +1913,12 @@ Future<void> printBillWithLogo(thermal.BlueThermalPrinter bluetooth) async {
         // Item header
         bytes += _generator!.row([
           PosColumn(
-            text: 'Item',
+            text: 'QTY  x Item',
             width: 8,
             styles: PosStyles(bold: true, fontType: PosFontType.fontA),
           ),
           PosColumn(
-            text: 'Note  Qty',
+            text: 'Note',
             width: 4,
             styles: PosStyles(align: PosAlign.right, bold: true, fontType: PosFontType.fontA),
           ),
@@ -2551,56 +1931,50 @@ Future<void> printBillWithLogo(thermal.BlueThermalPrinter bluetooth) async {
         for (var item in kotCart) {
           String name = item['name'] ?? 'Item';
           int qty = item['qty'] ?? 0;
-          String note = item['note'] ?? ' ';
-          
-          // const int maxNameWidth = 20;
-          // List<String> wrapped = _wrapText(name, maxNameWidth);
-          
-          // for (int i = 0; i < wrapped.length; i++) {
-          //   if (i == 0) {
-              bytes += _generator!.row([
-                PosColumn(
-                  text: name,
-                  width: 7,
-                  styles: PosStyles(fontType: PosFontType.fontA,bold: true),
-                ),
-                PosColumn(
-                  text: note,
-                  width: 4,
-                  styles: PosStyles(align: PosAlign.center,fontType: PosFontType.fontA,bold: true),
-                ),
-                PosColumn(
-                  text: "$qty",
-                  width: 1,
-                  styles: PosStyles(align: PosAlign.right, fontType: PosFontType.fontA,bold: true),
-                ),
-              ]);
+          String note = item['note'] ?? '';
+
+          // Print item with quantity
+          String itemLine = "$qty  x $name";
+          bytes += _generator!.text(
+            itemLine,
+            styles: PosStyles(bold: true, fontType: PosFontType.fontA),
+          );
+
+          // Add note if exists
+          if (note.isNotEmpty) {
+            bytes += _generator!.text(
+              "   Note: $note",
+              styles: PosStyles(bold: true,fontType: PosFontType.fontA),
+            );
+          }
+
+          // bytes += _generator!.feed(1);
         }
 
         bytes += _generator!.hr();
-        bytes += _generator!.feed(2);
+        bytes += _generator!.feed(3);
         // bytes += _generator!.cut();
 
         await _sendToPrinter(context: context);
         kotCart.clear();
         await _disconnect(); 
         
-        debugPrint("✅ KOT for Table #$tableNumber sent to printer.");
+        //debugPrint("✅ KOT for Table #$tableNumber sent to printer.");
       }
 
     } catch (e) {
-      debugPrint("❌ Error printing KOT: $e");
+      //debugPrint("❌ Error printing KOT: $e");
       screen_massage(context, "❌ Error printing KOT: $e");
       rethrow;
     }
   }
 
 
-  List<String> _wrapText(String text, int width,{BuildContext? context}) {
+  List<String> _wrapText(String text, int width) {
     List<String> lines = [];
     List<String> words = text.split(' ');
     String currentLine = '';
-    debugPrint("currentLine $text  $width");
+    //debugPrint("currentLine $text  $width");
 
     for (String word in words) {
       if ((currentLine + ' ' + word).length <= width) {
@@ -2611,13 +1985,13 @@ Future<void> printBillWithLogo(thermal.BlueThermalPrinter bluetooth) async {
         }
         currentLine = word;
       }
-      debugPrint("currentLine $currentLine");
+      //debugPrint("currentLine $currentLine");
     }
     
     if (currentLine.isNotEmpty) {
       lines.add(currentLine);
     }
-    debugPrint("currentLine $lines");
+    //debugPrint("currentLine $lines");
     return lines;
   }
 
@@ -2629,7 +2003,7 @@ Future<void> printBillWithLogo(thermal.BlueThermalPrinter bluetooth) async {
     } else{
        address = prefs.getString('saved_printer_address');
     }
-    debugPrint("Looking for saved printer with address: $address");
+    //debugPrint("Looking for saved printer with address: $address");
     
     if (address == null) {
       screen_massage(context, "Printer Is Not Selected");
@@ -2639,27 +2013,27 @@ Future<void> printBillWithLogo(thermal.BlueThermalPrinter bluetooth) async {
     try {
       // Method 1: Check bonded devices first (already paired)
       List<bl.BluetoothDevice> bondedDevices = await bl.FlutterBluePlus.bondedDevices;
-      debugPrint("Found ${bondedDevices.length} bonded devices");
+      //debugPrint("Found ${bondedDevices.length} bonded devices");
       
       for (var device in bondedDevices) {
-        debugPrint("Bonded: ${device.platformName} - ${device.remoteId}");
+        //debugPrint("Bonded: ${device.platformName} - ${device.remoteId}");
         if (device.remoteId.toString() == address) {
-          debugPrint("✅ Found saved printer in bonded devices!");
+          //debugPrint("✅ Found saved printer in bonded devices!");
           return device;
         }
       }
 
       // Method 2: If not bonded, create a device from address and connect
-      debugPrint("🔄 Printer not bonded, creating device from address...");
+      //debugPrint("🔄 Printer not bonded, creating device from address...");
       
       // Create device from address
       bl.BluetoothDevice device = bl.BluetoothDevice(remoteId: bl.DeviceIdentifier(address));
       
-      debugPrint("✅ Created device from address: ${device.remoteId}");
+      //debugPrint("✅ Created device from address: ${device.remoteId}");
       return device;
       
     } catch (e) {
-      debugPrint("❌ Error in _getSavedPrinter: $e");
+      //debugPrint("❌ Error in _getSavedPrinter: $e");
       screen_massage(context, "❌ Error in _getSavedPrinter: $e");
       return null;
     }
@@ -2673,7 +2047,7 @@ Future<void> printBillWithLogo(thermal.BlueThermalPrinter bluetooth) async {
     } else{
        address = prefs.getString('saved_printer_address');
     }
-    debugPrint("Looking for saved printer with address: $address");
+    //debugPrint("Looking for saved printer with address: $address");
     
     if (address == null) {
       // screen_massage(context, "Printer Is Not Selected");
@@ -2683,27 +2057,27 @@ Future<void> printBillWithLogo(thermal.BlueThermalPrinter bluetooth) async {
     try {
       // Method 1: Check bonded devices first (already paired)
       List<bl.BluetoothDevice> bondedDevices = await bl.FlutterBluePlus.bondedDevices;
-      debugPrint("Found ${bondedDevices.length} bonded devices");
+      //debugPrint("Found ${bondedDevices.length} bonded devices");
       
       for (var device in bondedDevices) {
-        debugPrint("Bonded: ${device.platformName} - ${device.remoteId}");
+        //debugPrint("Bonded: ${device.platformName} - ${device.remoteId}");
         if (device.remoteId.toString() == address) {
-          debugPrint("✅ Found saved printer in bonded devices!");
+          //debugPrint("✅ Found saved printer in bonded devices!");
           return device;
         }
       }
 
       // Method 2: If not bonded, create a device from address and connect
-      debugPrint("🔄 Printer not bonded, creating device from address...");
+      //debugPrint("🔄 Printer not bonded, creating device from address...");
       
       // Create device from address
       bl.BluetoothDevice device = bl.BluetoothDevice(remoteId: bl.DeviceIdentifier(address));
       
-      debugPrint("✅ Created device from address: ${device.remoteId}");
+      //debugPrint("✅ Created device from address: ${device.remoteId}");
       return device;
       
     } catch (e) {
-      debugPrint("❌ Error in _getSavedPrinter: $e");
+      //debugPrint("❌ Error in _getSavedPrinter: $e");
       // screen_massage(context, "❌ Error in _getSavedPrinter: $e");
       return null;
     }
@@ -2723,22 +2097,15 @@ Future<void> printBillWithLogo(thermal.BlueThermalPrinter bluetooth) async {
     try{
     final store = Provider.of<ObjectBoxService>(context, listen: false).store;
     final box = store.box<Transaction>();
-    final now = DateTime.now();
+    
     int cash_amount = (double.tryParse(transactionData?['cashamount']?.toString() ?? '0.0') ?? 0.0).toInt();
     int upi_amount = (double.tryParse(transactionData?['upiamount']?.toString() ?? '0.0') ?? 0.0).toInt();
-    final businessDatePart = await getBussinessDate();
-    debugPrint("✅ saveTransactionToObjectBox  businessDate $businessDatePart,payment_mode $payment_mode,cash_amount $cash_amount,upi_amount$upi_amount,transactionData $transactionData, tableNo- $tableNo, total-$total, pageback-$pageback, status-$status, cart-$cart, ");
-    // debugPrint("business date ${businessDatePart}");
-    final fullDateTime = DateTime(
-      businessDatePart.year,
-      businessDatePart.month,
-      businessDatePart.day,
-      now.hour,
-      now.minute,
-      now.second,
-    );
-    // debugPrint("Final combined DateTime: $fullDateTime"); // Will show the correct date and current time
-    // debugPrint("now time in hhmmss: $now");
+    final DateTime businessDatePart = await getBussinessDateStorage();
+    //debugPrint("✅ saveTransactionToObjectBox  businessDate $businessDatePart,payment_mode $payment_mode,cash_amount $cash_amount,upi_amount$upi_amount,transactionData $transactionData, tableNo- $tableNo, total-$total, pageback-$pageback, status-$status, cart-$cart, ");
+    // //debugPrint("business date ${businessDatePart}");
+    final fullDateTime = businessDatePart;
+    // //debugPrint("Final combined DateTime: $fullDateTime"); // Will show the correct date and current time
+    // //debugPrint("now time in hhmmss: $now");
     late int createdId = 0;
 
     final tx = Transaction(
@@ -2761,14 +2128,14 @@ Future<void> printBillWithLogo(thermal.BlueThermalPrinter bluetooth) async {
       reserved_field: transactionData?['reserved_field'] ?? '',
       
     );
-    debugPrint("Transaction Data to be sent: $tx");
+    //debugPrint("Transaction Data to be sent: $tx");
     createdId = box.put(tx);
     setNextBillNo(context, transactionData?['billNo']);
     if(status.toLowerCase().contains("settle"))
     {
       try{
-        adjustStock(context, cart);
-        debugPrint("✅ Transaction saved to ObjectBox with ID: $createdId");
+        adjustStock(context, cart, []);
+        //debugPrint("✅ Transaction saved to ObjectBox with ID: $createdId");
       }catch(e){
         print_log_red( "Transaction not saved to ObjectBox with ID: $e" );
         screen_massage(context, "Transaction not saved to ObjectBox with ID: $e");
@@ -2776,12 +2143,12 @@ Future<void> printBillWithLogo(thermal.BlueThermalPrinter bluetooth) async {
     }
     
     onTransactionAdded?.call();
-    // debugPrint("🔁 Transaction added callback fired!");
+    // //debugPrint("🔁 Transaction added callback fired!");
     // To go back to the very first screen (the "home" screen)
     
       if(pageback != null && pageback > 0){
         for(int i =0 ;i < pageback ;i++){
-          debugPrint("save pageback1 $pageback");
+          //debugPrint("save pageback1 $pageback");
           Navigator.of(context).pop();
         }
       }else{
@@ -2805,11 +2172,11 @@ Future<void> printBillWithLogo(thermal.BlueThermalPrinter bluetooth) async {
     int? pageback,
     required String payment_mode,
     required String status,
-    required String id,
+    required int id,
     Map<String, dynamic>? transactionData,
   }) async {
-    debugPrint("🔁 in _updateTransactionToObjectBox");
-    final int transactionId = int.parse(id);
+    //debugPrint("🔁 in _updateTransactionToObjectBox");
+    final int transactionId = id;
     final store = Provider.of<ObjectBoxService>(context, listen: false).store;
     final box = store.box<Transaction>();
     final prefs = await SharedPreferences.getInstance();
@@ -2818,16 +2185,21 @@ Future<void> printBillWithLogo(thermal.BlueThermalPrinter bluetooth) async {
 
     // 1. Find the existing transaction by its ID
     final existingTx = box.get(transactionId);
-    debugPrint("🔁 Transaction to update $existingTx ");
+    //debugPrint("🔁 Transaction to update $existingTx ");
 
     // 2. Check if the transaction was actually found
     if (existingTx != null) {
       if (status == 'print1') {
-        debugPrint("⏩ Skipping update for print1 status");
+        //debugPrint("⏩ Skipping update for print1 status");
         return; // Exit the function early if no update is needed
       }
 
-
+      List<Map<String, dynamic>> oldCart = [];
+      try {
+        oldCart = List<Map<String, dynamic>>.from(jsonDecode(existingTx.cartData ?? '[]'));
+      } catch (e) {
+        print_log("Error decoding old cart: $e");
+      }
       
       final businessDatePart = existingTx.time;
       final now = DateTime.now();
@@ -2841,7 +2213,7 @@ Future<void> printBillWithLogo(thermal.BlueThermalPrinter bluetooth) async {
         now.second,
       );
 
-      debugPrint("in bill debugPrint update transactionData $transactionData $tableNo and $total and ${cart.length} and $payment_mode and $status and fullDateTime $fullDateTime");
+      //debugPrint("in bill //debugPrint update transactionData $transactionData $tableNo and $total and ${cart.length} and $payment_mode and $status and fullDateTime $fullDateTime");
       // 3. Modify only the properties of the existing transaction
       existingTx.time = fullDateTime;
       existingTx.total = total;
@@ -2863,22 +2235,22 @@ Future<void> printBillWithLogo(thermal.BlueThermalPrinter bluetooth) async {
       box.put(existingTx);
       if(status.toLowerCase().contains("settle"))
       {
-        adjustStock(context, cart);
+        adjustStock(context, cart, oldCart);
       }
-      debugPrint("✅ Transaction updated in ObjectBox: $existingTx");
+      //debugPrint("✅ Transaction updated in ObjectBox: $existingTx");
 
       onTransactionAdded?.call(); // Fire the callback
-      debugPrint("🔁 Transaction updated callback fired!");
+      //debugPrint("🔁 Transaction updated callback fired!");
 
       final cartProvider = Provider.of<CartProvider>(context, listen: false);
       cartProvider.clearCart();
       
       // Navigate back
       // To go back to the very first screen (the "home" screen)
-      debugPrint(" up pageback1 $pageback");
+      //debugPrint(" up pageback1 $pageback");
       if(pageback != null && pageback > 0){
         for(int i =0 ;i < pageback ;i++){
-          debugPrint(" up pageback1 $pageback");
+          //debugPrint(" up pageback1 $pageback");
           Navigator.of(context).pop();
         }
       }else{
@@ -2888,7 +2260,7 @@ Future<void> printBillWithLogo(thermal.BlueThermalPrinter bluetooth) async {
       
     } else {
       // 5. Handle the case where no transaction with that ID was found
-      debugPrint("❌ Error: Transaction with ID $transactionId not found. Cannot update.");
+      //debugPrint("❌ Error: Transaction with ID $transactionId not found. Cannot update.");
       // Optionally show a message to the user
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text("Error: Could not find the transaction to update.")),
@@ -2899,17 +2271,18 @@ Future<void> printBillWithLogo(thermal.BlueThermalPrinter bluetooth) async {
   /// Attempt to send a transaction to the server
   Future<bool> sendTransactionToServer(Box<Transaction> box,int id,) async {
     final prefs = await SharedPreferences.getInstance();
+    final apicall = await prefs.getString("adminPanel") ?? "no";
+    
+    print_log("❌ in settel transection adminPanel not yes so Not send transection to the sever $apicall");
+    
+    if (apicall.toLowerCase().contains("no")) {
+      return false;
+    }
     try {
 
       final existingTx = box.get(id);
-      
-      // final isConnected = await isDeviceConnected();
-      // final isConnected = prefs.getBool('isOnline');
-      // debugPrint("❌ isConnected $isConnected not found");
-      // if (isConnected != true) { return false;}
-      debugPrint("✅ sendTransactionToServer: ${existingTx}  and ${existingTx?.payment_mode}");
       if (existingTx == null) {
-        debugPrint("❌ Transaction with ID $id not found");
+        print_log_red("❌ Transaction with ID $id not found so not sending to the server");
         return false;
       }
 
@@ -2928,7 +2301,7 @@ Future<void> printBillWithLogo(thermal.BlueThermalPrinter bluetooth) async {
         "login_user":login_user,
       };
 
-      debugPrint("✅ payload $payload ");
+      //debugPrint("✅ payload $payload ");
 
       http.Response? response = await apiCalls("t", login_user, payload);
         if (response == null) {
@@ -2937,16 +2310,8 @@ Future<void> printBillWithLogo(thermal.BlueThermalPrinter bluetooth) async {
 
       if (response.statusCode == 200) {
         existingTx.synced = true;
-        // debugPrint("✅ sendTransactionToServer: ${existingTx} and ${existingTx.synced}");
+        print_log("✅ Transaction saved To Server: ${existingTx} and ${existingTx.synced} response $response");
         box.put(existingTx);
-        debugPrint("✅ sendTransactionToServer: ${response.body}");
-        final List<Map<String, dynamic>> responseBodyCart =
-            (jsonDecode(existingTx.cartData) as List<dynamic>)
-                .map((item) => item as Map<String, dynamic>).toList();
-        final isnonzero = areAllQuantitiesZero(responseBodyCart);
-        if(isnonzero){
-          print_log("qty check in transecion to server ${isnonzero} > 0");
-        }
         return true;
       } else {
         print_log_red("❌ sendTransactionToServer failed: ${response.statusCode} and body ${response.body}");
@@ -2960,48 +2325,49 @@ Future<void> printBillWithLogo(thermal.BlueThermalPrinter bluetooth) async {
   }
 
   
-  Future<void> adjustStock(BuildContext context, List<Map<String, dynamic>> cart1) async {
-    // Clone the cart list to avoid modifying the original
-    List<Map<String, dynamic>> cart = cart1.map((item) => Map<String, dynamic>.from(item)).toList();
-
-    // Access ObjectBox store and MenuItem box
+  Future<void> adjustStock(BuildContext context, List<Map<String, dynamic>> newCart, List<Map<String, dynamic>> oldCart) async {
     final store = Provider.of<ObjectBoxService>(context, listen: false).store;
     final Box<MenuItem> menuItemBox = store.box<MenuItem>();
 
-    // Fetch all items from the database
-    final List<MenuItem> allItems = menuItemBox.getAll();
+    // Create a map for quick lookup of old quantities
+    Map<String, int> oldQtyMap = {
+      for (var item in oldCart) item['name'] as String: item['qty'] as int
+    };
 
-    // Loop through each item in the cart
-    print_log("menuItem adjustStock $cart ");
-    for (var cartItem in cart) {
-      final String? cartItemId = cartItem['name'];
-      final int qtyToReduce = cartItem['qty'] ?? 0;
-      print_log("menuItem adjustStock ${(cartItemId == null || qtyToReduce <= 0)} ");
-      if (cartItemId == null || qtyToReduce <= 0) continue;
+    // Combine all names from both carts to ensure we check everything
+    Set<String> allNames = {
+      ...newCart.map((e) => e['name'] as String),
+      ...oldCart.map((e) => e['name'] as String)
+    };
+
+    for (String name in allNames) {
+      // Find the item in the new cart (if it exists)
+      final newItem = newCart.firstWhere((e) => e['name'] == name, orElse: () => {});
+      final int newQty = newItem['qty'] ?? 0;
+      final int oldQty = oldQtyMap[name] ?? 0;
+
+      // Calculate the difference: 
+      // Positive means we sold more (reduce stock)
+      // Negative means we removed items (add back to stock)
+      int diff = newQty - oldQty;
+
+      if (diff == 0) continue; 
 
       // Find the matching MenuItem in ObjectBox
-      final MenuItem? menuItem = allItems.firstWhere(
-        (item) => item.name == cartItemId,
-        // orElse: () => null,
-      );
-      print_log("menuItem adjustStock $menuItem ");
+      final query = menuItemBox.query(MenuItem_.name.equals(name)).build();
+      final MenuItem? menuItem = query.findFirst();
+      query.close();
 
       if (menuItem != null) {
-        // Adjust stock safely (prevent going below 0)
         int currentStock = menuItem.adjustStock ?? 0;
-        int newStock = (currentStock - qtyToReduce).clamp(0, double.infinity).toInt();
-        print_log("menuItem adjustStock $menuItem $currentStock $newStock");
-        // Update the item
-        menuItem.adjustStock = newStock;
-
-        // Save back to ObjectBox
+        // We SUBTRACT the difference from stock
+        menuItem.adjustStock = currentStock - diff;
         menuItemBox.put(menuItem);
+        
+        print_log("Stock Update for $name: Old: $oldQty, New: $newQty, Diff: $diff, Final Stock: ${menuItem.adjustStock}");
       }
     }
-
-    debugPrint("✅ Stock adjusted successfully for ${cart.length} items.");
   }
-
 
   Future<bool> isDeviceConnected() async {
     final connectivityResult = await (Connectivity().checkConnectivity());
@@ -3010,7 +2376,7 @@ Future<void> printBillWithLogo(thermal.BlueThermalPrinter bluetooth) async {
         connectivityResult.contains(ConnectivityResult.wifi) ||
         connectivityResult.contains(ConnectivityResult.ethernet)) {
       // Now, check for actual internet access
-      debugPrint(" connectivityResult ${connectivityResult}");
+      //debugPrint(" connectivityResult ${connectivityResult}");
       return await InternetConnection().hasInternetAccess;
     }
     return false;
@@ -3045,6 +2411,14 @@ Future<void> printBillWithLogo(thermal.BlueThermalPrinter bluetooth) async {
     if (_isSyncing) {
       return;
     }
+    final prefs = await SharedPreferences.getInstance();
+    final apicall = await prefs.getString("adminPanel") ?? "no";
+    
+    print_log("adminPanel $apicall");
+    
+    if (apicall.toLowerCase().contains("no")) {
+      return;
+    }
     _isSyncing = true;
     print_log("Lock sync process: $_isSyncing");
 
@@ -3053,12 +2427,12 @@ Future<void> printBillWithLogo(thermal.BlueThermalPrinter bluetooth) async {
       final store1 = objectBoxService.store;
       final box = store1.box<Transaction>();
       final List<int> unsyncedIds = box.getAll().where((tx) => !(tx.synced)).map((tx) => tx.id).toList();
-      debugPrint("Unsynced transaction IDs: $unsyncedIds");
+      //debugPrint("Unsynced transaction IDs: $unsyncedIds");
       // final isOnline = await isDeviceOnline();
       // final isOnline = await isDeviceConnected();
       // final prefs = await SharedPreferences.getInstance();
       // final isOnline = prefs.getBool('isOnline') ?? true;
-      debugPrint(" unsyncedIds.isNotEmpty: ${unsyncedIds.isNotEmpty} both: ${unsyncedIds.isNotEmpty}");
+      //debugPrint(" unsyncedIds.isNotEmpty: ${unsyncedIds.isNotEmpty} both: ${unsyncedIds.isNotEmpty}");
 
       int successfulSyncs = 0;
       for (int i in unsyncedIds) {
@@ -3198,12 +2572,12 @@ Future<void> printBillWithLogo(thermal.BlueThermalPrinter bluetooth) async {
 
       // --- DIAGNOSTIC PRINT ---
       // Let's check what path is being used.
-      debugPrint("Attempting to load logo from path: $imagePath");
+      //debugPrint("Attempting to load logo from path: $imagePath");
 
       if (imagePath != null && File(imagePath).existsSync() && _printlogo) {
         
         // --- File was found, proceed ---
-        debugPrint("Logo file found. Decoding...");
+        //debugPrint("Logo file found. Decoding...");
 
         final file = File(imagePath);
         final imageBytes = await file.readAsBytes();
@@ -3213,7 +2587,7 @@ Future<void> printBillWithLogo(thermal.BlueThermalPrinter bluetooth) async {
         // Handle failed decode
         if (original == null) {
           // --- ADDED ERROR PRINT ---
-          debugPrint("Error: Could not decode logo image. Is it a valid PNG/JPG?");
+          //debugPrint("Error: Could not decode logo image. Is it a valid PNG/JPG?");
           return 0.0;
         }
         
@@ -3248,17 +2622,17 @@ Future<void> printBillWithLogo(thermal.BlueThermalPrinter bluetooth) async {
       
         // --- 1. FIXED THIS PRINT ---
         // This was showing an "Error" message before, now it shows success.
-        debugPrint("Logo drawn successfully. Height: ${imageHeight + 10.0}");
+        //debugPrint("Logo drawn successfully. Height: ${imageHeight + 10.0}");
         return imageHeight + 10.0; // Return height + padding
 
       } else {
         // --- 2. ADDED THIS PRINT ---
         // This is the most likely reason your logo isn't showing.
-        debugPrint("Logo not drawn. Reason: File path was null or file does not exist at path.");
+        //debugPrint("Logo not drawn. Reason: File path was null or file does not exist at path.");
         return 0.0;
       }
     } catch (e) {
-      debugPrint("Error drawing logo: $e");
+      //debugPrint("Error drawing logo: $e");
       return 0.0;
     }
   }
@@ -3324,7 +2698,7 @@ Future<void> printBillWithLogo(thermal.BlueThermalPrinter bluetooth) async {
         double logoHeight = (150 == qrPixelSize) ? 35 : 35 - ( (70 / (qrPixelSize)) *10);
 
         if (_printQRlogo) {
-          debugPrint("logoWidth: $logoWidth1 logoHeight :$logoHeight");
+          //debugPrint("logoWidth: $logoWidth1 logoHeight :$logoHeight");
           qrPainter = QrPainter(
             data: qrData,
             version: QrVersions.auto,
@@ -3352,7 +2726,7 @@ Future<void> printBillWithLogo(thermal.BlueThermalPrinter bluetooth) async {
       
       return qrImage.height.toDouble(); // + padding
     } catch (e) {
-      debugPrint("Error drawing QR code: $e");
+      //debugPrint("Error drawing QR code: $e");
       return 0.0;
     }
   }
@@ -3411,7 +2785,7 @@ Future<void> printBillWithLogo(thermal.BlueThermalPrinter bluetooth) async {
       return byteData.buffer.asUint8List();
 
     } catch (e) {
-      debugPrint("Error generating receipt image: $e");
+      //debugPrint("Error generating receipt image: $e");
       return null;
     }
   }
@@ -3468,7 +2842,7 @@ Future<void> printBillWithLogo(thermal.BlueThermalPrinter bluetooth) async {
       // }
     final double receiptWidth = (paperSize == "2") ? 384.0 :(paperSize == "3") ? 512.0 : 576.0 ;
 
-    debugPrint("Receipt image savedfooter customerName $customerName $footer printName $printName businessName$businessName contactPhone$contactPhone contactEmail$contactEmail businessAddress$businessAddress");
+    //debugPrint("Receipt image transactionData $transactionData customerName $customerName $footer printName $printName businessName$businessName contactPhone$contactPhone contactEmail$contactEmail businessAddress$businessAddress");
     
     // Font sizes from prefs
     double fHeader = 37;//fontSizes[headerFontSize] ?? 30.0;
@@ -3525,8 +2899,9 @@ Future<void> printBillWithLogo(thermal.BlueThermalPrinter bluetooth) async {
       yOffset += 5;
 
       if (customerName && tableno == 0) {
-        debugPrint("⚠️ check printer is connected tota --$transactionData---");
-        yOffset += await _drawDashedLine(canvas, yOffset, receiptWidth, fItem);
+        //debugPrint("⚠️ check printer is connected tota --$transactionData---");
+        // yOffset += await _drawDashedLine(canvas, yOffset, receiptWidth, fItem);
+        yOffset += await _drawText(canvas, "-----------------------------", y: yOffset, width: receiptWidth, fontSize: fHeader, fontWeight: FontWeight.bold, align: TextAlign.center);
         yOffset += 10; // New line
         
         yOffset += await _drawText(canvas, "TO Customer:- ", y: yOffset, width: receiptWidth,fontWeight: FontWeight.bold, fontSize: fItem, ); //align: TextAlign.center
@@ -3538,7 +2913,8 @@ Future<void> printBillWithLogo(thermal.BlueThermalPrinter bluetooth) async {
         yOffset += await _drawText(canvas, "Adreess: ${transactionData?['reserved'] ?? " "}", y: yOffset, width: receiptWidth,fontWeight: FontWeight.bold, fontSize : fItem, );
         yOffset += 4;
           // Line
-        yOffset += await _drawDashedLine(canvas, yOffset, receiptWidth, fItem);
+        // yOffset += await _drawDashedLine(canvas, yOffset, receiptWidth, fItem);
+        yOffset += await _drawText(canvas, "-----------------------------", y: yOffset, width: receiptWidth, fontSize: fHeader, fontWeight: FontWeight.bold, align: TextAlign.center);
         yOffset += 5; // New line
         
       }
@@ -3547,7 +2923,8 @@ Future<void> printBillWithLogo(thermal.BlueThermalPrinter bluetooth) async {
       yOffset += await _drawLeftRight(canvas, "Item", "Qty  Rate  Total", y: yOffset, width: receiptWidth, fontSize: fItem, leftFontWeight: FontWeight.bold, rightFontWeight: FontWeight.bold);
       
       // Line
-      yOffset += await _drawDashedLine(canvas, yOffset, receiptWidth, fItem);
+      // yOffset += await _drawDashedLine(canvas, yOffset, receiptWidth, fItem);
+      yOffset += await _drawText(canvas, "-----------------------", y: yOffset, width: receiptWidth, fontSize: fHeader, fontWeight: FontWeight.bold, align: TextAlign.center);
       yOffset += 5; // New line
 
       // Cart Items
@@ -3570,7 +2947,8 @@ Future<void> printBillWithLogo(thermal.BlueThermalPrinter bluetooth) async {
       }
       
       // Line
-      yOffset += await _drawDashedLine(canvas, yOffset, receiptWidth, fItem);
+      // yOffset += await _drawDashedLine(canvas, yOffset, receiptWidth, fItem);
+      yOffset += await _drawText(canvas, "-----------------------", y: yOffset, width: receiptWidth, fontSize: fHeader, fontWeight: FontWeight.bold, align: TextAlign.center);
       
       // Totals
       if (transactionData != null) {
@@ -3621,7 +2999,7 @@ Future<void> printBillWithLogo(thermal.BlueThermalPrinter bluetooth) async {
       return byteData.buffer.asUint8List();
 
     } catch (e) {
-      debugPrint("Error generating receipt image: $e");
+      //debugPrint("Error generating receipt image: $e");
       return null;
     }
   }
@@ -3948,7 +3326,7 @@ Future<void> printBillWithLogo(thermal.BlueThermalPrinter bluetooth) async {
         return byteData.buffer.asUint8List();
 
       } catch (e) {
-        debugPrint("Error generating receipt image: $e");
+        //debugPrint("Error generating receipt image: $e");
         return null;
       }
     }
@@ -4004,7 +3382,7 @@ Future<void> printBillWithLogo(thermal.BlueThermalPrinter bluetooth) async {
       // }
     final double receiptWidth = (paperSize == "2") ? 384.0 :(paperSize == "3") ? 512.0 : 576.0 ;
 
-    debugPrint("Receipt image savedfooter customerName $customerName $footer printName $printName businessName$businessName contactPhone$contactPhone contactEmail$contactEmail businessAddress$businessAddress");
+    //debugPrint("Receipt image savedfooter customerName $customerName $footer printName $printName businessName$businessName contactPhone$contactPhone contactEmail$contactEmail businessAddress$businessAddress");
     
     // Font sizes from prefs
     double fHeader = 37;//fontSizes[headerFontSize] ?? 30.0;
@@ -4078,6 +3456,12 @@ Future<void> printBillWithLogo(thermal.BlueThermalPrinter bluetooth) async {
       
       yOffset += await _drawText(canvas, "Time:- $dateTime", y: yOffset, width: receiptWidth, fontWeight: FontWeight.bold, fontSize: fItem,);
 
+      if(transactionData?['reserved_field'] != null){
+        if(("${transactionData?['reserved_field']}").isNotEmpty){
+          yOffset += await _drawText(canvas, "Order ID - ${transactionData?['reserved_field']}", y: yOffset, width: receiptWidth,fontWeight: FontWeight.bold, fontSize: fItem,align: TextAlign.center);
+        }
+      }
+
       String billtable = (tableno > 0) ?  "Bill No: $billNo / Table No-: $tableno" :  "Bill No: $billNo" ;
       yOffset += 5; // New line
       yOffset += await _drawText(canvas, billtable, y: yOffset, width: receiptWidth,fontWeight: FontWeight.bold, fontSize: fItem,);
@@ -4085,7 +3469,7 @@ Future<void> printBillWithLogo(thermal.BlueThermalPrinter bluetooth) async {
 
 
       if (customerName && tableno == 0) {
-        debugPrint("⚠️ check printer is connected tota --$transactionData---");
+        //debugPrint("⚠️ check printer is connected tota --$transactionData---");
         yOffset += await _drawDashedLine(canvas, yOffset, receiptWidth, fItem);
         yOffset += 10; // New line
         
@@ -4149,7 +3533,7 @@ Future<void> printBillWithLogo(thermal.BlueThermalPrinter bluetooth) async {
       yOffset += 1; // New line
       yOffset += await _drawLeftRight(canvas, "Recived:", "Rs.${transactionData!['recivedamount'] ?? 0}", y: yOffset, width: receiptWidth, fontSize: fTotal, leftFontWeight: FontWeight.bold, rightFontWeight: FontWeight.bold);
       yOffset += 1; // New line
-      yOffset += await _drawLeftRight(canvas, "Pending:", "Rs.${transactionData!['pendingamount']?? 0}", y: yOffset, width: receiptWidth, fontSize: fTotal, leftFontWeight: FontWeight.bold, rightFontWeight: FontWeight.bold);
+      yOffset += await _drawLeftRight(canvas, "Pending:", "Rs.${transactionData['pendingamount']?? 0}", y: yOffset, width: receiptWidth, fontSize: fTotal, leftFontWeight: FontWeight.bold, rightFontWeight: FontWeight.bold);
       yOffset += 3; // New line
 
       // QR Code
@@ -4177,7 +3561,7 @@ Future<void> printBillWithLogo(thermal.BlueThermalPrinter bluetooth) async {
       return byteData.buffer.asUint8List();
 
     } catch (e) {
-      debugPrint("Error generating receipt image: $e");
+      //debugPrint("Error generating receipt image: $e");
       return null;
     }
   }
@@ -4223,7 +3607,7 @@ Future<void> printBillWithLogo(thermal.BlueThermalPrinter bluetooth) async {
       return byteData.buffer.asUint8List();
 
     } catch (e) {
-      debugPrint("Error generating receipt image: $e");
+      //debugPrint("Error generating receipt image: $e");
       return null;
     }
   }
@@ -4318,10 +3702,13 @@ Future<void> printBillWithLogo(thermal.BlueThermalPrinter bluetooth) async {
         // yOffset += await _drawText(canvas, businessName, y: yOffset, width: receiptWidth, fontSize: fHeader, fontWeight: FontWeight.bold, align: TextAlign.center);
 
         yOffset += await _drawText(canvas, " KOT ", y: yOffset, width: receiptWidth, fontSize: fHeader, fontWeight: FontWeight.bold, align: TextAlign.center);
+        if(transactionData?['reserved_field'] != null){
+          if(("${transactionData?['reserved_field']}").isNotEmpty){
+            yOffset += await _drawText(canvas, "Order ID - ${transactionData?['reserved_field']}", y: yOffset, width: receiptWidth,fontWeight: FontWeight.bold, fontSize: fItem,align: TextAlign.center);
+          }
+        }
 
-        yOffset += await _drawText(canvas, "Order ID - ${transactionData?['reserved_field']}", y: yOffset, width: receiptWidth,fontWeight: FontWeight.bold, fontSize: fItem,);
-
-        yOffset += await _drawText(canvas, (tableNumber == 0 || tableNumber == null) ? "Bill No: ${transactionData?['billNo']} / Order Type: ${transactionData?['orderType']}" : "Bill No: ${transactionData?['billNo']} / Table No: $tableNumber", y: yOffset, width: receiptWidth, fontSize: fItem, fontWeight: FontWeight.bold, align: TextAlign.center);
+        yOffset += await _drawText(canvas, (tableNumber == 0) ? "Bill No: ${transactionData?['billNo']} / Order Type: ${transactionData?['orderType']}" : "Bill No: ${transactionData?['billNo']} / Table No: $tableNumber", y: yOffset, width: receiptWidth, fontSize: fItem, fontWeight: FontWeight.bold, align: TextAlign.center);
 
         // yOffset += await _drawText(canvas, , y: yOffset, width: receiptWidth, fontSize: fItem, align: TextAlign.center);
 
@@ -4333,18 +3720,19 @@ Future<void> printBillWithLogo(thermal.BlueThermalPrinter bluetooth) async {
       // yOffset += 5;
 
       // Header
-      yOffset += await _drawLeftRight(canvas, "Item", "Note   Qty", y: yOffset, width: receiptWidth, fontSize: fTotal, leftFontWeight: FontWeight.bold, rightFontWeight: FontWeight.bold);
+      yOffset += await _drawLeftRight(canvas, "QTY   X Item", "Note", y: yOffset, width: receiptWidth, fontSize: fTotal, leftFontWeight: FontWeight.bold, rightFontWeight: FontWeight.bold);
       
       // Line
-      yOffset += await _drawDashedLine(canvas, yOffset, receiptWidth, fItem);
+      // yOffset += await _drawDashedLine(canvas, yOffset, receiptWidth, fItem);
+      yOffset += await _drawText(canvas, "-----------------------", y: yOffset, width: receiptWidth, fontSize: fHeader, fontWeight: FontWeight.bold, align: TextAlign.center);
       yOffset += 5; // New line
 
       // Cart Items
       for (var item in cart) {
         String name = item['name'] ?? 'Item';
         int qty = item['qty'] ?? 0;
-        String note = item['note'] ?? " ";
-        debugPrint("jhk bkxb $item");
+        String note = item['note'] ?? "";
+        //debugPrint("jhk bkxb $item");
         // final dynamic rawPrice = item['sellPrice'];
         // final int rate = rawPrice is num
         //     ? rawPrice.toInt()
@@ -4352,15 +3740,19 @@ Future<void> printBillWithLogo(thermal.BlueThermalPrinter bluetooth) async {
         //           double.tryParse(rawPrice.toString())?.toInt() ??
         //           0;
         // int total = qty * rate;
-        String rightText = "${note.padLeft(1)} ${qty.toString().padLeft(2)}";
+        String rightText = "Note :- ${note.padLeft(1)}";
 
         // The _drawLeftRight helper handles wrapping, so we don't need your _wrapText loop
-        yOffset += await _drawLeftRight(canvas, " $name", rightText, y: yOffset, width: receiptWidth, fontSize: fTotal,leftFontWeight: FontWeight.bold, rightFontWeight: FontWeight.bold);
+        yOffset += await _drawText(canvas, "$qty x $name", y: yOffset, width: receiptWidth, fontSize: fTotal,fontWeight: FontWeight.bold, align: TextAlign.left);
+        if(note.isNotEmpty){
+          yOffset += await _drawText(canvas, "  $rightText", y: yOffset, width: receiptWidth, fontSize: fTotal, fontWeight: FontWeight.bold, align: TextAlign.left);
+        }
         yOffset += 4; // Small padding between items
       }
       
       // Line
-      yOffset += await _drawDashedLine(canvas, yOffset, receiptWidth, fItem);
+      // yOffset += await _drawDashedLine(canvas, yOffset, receiptWidth, fItem);
+      yOffset += await _drawText(canvas, "-----------------------", y: yOffset, width: receiptWidth, fontSize: fHeader, fontWeight: FontWeight.bold, align: TextAlign.center);
       yOffset += 60;
       
       // Totals
@@ -4408,7 +3800,7 @@ Future<void> printBillWithLogo(thermal.BlueThermalPrinter bluetooth) async {
       return byteData.buffer.asUint8List();
 
     } catch (e) {
-      debugPrint("Error generating receipt image: $e");
+      //debugPrint("Error generating receipt image: $e");
       return null;
     }
   }
@@ -4419,7 +3811,7 @@ Future<void> printBillWithLogo(thermal.BlueThermalPrinter bluetooth) async {
     final path = '${directory!.path}/receipt_1.png';
     final file = File(path);
     await file.writeAsBytes(imageBytes);
-    debugPrint("Receipt image saved to: $path");
+    //debugPrint("Receipt image saved to: $path");
   }
 
 
@@ -4462,25 +3854,31 @@ Future<void> printBillWithLogo(thermal.BlueThermalPrinter bluetooth) async {
       store = Provider.of<ObjectBoxService>(context, listen: false).store;
       bytes = [];
       final stopwatch = Stopwatch()..start();
+      final prefs = await SharedPreferences.getInstance();
 
-      final device = await _getSavedPrinter(KOTmode: false, context: context);
-      if (device == null) return;
+      // final device = await _getSavedPrinter(KOTmode: false, context: context);
+      // if (device == null) return;
 
-      bool isConnected = await _isConnected();
-      if (!isConnected) {
-        await _connectToPrinter(device);
-      }
+      // bool isConnected = await _isConnected();
+      // if (!isConnected) {
+        String address = "";
+        if(KOT_Print){
+          address = prefs.getString('saved_KOT_printer_address') ?? "";
+        } else{
+          address = prefs.getString('saved_printer_address') ?? "";
+        }
+        await _connectToPrinter(address);
+      
 
       if (_generator == null) {
         throw Exception("Printer not initialized");
       }
 
-      final prefs = await SharedPreferences.getInstance();
       String businessName = prefs.getString('businessName') ?? 'Hotel Test';
       final String dateTime = DateFormat('dd-MMM-yyyy hh:mm a').format(DateTime.now());
 
-      bytes += _generator!.reset();
-      bytes += _generator!.clearStyle();
+      // bytes += _generator!.reset();
+      // bytes += _generator!.clearStyle();
 
       // --- Header ---
       bytes += _generator!.text(
@@ -4566,10 +3964,10 @@ Future<void> printBillWithLogo(thermal.BlueThermalPrinter bluetooth) async {
       ]);
 
       bytes += _generator!.hr();
-      bytes += _generator!.feed(1);
+      bytes += _generator!.feed(3);
       await _sendToPrinter(context: context);
       await _disconnect();
-      debugPrint("✅ Sales Summary Report sent to printer. Processing time: ${stopwatch.elapsedMilliseconds}ms");
+      //debugPrint("✅ Sales Summary Report sent to printer. Processing time: ${stopwatch.elapsedMilliseconds}ms");
     } catch (e) {
       print_log_red("❌ Error while printing sales summary: $e");
       ScaffoldMessenger.of(context).showSnackBar(
@@ -4592,25 +3990,32 @@ Future<void> printBillWithLogo(thermal.BlueThermalPrinter bluetooth) async {
       store = Provider.of<ObjectBoxService>(context, listen: false).store;
       bytes = [];
       final stopwatch = Stopwatch()..start();
+      final prefs = await SharedPreferences.getInstance();
 
-      final device = await _getSavedPrinter(KOTmode: false, context: context);
-      if (device == null) return;
+      // final device = await _getSavedPrinter(KOTmode: false, context: context);
+      // if (device == null) return;
 
-      bool isConnected = await _isConnected();
-      if (!isConnected) {
-        await _connectToPrinter(device);
-      }
+      // bool isConnected = await _isConnected();
+      // if (!isConnected) {
+        String address = "";
+        if(KOT_Print){
+          address = prefs.getString('saved_KOT_printer_address') ?? "";
+        } else{
+          address = prefs.getString('saved_printer_address') ?? "";
+        }
+        await _connectToPrinter(address);
+      // }
 
       if (_generator == null) {
         throw Exception("Printer not initialized");
       }
 
-      final prefs = await SharedPreferences.getInstance();
+      
       String businessName = prefs.getString('businessName') ?? 'Hotel Test';
       final String dateTime = DateFormat('dd-MMM-yyyy hh:mm a').format(DateTime.now());
 
-      bytes += _generator!.reset();
-      bytes += _generator!.clearStyle();
+      // bytes += _generator!.reset();
+      // bytes += _generator!.clearStyle();
 
       // --- Header ---
       bytes += _generator!.text(
@@ -4660,10 +4065,10 @@ Future<void> printBillWithLogo(thermal.BlueThermalPrinter bluetooth) async {
       }
 
       bytes += _generator!.hr();
-      bytes += _generator!.feed(1);
+      bytes += _generator!.feed(3);
       await _sendToPrinter(context: context);
       await _disconnect();
-      debugPrint("✅ Item-Wise Sales Report sent to printer. Processing time: ${stopwatch.elapsedMilliseconds}ms");
+      //debugPrint("✅ Item-Wise Sales Report sent to printer. Processing time: ${stopwatch.elapsedMilliseconds}ms");
     } catch (e) {
       print_log_red("❌ Error while printing item-wise sales report: $e");
       ScaffoldMessenger.of(context).showSnackBar(
@@ -4682,25 +4087,32 @@ Future<void> printBillWithLogo(thermal.BlueThermalPrinter bluetooth) async {
     try {
       store = Provider.of<ObjectBoxService>(context, listen: false).store;
       bytes = [];
+      final prefs = await SharedPreferences.getInstance();
 
-      final device = await _getSavedPrinter(KOTmode: false, context: context);
-      if (device == null) return;
+      // final device = await _getSavedPrinter(KOTmode: false, context: context);
+      // if (device == null) return;
 
-      bool isConnected = await _isConnected();
-      if (!isConnected) {
-        await _connectToPrinter(device);
-      }
+      // bool isConnected = await _isConnected();
+      // if (!isConnected) {
+        String address = "";
+        if(KOT_Print){
+          address = prefs.getString('saved_KOT_printer_address') ?? "";
+        } else{
+          address = prefs.getString('saved_printer_address') ?? "";
+        }
+        await _connectToPrinter(address);
+      // }
 
       if (_generator == null) {
         throw Exception("Printer not initialized");
       }
 
-      final prefs = await SharedPreferences.getInstance();
+      
       String businessName = prefs.getString('businessName') ?? 'Hotel Test';
       final String dateTime = DateFormat('dd-MMM-yyyy hh:mm a').format(DateTime.now());
 
-      bytes += _generator!.reset();
-      bytes += _generator!.clearStyle();
+      // bytes += _generator!.reset();
+      // bytes += _generator!.clearStyle();
 
       bytes += _generator!.text(
         businessName,
@@ -4746,10 +4158,10 @@ Future<void> printBillWithLogo(thermal.BlueThermalPrinter bluetooth) async {
       }
 
       bytes += _generator!.hr();
-      bytes += _generator!.feed(1);
+      bytes += _generator!.feed(3);
       await _sendToPrinter(context: context);
       await _disconnect();
-      debugPrint("✅ Portion-Wise Sales Report sent to printer");
+      //debugPrint("✅ Portion-Wise Sales Report sent to printer");
     } catch (e) {
       print_log_red("❌ Error while printing portion-wise sales report: $e");
       ScaffoldMessenger.of(context).showSnackBar(
@@ -4768,25 +4180,32 @@ Future<void> printBillWithLogo(thermal.BlueThermalPrinter bluetooth) async {
     try {
       store = Provider.of<ObjectBoxService>(context, listen: false).store;
       bytes = [];
+      final prefs = await SharedPreferences.getInstance();
 
-      final device = await _getSavedPrinter(KOTmode: false, context: context);
-      if (device == null) return;
+      // final device = await _getSavedPrinter(KOTmode: false, context: context);
+      // if (device == null) return;
 
-      bool isConnected = await _isConnected();
-      if (!isConnected) {
-        await _connectToPrinter(device);
-      }
+      // bool isConnected = await _isConnected();
+      // if (!isConnected) {
+        String address = "";
+        if(KOT_Print){
+          address = prefs.getString('saved_KOT_printer_address') ?? "";
+        } else{
+          address = prefs.getString('saved_printer_address') ?? "";
+        }
+        await _connectToPrinter(address);
+      // }
 
       if (_generator == null) {
         throw Exception("Printer not initialized");
       }
 
-      final prefs = await SharedPreferences.getInstance();
+
       String businessName = prefs.getString('businessName') ?? 'Hotel Test';
       final String dateTime = DateFormat('dd-MMM-yyyy hh:mm a').format(DateTime.now());
 
-      bytes += _generator!.reset();
-      bytes += _generator!.clearStyle();
+      // bytes += _generator!.reset();
+      // bytes += _generator!.clearStyle();
 
       bytes += _generator!.text(
         businessName,
@@ -4832,10 +4251,10 @@ Future<void> printBillWithLogo(thermal.BlueThermalPrinter bluetooth) async {
       }
 
       bytes += _generator!.hr();
-      bytes += _generator!.feed(1);
+      bytes += _generator!.feed(3);
       await _sendToPrinter(context: context);
       await _disconnect();
-      debugPrint("✅ Order Type Sales Report sent to printer");
+      //debugPrint("✅ Order Type Sales Report sent to printer");
     } catch (e) {
       print_log_red("❌ Error while printing order type sales report: $e");
       ScaffoldMessenger.of(context).showSnackBar(
@@ -4851,25 +4270,31 @@ Future<void> printBillWithLogo(thermal.BlueThermalPrinter bluetooth) async {
     try {
       store = Provider.of<ObjectBoxService>(context, listen: false).store;
       bytes = [];
+      final prefs = await SharedPreferences.getInstance();
 
-      final device = await _getSavedPrinter(KOTmode: false, context: context);
-      if (device == null) return;
+      // final device = await _getSavedPrinter(KOTmode: false, context: context);
+      // if (device == null) return;
 
-      bool isConnected = await _isConnected();
-      if (!isConnected) {
-        await _connectToPrinter(device);
-      }
+      // // bool isConnected = await _isConnected();
+      // if (!isConnected) {
+        String address = "";
+        if(KOT_Print){
+          address = prefs.getString('saved_KOT_printer_address') ?? "";
+        } else{
+          address = prefs.getString('saved_printer_address') ?? "";
+        }
+        await _connectToPrinter(address);
+      // }
 
       if (_generator == null) {
         throw Exception("Printer not initialized");
       }
 
-      final prefs = await SharedPreferences.getInstance();
       String businessName = prefs.getString('businessName') ?? 'Hotel Test';
       final String dateTime = DateFormat('dd-MMM-yyyy hh:mm a').format(DateTime.now());
 
-      bytes += _generator!.reset();
-      bytes += _generator!.clearStyle();
+      // bytes += _generator!.reset();
+      // bytes += _generator!.clearStyle();
 
       bytes += _generator!.text(
         businessName,
@@ -4906,10 +4331,10 @@ Future<void> printBillWithLogo(thermal.BlueThermalPrinter bluetooth) async {
       }
 
       bytes += _generator!.hr();
-      bytes += _generator!.feed(1);
+      bytes += _generator!.feed(3);
       await _sendToPrinter(context: context);
       await _disconnect();
-      debugPrint("✅ Stock Report sent to printer");
+      //debugPrint("✅ Stock Report sent to printer");
     } catch (e) {
       print_log_red("❌ Error while printing stock report: $e");
       ScaffoldMessenger.of(context).showSnackBar(

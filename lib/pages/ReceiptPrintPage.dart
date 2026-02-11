@@ -30,9 +30,9 @@ class _ReceiptPageState extends State<ReceiptPage> {
     List<BluetoothDevice> devices = await bluetooth.getBondedDevices();
     if (devices.isNotEmpty) {
       await bluetooth.connect(devices.first); // Connect first paired printer
-      debugPrint("Connected to: ${devices.first.name}");
+      //debugPrint("Connected to: ${devices.first.name}");
     } else {
-      debugPrint("No paired devices found!");
+      //debugPrint("No paired devices found!");
     }
   }
 
@@ -48,7 +48,7 @@ class _ReceiptPageState extends State<ReceiptPage> {
       );
       return byteData?.buffer.asUint8List();
     } catch (e) {
-      debugPrint("Error capturing receipt: $e");
+      //debugPrint("Error capturing receipt: $e");
       return null;
     }
   }
@@ -73,7 +73,7 @@ class _ReceiptPageState extends State<ReceiptPage> {
           // bluetooth.printNewLine();
           bluetooth.printCustom("Thank You! Visit Again", 1, 1);
         } else {
-          debugPrint("Printer not connected");
+          //debugPrint("Printer not connected");
         }
       });
     }

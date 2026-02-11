@@ -74,7 +74,7 @@ class _CustomerTransactionsPageState extends State<CustomerTransactionsPage> {
       final pho_nu = "+91${extractLast10Digits((customer.phone).toString())}";
       await _telephonySMS.sendSMS(phone: pho_nu, message: message);
     } catch (error) {
-      debugPrint("Error sending SMS: $error");
+      //debugPrint("Error sending SMS: $error");
     }
   }
 
@@ -123,7 +123,7 @@ class _CustomerTransactionsPageState extends State<CustomerTransactionsPage> {
         mode: LaunchMode.externalApplication,
       );
     } catch (e) {
-      debugPrint("Error launching WhatsApp: $e");
+      //debugPrint("Error launching WhatsApp: $e");
     }
   }
 
@@ -158,7 +158,7 @@ Future<void> _sendReminderSms(udhariCustomer customer) async {
       await launchUrl(smsUri);
     }
   } catch (e) {
-    debugPrint("Error launching SMS: $e");
+    //debugPrint("Error launching SMS: $e");
   }
 }
 

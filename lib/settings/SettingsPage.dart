@@ -20,6 +20,8 @@ import '../database_Module/menu_item.dart';
 import 'package:archive/archive.dart';
 import 'package:test1/utilities.dart';
 import 'package:test1/settings/hideData.dart';
+import 'package:flutter/foundation.dart';
+import 'package:dio/dio.dart';
 
 
 
@@ -47,87 +49,74 @@ class SettingsPage extends StatelessWidget {
     "PAGES",
   ];
 
+  final Dio _dio = Dio();
 
 
-
-  Future<void> downloadHotelZip(BuildContext context, String hotelName) async {
+  Future<void> downloadHotelZip(String hotelName) async {
     try {
-      // print("hotelName ${hotelName}");
-      // 2️⃣ Call your PHP API to get the menu filename
-      http.Response? apiResponse = await apiCalls("i", hotelName, {});
-        if (apiResponse == null) {
-          return;
-        }
+      // 1️⃣ Fetch filename from your API
+      // (Assuming your apiCalls still uses the http package for now)
+      var apiResponse = await apiCalls("i", hotelName, {});
+      if (apiResponse == null) return;
 
       if (apiResponse.statusCode != 200) {
-        throw Exception(
-          "❌ Failed to fetch filename: ${apiResponse.statusCode}",
-        );
+        throw Exception("❌ Failed to fetch filename: ${apiResponse.statusCode}");
       }
-      // ScaffoldMessenger.of(context).showSnackBar(
-      //   SnackBar(
-      //     content: Text("⬇️ Downloading ${apiResponse.statusCode}"),
-      //     duration: Duration(seconds: 4), // Show for 3 seconds
-      //   ),
-      // );
 
       final data = jsonDecode(apiResponse.body);
       if (data['success'] != true || data['menu_filename'] == null) {
         throw Exception("❌ API error: ${data['message'] ?? 'Unknown error'}");
       }
 
-      final fileName = data['menu_filename']; // e.g., hotelA.zip
-      debugPrint("📥 Filename received from API: $fileName");
+      final fileId = data['menu_filename']; 
+      final downloadUrl = "https://drive.google.com/uc?export=download&id=$fileId";
+      //debugPrint("📥 Starting download for ID: $fileId");
 
-      final fileId = fileName; // Replace if you return a Google Drive ID directly
-      final downloadUrl = Uri.parse("https://drive.google.com/uc?export=download&id=$fileId",);
+      // 2️⃣ Download the ZIP using Dio
+      // We use ResponseType.bytes to get the data for ZipDecoder
+      final response = await _dio.get<List<int>>(
+        downloadUrl,
+        options: Options(
+          responseType: ResponseType.bytes,
+          headers: {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)',
+          },
+          followRedirects: true,
+        ),
+        onReceiveProgress: (received, total) {
+          if (total != -1) {
+            //debugPrint("Download Progress: ${(received / total * 100).toStringAsFixed(0)}%");
+          }
+        },
+      );
 
-      // ScaffoldMessenger.of(context).showSnackBar(
-      //   SnackBar(
-      //     content: Text("⬇️ Downloading $fileName for $hotelName..."),
-      //     duration: Duration(seconds: 10), // Show for 3 seconds
-      //   ),
-      // );
-
-      // 4️⃣ Download the ZIP
-      final response = await http.get(downloadUrl);
-      if (response.statusCode != 200) {
+      if (response.statusCode != 200 || response.data == null) {
         throw Exception("❌ HTTP Error: ${response.statusCode}");
       }
 
-      // 5️⃣ Save ZIP to temporary storage
-      final tempDir = await getTemporaryDirectory();
-      final zipFile = File("${tempDir.path}/$hotelName.zip");
-      await zipFile.writeAsBytes(response.bodyBytes);
+      final Uint8List bytes = Uint8List.fromList(response.data!);
 
-      // ScaffoldMessenger.of(context).showSnackBar(
-      //   SnackBar(
-      //     content: Text("✅ Download complete. Extracting..."),
-      //     duration: Duration(seconds: 10), // Show for 3 seconds
-      //   ),
-      // );
-
+      // 3️⃣ Prepare Directories
       final picturesDir = (await getExternalStorageDirectories(
         type: StorageDirectory.pictures,
       ))?.first;
-      if (picturesDir == null) {
-        throw Exception("❌ Pictures directory unavailable");
-      }
+      
+      if (picturesDir == null) throw Exception("❌ Pictures directory unavailable");
 
       final extractDir = Directory("${picturesDir.path}/menu_images");
 
+      // Clean up old files
       if (!await extractDir.exists()) {
         await extractDir.create(recursive: true);
       } else {
         final files = extractDir.listSync();
         for (var file in files) {
-          if (file is File) {
-            await file.delete();
-          }
+          if (file is File) await file.delete();
         }
       }
 
-      final archive = ZipDecoder().decodeBytes(response.bodyBytes);
+      // 4️⃣ Extract ZIP
+      final archive = ZipDecoder().decodeBytes(bytes);
       int fileCount = 0;
 
       for (final file in archive) {
@@ -139,19 +128,9 @@ class SettingsPage extends StatelessWidget {
         }
       }
 
-      // ScaffoldMessenger.of(context).showSnackBar(
-      //   SnackBar(
-      //     content: Text("🎉 Extracted $fileCount files for $hotelName"),
-      //     duration: Duration(seconds: 3),
-      //   ),
-      // );
-
-      debugPrint("✅ Extracted $fileCount images to ${extractDir.path}");
+      //debugPrint("✅ Extracted $fileCount images to ${extractDir.path}");
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text("❌ Error while downloading images: $e")),
-      );
-      debugPrint("❌ Error while downloading images: $e");
+      //debugPrint("❌ Error while downloading images: $e");
     }
   }
 
@@ -163,11 +142,11 @@ class SettingsPage extends StatelessWidget {
       // ✅ Insert fresh items
       for (int i = 0; i < menuItems.length; i++) {
         final item = menuItems[i];
-        // debugPrint('💾 Saved item: ${item}');
+        // //debugPrint('💾 Saved item: ${item}');
         menuItemBox.put(item);
       }
     }else{
-      debugPrint("found menuItemBox is null in setting");
+      //debugPrint("found menuItemBox is null in setting");
     }
     // print("✅ Saved ${menuItems.length} fresh menu items");
   }
@@ -202,7 +181,7 @@ class SettingsPage extends StatelessWidget {
     );
 
     if (proceed != true) {
-      debugPrint("❌ User cancelled sync");
+      //debugPrint("❌ User cancelled sync");
       return;
     }
 
@@ -217,10 +196,10 @@ class SettingsPage extends StatelessWidget {
       if(role=="captain"){
         hotelName = getHotelIdentifier(username);
         // hotelName = username.split("_").sublist(0, username.split("_").length - 1).join("_");
-        debugPrint("hotelName $hotelName");
+        //debugPrint("hotelName $hotelName");
       }else{
          hotelName = username;
-         debugPrint("hotelName $hotelName");
+         //debugPrint("hotelName $hotelName");
       }
 
       try {
@@ -238,20 +217,20 @@ class SettingsPage extends StatelessWidget {
             List<MenuItem> menuItems = dataList.map((item) => MenuItem.fromJson(item)).toList();
             saveMenuItemsReliably(menuItems);
 
-            downloadHotelZip(context, hotelName);
+            downloadHotelZip(hotelName);
             
             print_log("✅ Menu loaded from server: ${menuItems.length} items");
           } else {
             print_log("❌ 'data' is not a list");
           }
         } else {
-          debugPrint('HTTP Error: ${response.statusCode}: ${response.reasonPhrase}');
+          //debugPrint('HTTP Error: ${response.statusCode}: ${response.reasonPhrase}');
         }
       } catch (error) {
 
           screen_massage(context, "Device Not Connected ${error}");
         
-        debugPrint("❌ Error in ApiCallPage: $error");
+        //debugPrint("❌ Error in ApiCallPage: $error");
       }
     }
   }
@@ -368,12 +347,12 @@ class SettingsPage extends StatelessWidget {
 
                       
                       if (index == 11) {
-                        debugPrint("going to apicall");
+                        //debugPrint("going to apicall");
                         await ApiCallPage(context);
                       }
 
                       if (index == 12) {
-                        debugPrint("going to showChangePasswordDialog");
+                        //debugPrint("going to showChangePasswordDialog");
                         showChangePasswordDialog(context);
                       }
 

@@ -149,7 +149,7 @@ class _AddItemPageState extends State<AddItemPage> {
         hasImage = imageFile.existsSync();
       }
 
-      debugPrint("_imagePath $_imagePath");
+      //debugPrint("_imagePath $_imagePath");
 
      // _imagePath = item.imagePath;
       if (_imagePath != null && File(_imagePath!).existsSync()) {

@@ -69,7 +69,7 @@ class _TableViewState extends State<TableView> {
       await readAndSaveToPrefs();
       await processSettleTables();
       _loadTables();
-      debugPrint("✅ Sync completed");
+      //debugPrint("✅ Sync completed");
     });
   }
 
@@ -79,7 +79,7 @@ class _TableViewState extends State<TableView> {
       activeTables = _tablesList.getAll();
       activeTables.sort((a, b) => a.number.compareTo(b.number));
     });
-    debugPrint("✅ Table #${activeTables} total updated to:");
+    //debugPrint("✅ Table #${activeTables} total updated to:");
   }
 
   /// Loads the user's preferred order page style
@@ -108,18 +108,18 @@ void watchKOTFile() async {
 
   if (!await kotFile.exists()) {
     await kotFile.writeAsString("[]");
-    debugPrint("🆕 Created pending_kot.json");
+    //debugPrint("🆕 Created pending_kot.json");
   }
 
   _kotWatcher = kotFile.watch(events: FileSystemEvent.modify).listen((event) async {
     if (event.type != FileSystemEvent.modify) return;
 
     final text = await kotFile.readAsString();
-    debugPrint("⛔ text read from file $text");
+    //debugPrint("⛔ text read from file $text");
     final currentHash = getMd5(text);
 
     if (currentHash == lastKotHash) {
-      debugPrint("⛔ No change in KOT file → ignoring");
+      //debugPrint("⛔ No change in KOT file → ignoring");
       return;
     }
 
@@ -127,7 +127,7 @@ void watchKOTFile() async {
 
     _debounce?.cancel();
     _debounce = Timer(const Duration(milliseconds: 600), () async {
-      debugPrint("🔄 KOT file updated → checking role/device...");
+      //debugPrint("🔄 KOT file updated → checking role/device...");
 
       try {
         final List decoded = jsonDecode(text);
@@ -141,17 +141,17 @@ void watchKOTFile() async {
            final type = item["type"]?.toString() ?? "";
           final senderDevice = item["sender_device"]?.toString() ?? ""; // Add sender device field
 
-          debugPrint("🔍 File datafor = $dataFor | User role = $role | Sender device = $senderDevice | deviceId = $deviceId");
+          //debugPrint("🔍 File datafor = $dataFor | User role = $role | Sender device = $senderDevice | deviceId = $deviceId");
 
           // 🔥 CRITICAL FIX: Check if this update came from THIS device
           if (senderDevice == deviceId) {
-            debugPrint("⏭️ Update came from this device → ignoring to prevent duplicate");
+            //debugPrint("⏭️ Update came from this device → ignoring to prevent duplicate");
             await kotFile.writeAsString("[]"); // Clear the file
             return;
           }
 
           if (dataFor == "ALL" || dataFor == role) {
-            debugPrint("✅ ROLE MATCH → Processing KOT");
+            //debugPrint("✅ ROLE MATCH → Processing KOT");
             if(type == "KOT")
             {
                await readAndSaveToPrefsforkot();
@@ -160,15 +160,15 @@ void watchKOTFile() async {
             }
             
             if (mounted) setState(() => _loadTables());
-            debugPrint("✅ Sync complete");
+            //debugPrint("✅ Sync complete");
           } else {
-            debugPrint("⛔ ROLE MISMATCH → Ignoring KOT");
+            //debugPrint("⛔ ROLE MISMATCH → Ignoring KOT");
             await kotFile.writeAsString("[]");
-            debugPrint("⛔ ROLE MISMATCH → Ignoring KOT & file cleared");
+            //debugPrint("⛔ ROLE MISMATCH → Ignoring KOT & file cleared");
           }
         }
       } catch (e) {
-        debugPrint("❌ JSON parse error: $e");
+        //debugPrint("❌ JSON parse error: $e");
       }
     });
   });
@@ -183,7 +183,7 @@ void watchSettleFile() async {
     await settleFile.writeAsString("[]");
   }
 
-  debugPrint("SETTLE → watching directory: ${dir.path}");
+  //debugPrint("SETTLE → watching directory: ${dir.path}");
 
   _settleWatcher = dir.watch().listen((event) async {
     if (!event.path.endsWith("pending_settle.json")) return;
@@ -193,7 +193,7 @@ void watchSettleFile() async {
     final currentHash = getMd5(text);
 
     if (currentHash == lastSettleHash) {
-      debugPrint("⛔ No real change");
+      //debugPrint("⛔ No real change");
       return;
     }
 
@@ -201,10 +201,10 @@ void watchSettleFile() async {
 
     _settleDebounce?.cancel();
     _settleDebounce = Timer(const Duration(milliseconds: 600), () async {
-      debugPrint("🔄 SETTLE updated → syncing...");
+      //debugPrint("🔄 SETTLE updated → syncing...");
       await processSettleTables();
       if (mounted) setState(() => _loadTables());
-      debugPrint("✅ SETTLE Sync complete");
+      //debugPrint("✅ SETTLE Sync complete");
     });
   });
 }
@@ -237,7 +237,7 @@ void dispose() {
 
     if(hotelname =='')
     {
-      debugPrint("Failed to send order for hotel $hotelname");
+      //debugPrint("Failed to send order for hotel $hotelname");
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text("Failed to send order for hotel $hotelname"),
@@ -251,7 +251,7 @@ void dispose() {
 
     var order_tpe = '';
 
-    debugPrint("sentfcm trigger through table_view $tableName");
+    //debugPrint("sentfcm trigger through table_view $tableName");
 
     if(tableName=="Takeaway")
     {
@@ -290,13 +290,13 @@ void dispose() {
     };
 
     
-    debugPrint("Sending FCM notification after table price upate: ${json.encode(requestData)}");
+    //debugPrint("Sending FCM notification after table price upate: ${json.encode(requestData)}");
     
     // Make API call
     final response = await apiCalls('s',hotelname,requestData);
     
     if (response!.statusCode == 200) {
-      debugPrint("FCM notification sent successfully");
+      //debugPrint("FCM notification sent successfully");
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text("Order sent to kitchen successfully"),
@@ -325,7 +325,7 @@ void dispose() {
       table.total = newTotal;
       activeBox.put(table);
     } else {
-      debugPrint("Failed to send FCM notification: ${response.statusCode}");
+      //debugPrint("Failed to send FCM notification: ${response.statusCode}");
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text("Failed to send order to kitchen"),
@@ -336,7 +336,7 @@ void dispose() {
     }
     }
   } catch (e) {
-    debugPrint("Error sending FCM notification: $e");
+    //debugPrint("Error sending FCM notification: $e");
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text("Error sending order to kitchen: $e"),
@@ -356,13 +356,13 @@ Future<void> processSettleTables() async {
     final file = File("${dir.path}/pending_settle.json");
 
     if (!file.existsSync()) {
-      debugPrint("❌ pending_settle.json file not found");
+      //debugPrint("❌ pending_settle.json file not found");
       return;
     }
 
     final text = await file.readAsString();
 
-    debugPrint("pending_settle.json file $text");
+    //debugPrint("pending_settle.json file $text");
     if (text.isEmpty) return;
 
     final List<dynamic> settleList = jsonDecode(text);
@@ -378,7 +378,7 @@ Future<void> processSettleTables() async {
           final key = "table$tableNo";
           if (prefs.containsKey(key)) {
             await prefs.remove(key);
-            debugPrint("✅ Removed table $tableNo from SharedPreferences");
+            //debugPrint("✅ Removed table $tableNo from SharedPreferences");
             // -----------------------------
       // 5️⃣ Update ObjectBox table total
       // -----------------------------
@@ -404,12 +404,12 @@ Future<void> processSettleTables() async {
     final query = box.query(tableCart_.tableNo.equals(tableNo1)).build();
     tableCart? existingTableCart = query.findFirst();
     query.close();
-    debugPrint("✅ Updated cart for table #$tableNo in ObjectBox. existingTableCart $existingTableCart");
+    //debugPrint("✅ Updated cart for table #$tableNo in ObjectBox. existingTableCart $existingTableCart");
 
     // 5. If the cart is empty, remove the entry from the database
     if (existingTableCart != null) {
       box.remove(existingTableCart.id);
-      debugPrint("🗑️ Removed empty cart for table #$tableNo from ObjectBox.");
+      //debugPrint("🗑️ Removed empty cart for table #$tableNo from ObjectBox.");
     }
 
 
@@ -417,13 +417,13 @@ Future<void> processSettleTables() async {
 
         _loadTables(); // refresh UI
 
-        debugPrint("🔄 Updated ObjectBox table ${table.number}");
+        //debugPrint("🔄 Updated ObjectBox table ${table.number}");
       } else {
-        debugPrint("❌ No ObjectBox table found for number: $tableNo");
+        //debugPrint("❌ No ObjectBox table found for number: $tableNo");
       }
 
           } else {
-            debugPrint("⚠️ Table $tableNo key not found in SharedPreferences");
+            //debugPrint("⚠️ Table $tableNo key not found in SharedPreferences");
 
                final store = Provider.of<ObjectBoxService>(context, listen: false).store;
       final box = store.box<Active_Table_view>();
@@ -446,12 +446,12 @@ Future<void> processSettleTables() async {
     final query1 = box1.query(tableCart_.tableNo.equals(tableNo1)).build();
     tableCart? existingTableCart = query1.findFirst();
     query1.close();
-    debugPrint("✅ Updated cart for table #$tableNo in ObjectBox. existingTableCart $existingTableCart");
+    //debugPrint("✅ Updated cart for table #$tableNo in ObjectBox. existingTableCart $existingTableCart");
 
     // 5. If the cart is empty, remove the entry from the database
     if (existingTableCart != null) {
       box1.remove(existingTableCart.id);
-      debugPrint("🗑️ Removed empty cart for table #$tableNo from ObjectBox.");
+      //debugPrint("🗑️ Removed empty cart for table #$tableNo from ObjectBox.");
 
     }
 
@@ -463,11 +463,11 @@ Future<void> processSettleTables() async {
 
     // Clear the pending_settle.json file after processing
     await file.writeAsString("[]");
-    debugPrint("🧹 pending_settle.json cleared after processing");
+    //debugPrint("🧹 pending_settle.json cleared after processing");
 
     
   } catch (e) {
-    debugPrint("❌ Error processing settle tables: $e");
+    //debugPrint("❌ Error processing settle tables: $e");
   }
 }
 
@@ -477,12 +477,12 @@ Future<void> readAndSaveToPrefsforkot() async {
     final file = File("${dir.path}/pending_kot.json");
 
     if (!file.existsSync()) {
-      debugPrint("❌ pending_kot.json not found");
+      //debugPrint("❌ pending_kot.json not found");
       return;
     }
 
     final raw = await file.readAsString();
-    debugPrint("pending_kot File → $raw");
+    //debugPrint("pending_kot File → $raw");
 
     final List<dynamic> rootList = jsonDecode(raw);
 
@@ -555,18 +555,18 @@ Future<void> readAndSaveToPrefsforkot() async {
         if (existing != null) {
           existing.tCart = stringCart;
           cartBox.put(existing);
-          debugPrint("🟢 Updated ObjectBox Cart → Table $tNo");
+          //debugPrint("🟢 Updated ObjectBox Cart → Table $tNo");
 
 
         } else {
           final newCart = tableCart(tableNo: tNo, tCart: stringCart);
           cartBox.put(newCart);
-          debugPrint("🟢 Created ObjectBox Cart → Table $tNo");
+          //debugPrint("🟢 Created ObjectBox Cart → Table $tNo");
         }
       } else {
         if (existing != null) {
           cartBox.remove(existing.id);
-          debugPrint("🗑️ Deleted empty cart → Table $tNo");
+          //debugPrint("🗑️ Deleted empty cart → Table $tNo");
         }
       }
 
@@ -581,7 +581,7 @@ Future<void> readAndSaveToPrefsforkot() async {
       if (tableList.isNotEmpty) {
         
         updateTableTotal(tableList.first, finalList,skipFcm: true);
-        debugPrint("🔄 Updated Table Total → $tNo (skipFcm)");
+        //debugPrint("🔄 Updated Table Total → $tNo (skipFcm)");
       }
     }
 
@@ -590,11 +590,11 @@ Future<void> readAndSaveToPrefsforkot() async {
     await file.writeAsString(jsonEncode([]));
     lastKotHash = getMd5("[]");
 
-    debugPrint("🧹 pending_kot.json cleared successfully");
+    //debugPrint("🧹 pending_kot.json cleared successfully");
 
     if (mounted) setState(() => _loadTables());
   } catch (e) {
-    debugPrint("❌ Error → $e");
+    //debugPrint("❌ Error → $e");
   }
 }
 
@@ -605,12 +605,12 @@ Future<void> readAndSaveToPrefs() async {
     final file = File("${dir.path}/pending_kot.json");
 
     if (!file.existsSync()) {
-      debugPrint("❌ pending_kot.json not found");
+      //debugPrint("❌ pending_kot.json not found");
       return;
     }
 
     final raw = await file.readAsString();
-    debugPrint("pending_kot File → $raw");
+    //debugPrint("pending_kot File → $raw");
 
     final List<dynamic> rootList = jsonDecode(raw);
 
@@ -650,7 +650,7 @@ Future<void> readAndSaveToPrefs() async {
         try {
           combinedItems = List<Map<String, dynamic>>.from(jsonDecode(existing.tCart));
         } catch (e) {
-          debugPrint("Error decoding existing cart: $e");
+          //debugPrint("Error decoding existing cart: $e");
         }
       }
 
@@ -669,9 +669,9 @@ Future<void> readAndSaveToPrefs() async {
           combinedItems[existingIndex]['qty'] = oldQty + newQty;
           combinedItems[existingIndex]['total'] = (oldQty + newQty) * newPrice;
           
-          debugPrint("marge and Updated ${newItem['name']} qty to ${combinedItems[existingIndex]['qty']} total to ${combinedItems[existingIndex]['total']}");
+          //debugPrint("marge and Updated ${newItem['name']} qty to ${combinedItems[existingIndex]['qty']} total to ${combinedItems[existingIndex]['total']}");
         } else{
-          debugPrint("ITEM DOES NOT EXIST: Add new item $newItem");
+          //debugPrint("ITEM DOES NOT EXIST: Add new item $newItem");
           // ITEM DOES NOT EXIST: Add new item
           combinedItems.add(newItem);
         }
@@ -686,16 +686,16 @@ Future<void> readAndSaveToPrefs() async {
         if (existing != null) {
           existing.tCart = stringCartNew;
           cartBox.put(existing);
-          debugPrint("🟢 Merged ObjectBox Cart → Table $tNo");
+          //debugPrint("🟢 Merged ObjectBox Cart → Table $tNo");
         } else {
           final newCart = tableCart(tableNo: tNo, tCart: stringCartNew);
           cartBox.put(newCart);
-          debugPrint("🟢 Created new ObjectBox Cart → Table $tNo");
+          //debugPrint("🟢 Created new ObjectBox Cart → Table $tNo");
         }
       } else {
         if (existing != null) {
           cartBox.remove(existing.id);
-          debugPrint("🗑️ Deleted empty cart → Table $tNo");
+          //debugPrint("🗑️ Deleted empty cart → Table $tNo");
         }
       }
 
@@ -711,11 +711,11 @@ Future<void> readAndSaveToPrefs() async {
     await file.writeAsString(jsonEncode([]));
     lastKotHash = getMd5("[]");
 
-    debugPrint("🧹 pending_kot.json cleared successfully");
+    //debugPrint("🧹 pending_kot.json cleared successfully");
 
     if (mounted) setState(() => _loadTables());
   } catch (e) {
-    debugPrint("❌ Error → $e");
+    //debugPrint("❌ Error → $e");
   }
 }
 
@@ -892,11 +892,11 @@ void _addNewTable() {
   void updateTableTotal(Active_Table_view table, List<Map<String, dynamic>> cart, {bool skipFcm = false}) async {
     double newTotal = 0.0;
     
-    debugPrint("updateTableTotal called with skipFcm: $skipFcm $cart");
+    //debugPrint("updateTableTotal called with skipFcm: $skipFcm $cart");
     
     // Loop through each item in the cart
     for (final item in cart) {
-      debugPrint("item['sellPrice'], ${item['sellPrice']}");
+      //debugPrint("item['sellPrice'], ${item['sellPrice']}");
       final int quantity = int.parse(item['qty'].toString());
       final double price = double.parse(item['sellPrice'].toString());
       newTotal += price * quantity;
@@ -909,7 +909,7 @@ void _addNewTable() {
       table.total = newTotal;
       _tablesList.put(table); 
       _updateTableTimer(table.number, newTotal);
-      debugPrint("🔥 Table #${table.number} total updated → ₹${newTotal.toStringAsFixed(2)}");
+      //debugPrint("🔥 Table #${table.number} total updated → ₹${newTotal.toStringAsFixed(2)}");
       
       // 🔥 PREVENT THE LOOP: Only send FCM if NOT skipping (i.e., not from FCM update)
       if (!skipFcm) {
@@ -917,16 +917,16 @@ void _addNewTable() {
         final role = prefs.getString('role');
         
         if (role == 'cashier') {
-          debugPrint("💰 Cashier role detected → sending FCM notification");
+          //debugPrint("💰 Cashier role detected → sending FCM notification");
           await sendFcmNotification(context, cart, table.number);
         }
       } else {
-        debugPrint("⏭️ Skipping FCM notification (skipFcm=true)");
+        //debugPrint("⏭️ Skipping FCM notification (skipFcm=true)");
       }
       
       if (mounted) setState(() { });
     } else {
-      debugPrint("⏭️ Table #${table.number} total unchanged → ₹$oldTotal");
+      //debugPrint("⏭️ Table #${table.number} total unchanged → ₹$oldTotal");
     }
   }
 
@@ -986,7 +986,7 @@ void _addNewTable() {
     final query = box.query(tableCart_.tableNo.equals(tableNo)).build();
     tableCart? existingTableCart = await query.findFirst();
     query.close();
-    // debugPrint("✅ Updated cart for table #${existingTableCart!.tableNo} in ObjectBox. existingTableCart ${existingTableCart!.tCart}");
+    // //debugPrint("✅ Updated cart for table #${existingTableCart!.tableNo} in ObjectBox. existingTableCart ${existingTableCart!.tCart}");
     String? _cart1;
     if (existingTableCart != null) {
       // 4a. If it exists, update it
@@ -995,7 +995,7 @@ void _addNewTable() {
     
     // final prefs = await SharedPreferences.getInstance();
     // final jsonString = prefs.getString(key);
-    debugPrint("cart loded from the DB $_cart1");
+    //debugPrint("cart loded from the DB $_cart1");
     
     List<Map<String, dynamic>> existingCart = [];
     if (_cart1 != null) {
@@ -1004,7 +1004,7 @@ void _addNewTable() {
     }
 
     Map<String, dynamic> tt = await loadRecentTransactions(table);
-    debugPrint("table transections $tt");
+    //debugPrint("table transections $tt");
 
     try{
       final carttt = await Navigator.push(context, MaterialPageRoute(builder: (context) => DetailPage(cart1:existingCart,
@@ -1017,33 +1017,33 @@ void _addNewTable() {
       final query = box.query(tableCart_.tableNo.equals(tableNo)).build();
       tableCart? existingTableCart = query.findFirst();
       query.close();
-      debugPrint("✅ Updated cart for table #$tableNo in ObjectBox. existingTableCart $existingTableCart");
+      //debugPrint("✅ Updated cart for table #$tableNo in ObjectBox. existingTableCart $existingTableCart");
       String? _cart1;
       if (existingTableCart != null) {
         // 4a. If it exists, update it
         _cart1 = existingTableCart.tCart;
       }
       // String? _cart1 = existingTableCart.tCart ?? "";
-      debugPrint("item['sellPrice'] ${_cart1} cartProvider.cart ${(_cart1).runtimeType}");
+      //debugPrint("item['sellPrice'] ${_cart1} cartProvider.cart ${(_cart1).runtimeType}");
       if ((_cart1 ?? '').isEmpty || _cart1 == null) {
         updateTableTotal(table, [], skipFcm: true);
         _loadTables();
       } else {
         final cartProvider = Provider.of<CartProvider>(context, listen: false);
-        debugPrint("item['sellPrice'] ${cartProvider.cart.isNotEmpty} cartProvider.cart ${(cartProvider.cart).runtimeType}");
+        //debugPrint("item['sellPrice'] ${cartProvider.cart.isNotEmpty} cartProvider.cart ${(cartProvider.cart).runtimeType}");
         if (cartProvider.cart.isNotEmpty){
           updateTableTotal(table, cartProvider.cart,skipFcm: true);
           _loadTables();
         } else{
           final cart = jsonDecode(_cart1 ?? "[]");
           final cartData = List<Map<String, dynamic>>.from(cart); // Simpler conversion
-          debugPrint("item['sellPrice'] ${cartData} cartProvider.cart ${cartData.runtimeType}");
+          //debugPrint("item['sellPrice'] ${cartData} cartProvider.cart ${cartData.runtimeType}");
           updateTableTotal(table, cartData, skipFcm: true);
           _loadTables();
         }
       }
     } catch (e) {
-      debugPrint("Print error: $e");
+      //debugPrint("Print error: $e");
     } 
     
     // After returning from the page, update the table total
@@ -1079,7 +1079,7 @@ return Scaffold(
           await readAndSaveToPrefs();
           await processSettleTables();
           _loadTables();
-          debugPrint("✅ Sync completed");
+          //debugPrint("✅ Sync completed");
         },
       ),
 
@@ -1162,7 +1162,7 @@ return Scaffold(
                       itemCount: tablesInSecion.length,
                       itemBuilder: (ctx, tableIndex) {
                         final table = tablesInSecion[tableIndex];
-                        debugPrint("table ttqwertyu ${table.number} ${table.total}");
+                        //debugPrint("table ttqwertyu ${table.number} ${table.total}");
                         return GestureDetector(
                           onTap: () => _navigateToOrderPage(table),
                           onLongPress: () => _showDeleteDialog(table),

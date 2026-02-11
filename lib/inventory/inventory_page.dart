@@ -280,17 +280,19 @@ class _InventoryPageState extends State<InventoryPage> {
                 autofocus: true,
                 decoration:  InputDecoration(
                   hintText: '${AppLocalizations.of(context)!.searchItems}...',
+                  iconColor: Colors.white,
+                  // prefixIcon: const Icon(Icons.search),
                   border: InputBorder.none,
                   hintStyle: TextStyle(color: Colors.white70),
                 ),
                 style: const TextStyle(color: Colors.white, fontSize: 18),
               )
-            :  Text(AppLocalizations.of(context)!.itemList),
+            :  Text(AppLocalizations.of(context)!.itemList,style: TextStyle(color: Colors.white)),
         backgroundColor: themeProvider.primaryColor, // Colors.purple.shade700,
         actions: _isSearching
             ? [
                 IconButton(
-                  icon: const Icon(Icons.clear),
+                  icon: const Icon(Icons.clear,color: Colors.white,),
                   onPressed: () {
                     setState(() {
                       _searchController.clear();
@@ -301,7 +303,7 @@ class _InventoryPageState extends State<InventoryPage> {
               ]
             : [
                 IconButton(
-                  icon: const Icon(Icons.search),
+                  icon: const Icon(Icons.search,color: Colors.white,),
                   onPressed: () {
                     setState(() {
                       _isSearching = true;
@@ -516,8 +518,8 @@ class _InventoryPageState extends State<InventoryPage> {
           );
           _loadItems(); // Refresh after adding new item
         },
-        label: Text(AppLocalizations.of(context)!.newItem),
-        icon: const Icon(Icons.add),
+        label: Text(AppLocalizations.of(context)!.newItem,style: TextStyle(color: Colors.white),),
+        icon: const Icon(Icons.add, color: Colors.white),
         backgroundColor: themeProvider.primaryColor, //Colors.purple.shade700,
       ),
     );

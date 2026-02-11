@@ -38,7 +38,7 @@ class CartProvider extends ChangeNotifier {
       if (data != null && data.isNotEmpty) {
         _cart.clear();
         _cart = List<Map<String, dynamic>>.from(jsonDecode(data));
-        debugPrint("✅ Restored cart with ${_cart.length} items");
+        //debugPrint("✅ Restored cart with ${_cart.length} items");
         notifyListeners();
       }
     }
@@ -103,7 +103,7 @@ class CartProvider extends ChangeNotifier {
 
       // Check if item already exists in cart (same ID and portion)
       bool itemExists = false;
-      // debugPrint("cart item to set item is $cartItem");
+      // //debugPrint("cart item to set item is $cartItem");
       for (int i = 0; i < _cart.length; i++) {
         if (_cart[i]['id'] == cartItem['id'] && _cart[i]['portion'] == cartItem['portion'] && _cart[i]['name'] == cartItem['name']) {
           _cart[i]['qty'] = cartItem['qty'];
@@ -115,50 +115,50 @@ class CartProvider extends ChangeNotifier {
       }
 
       // If item doesn't exist, add it to cart
-      // debugPrint("asdfghjkl1");
+      // //debugPrint("asdfghjkl1");
       if (!itemExists) {
-        // debugPrint("asdfghjkl2");
+        // //debugPrint("asdfghjkl2");
         // Find the last index of an item with the same base name to group them.
         final newName = cartItem['name'] as String;
         final baseName = newName.contains('_') ? newName.substring(0, newName.lastIndexOf('_')) : newName;
-        // debugPrint("asdfghjkl3");
+        // //debugPrint("asdfghjkl3");
         final count = (_cart.where((cartItem) => (cartItem['name'] as String).startsWith(baseName)).length) - 1;
-        // debugPrint("asdfghjkl4");
+        // //debugPrint("asdfghjkl4");
         final baseName1 = count > 0  ? newName.substring(0, newName.lastIndexOf('_')) + '_${count}': newName.split("_")[0];
-        // debugPrint("asdfghjkl5");
+        // //debugPrint("asdfghjkl5");
         
 
-        // debugPrint("asdfghjkl5");
+        // //debugPrint("asdfghjkl5");
         int index = -1;
         for(int i = 0; i < _cart.length; i++){
-            // debugPrint("asdfghjkl ${_cart[i]['name']} $baseName1");
-            // debugPrint("asdfghjkl ${_cart[i]['name'] == baseName1 } $i");
+            // //debugPrint("asdfghjkl ${_cart[i]['name']} $baseName1");
+            // //debugPrint("asdfghjkl ${_cart[i]['name'] == baseName1 } $i");
             if(_cart[i]['name'] == baseName1){
               index = i;
               break;
             }
         }
 
-        // debugPrint("asdfghjkl6;${count} $newName ${count > 0} $index $baseName $baseName1 ");
+        // //debugPrint("asdfghjkl6;${count} $newName ${count > 0} $index $baseName $baseName1 ");
 
         if (index != -1) {
           // If found, insert the new item right after the last one.
           _cart.insert(index +1, cartItem);
           if (kDebugMode) {
-            debugPrint('Cart inserted successfully. Total items: ${_cart}');
+            //debugPrint('Cart inserted successfully. Total items: ${_cart}');
           }
         } else {
-          // debugPrint("asdfghjkl add item");
+          // //debugPrint("asdfghjkl add item");
           // Otherwise, add it to the end of the list.
           _cart.add(cartItem);
           if (kDebugMode) {
-            debugPrint('Cart added successfully. Total items: ${_cart}');
+            //debugPrint('Cart added successfully. Total items: ${_cart}');
           }
         }
       }
       // _cart.add(cartItem);
 
-      // debugPrint("cart item to set item is $item");
+      // //debugPrint("cart item to set item is $item");
 
       // Save updated cart
 
@@ -172,7 +172,7 @@ class CartProvider extends ChangeNotifier {
       
     } catch (e) {
       if (kDebugMode) {
-        debugPrint('\x1B[31m Error saving cart: $e \x1B[0m');
+        //debugPrint('\x1B[31m Error saving cart: $e \x1B[0m');
       }
     }
   }
@@ -215,25 +215,34 @@ class CartProvider extends ChangeNotifier {
     notifyListeners();
   }
 
+  void removeZeroQTYFromCart(){
+    final cartOld = List.from(_cart);
+    for (var item in cartOld) {
+      final qty = int.tryParse(item['qty'].toString()) ?? 0;
+      if (qty < 1) {
+        // print_log("Found qty is $qty");
+        removeFromCart(item['name'], 'half');
+      }
+    }
+  }
+
   void removeFromCart(String name, String portion, {int? tableNo}) {
     try {
       // Convert both to lowercase for case-insensitive comparison
       final targetPortion = portion.toLowerCase().trim();
-      //debugPrint(" $id $targetPortion");
+      //debugPrint("removeFromCart $targetPortion");
 
       _cart.removeWhere((item) {
         final itemName = item['name'];
-        final itemPortion = (item['portion']?.toString() ?? '')
-            .toLowerCase()
-            .trim();
-        debugPrint(" $itemName $itemPortion");
+        final itemPortion = (item['portion']?.toString() ?? '').toLowerCase().trim();
+        //debugPrint("removed item removeFromCart $itemName $itemPortion");
         return itemName == name && itemPortion == targetPortion;
       });
 
       notifyListeners();
-      debugPrint('Item removed from cart. Remaining items: ${_cart}');
+      //debugPrint('Item removed from cart. Remaining items: ${_cart}');
     } catch (e) {
-      debugPrint('Error removing item from cart: $e');
+      //debugPrint('Error removing item from cart: $e');
     }
   }
 
@@ -262,7 +271,7 @@ class CartProvider extends ChangeNotifier {
       if (_cart[i]['name'] == itemName && (_cart[i]['portion'].toString()).toLowerCase() == portion.toLowerCase()) {
         _cart[i]['qty'] = newQty;
         _cart[i]['total'] = _cart[i]['sellPrice'] * newQty;
-        debugPrint("Updated item in cart: $_cart");
+        //debugPrint("Updated item in cart: $_cart");
         notifyListeners();
         return; 
       }
@@ -270,12 +279,6 @@ class CartProvider extends ChangeNotifier {
 
     // Don't add an item with 0 or less quantity
     if (newQty <= 0) {
-      return;
-    }
-
-    // We must have the price and name to add a new item
-    if (sellPrice == null || itemName == null) {
-      debugPrint("Error: Cannot add new item. Price or name not provided.");
       return;
     }
     final Map<String, dynamic> cartItem;
@@ -302,7 +305,7 @@ class CartProvider extends ChangeNotifier {
 
 
     _cart.add(cartItem);
-    debugPrint("Added new item to cart: $_cart");
+    //debugPrint("Added new item to cart: $_cart");
     notifyListeners();
   }
 
@@ -337,7 +340,7 @@ class CartProvider extends ChangeNotifier {
 
   //     // Update local state
   //     // _cart.clear();
-  //     debugPrint('\x1B[31m (cartData is List<Map<String, dynamic>>) ${(cartData is List<Map<String, dynamic>>)} \x1B[0m');
+  //     //debugPrint('\x1B[31m (cartData is List<Map<String, dynamic>>) ${(cartData is List<Map<String, dynamic>>)} \x1B[0m');
   //     if(cartData is List<Map<String, dynamic>>){
   //       _cart = List.from(cartData);
   //     } else {
@@ -353,11 +356,11 @@ class CartProvider extends ChangeNotifier {
   //     notifyListeners();
 
   //     if (kDebugMode) {
-  //       debugPrint('External cart data loaded. Items: ${cartData.length}');
+  //       //debugPrint('External cart data loaded. Items: ${cartData.length}');
   //     }
   //   } catch (e) {
   //     if (kDebugMode) {
-  //       debugPrint('Error loading external cart: $e');
+  //       //debugPrint('Error loading external cart: $e');
   //     }
   //   }
   // }
@@ -408,7 +411,7 @@ class CartProvider extends ChangeNotifier {
               // Log a warning if an item in the list is not a map
               if (kDebugMode) {
                 final message = 'Warning: Non-map item found in cart data: $item';
-                debugPrint('\x1B[31m $message \x1B[0m');
+                //debugPrint('\x1B[31m $message \x1B[0m');
               }
               return null; // This item will be filtered out
             }
@@ -423,12 +426,12 @@ class CartProvider extends ChangeNotifier {
 
       if (kDebugMode) {
         final message = 'External cart data loaded. Items: ${_cart.length}';
-        debugPrint('\x1B[31m $message \x1B[0m');
+        //debugPrint('\x1B[31m $message \x1B[0m');
       }
     } catch (e) {
       if (kDebugMode) {
         final message = 'Error loading external cart: $e. Input: "$cartData"';
-        debugPrint('\x1B[31m $message \x1B[0m');
+        //debugPrint('\x1B[31m $message \x1B[0m');
       }
       // Optionally, reset the cart to a safe state
       // _cart = [];
@@ -456,13 +459,13 @@ class CartProvider extends ChangeNotifier {
       }
     } catch (e) {
       if (kDebugMode) {
-        debugPrint('Error calculating total: $e');
+        //debugPrint('Error calculating total: $e');
       }
       return 0;
     }
 
     if (kDebugMode) {
-      debugPrint('Cart total calculated: $total');
+      //debugPrint('Cart total calculated: $total');
     }
     return total;
   }
@@ -510,7 +513,7 @@ class CartProvider extends ChangeNotifier {
       await prefs.setString(key, cartJson);
     } catch (e) {
       if (kDebugMode) {
-        debugPrint('Error saving cart to prefs: $e');
+        //debugPrint('Error saving cart to prefs: $e');
       }
     }
   }
@@ -529,7 +532,7 @@ class CartProvider extends ChangeNotifier {
       }
     } catch (e) {
       if (kDebugMode) {
-        debugPrint('Error saving cart to prefs: $e');
+        //debugPrint('Error saving cart to prefs: $e');
       }
     }
   }

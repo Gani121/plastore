@@ -25,6 +25,7 @@ import 'package:provider/provider.dart';
 import '../database_Module/ObjectBoxService.dart';
 import '../database_Module/menu_item.dart';
 import '../objectbox.g.dart';
+import 'package:flutter/foundation.dart';
 
 // Create a secure storage instance (you can make this global or in a service)
 final FlutterSecureStorage secureStorage = const FlutterSecureStorage();
@@ -43,6 +44,7 @@ class _LoginPageState extends State<LoginPage> {
   bool _isLoading = false;
   bool _rememberMe = false;
   bool _obscurePassword = true;
+  final Dio _dio = Dio();
 
   String app_version = 'v1.2';
   final String _downloadUrl = 'http://nextorbitals.in/images/app-release.zip';
@@ -59,20 +61,19 @@ class _LoginPageState extends State<LoginPage> {
 
   }
 
-  // Future<void> hasSmsPermission() async {
-  //   if (!mounted) return;
-  //   // Initialize permissions
-  //   await PermissionUtils.requestAllPermissions();
-  //   // Check if permissions are granted before proceeding
-  //   final hasPermissions = await PermissionUtils.checkAllPermissions();
-  //   if (!hasPermissions) {
-  //     screen_massage(context, "Please ganter permissions to continue");
-  //     // await PermissionUtils.requestAllPermissions();
-  //   }
-  // }
+  Future<void> hasSmsPermission() async {
+    if (!mounted) return;
+    // Initialize permissions
+    // await PermissionUtils.requestAllPermissions();
+    // Check if permissions are granted before proceeding
+    final hasPermissions = await PermissionUtils.checkAllPermissions();
+    if (!hasPermissions) {
+      screen_massage(context, "Please ganter permissions to continue");
+      await PermissionUtils.requestAllPermissions();
+    }
+  }
 
   Future<void> _initializeFirebase() async {
-
         // Initialize Firebase
     await Firebase.initializeApp(
       options: DefaultFirebaseOptions.currentPlatform,
@@ -83,14 +84,6 @@ class _LoginPageState extends State<LoginPage> {
     FirebaseMessaging.onBackgroundMessage(
       NotificationService.backgroundHandler
     );
-      
-      
-    // final prefs = await SharedPreferences.getInstance();
-    
-    // // Get device token
-    // String? token = await FirebaseMessaging.instance.getToken();
-    // print_log("FCM Token: $token");
-    // await prefs.setString('device_id', token ?? "");
     
   }
 
@@ -212,7 +205,7 @@ class _LoginPageState extends State<LoginPage> {
         onReceiveProgress: (receivedBytes, totalBytes) {
           if (totalBytes != -1) {
             setState(() {
-              // debugPrint( 'receivedBytes $receivedBytes and totalBytes $totalBytes and ${downloadProgress*100}');
+              // //debugPrint( 'receivedBytes $receivedBytes and totalBytes $totalBytes and ${downloadProgress*100}');
               dialogSetState?.call(() {
                 downloadProgress = receivedBytes / totalBytes;
               });
@@ -228,13 +221,13 @@ class _LoginPageState extends State<LoginPage> {
         ),
       );
 
-      debugPrint("✅ File saved to: $savePath");
+      //debugPrint("✅ File saved to: $savePath");
 
       // Close the dialog and immediately start the installation
       // if (mounted) Navigator.of(context).pop();
       await _extractZip(savePath, downloadsDir);
     } catch (e) {
-      debugPrint("❌ Error during download/install: $e");
+      //debugPrint("❌ Error during download/install: $e");
       // if (mounted) Navigator.of(context).pop(); // Close dialog on error
       if (mounted) {
         ScaffoldMessenger.of(
@@ -247,14 +240,14 @@ class _LoginPageState extends State<LoginPage> {
   // Extract ZIP file
   Future<void> _extractZip(String zipPath, Directory destinationDir) async {
     try {
-      debugPrint("zipPath $zipPath");
+      //debugPrint("zipPath $zipPath");
 
       // Use the archive package to extract
       final inputStream = InputFileStream(zipPath);
       final archive = ZipDecoder().decodeStream(inputStream);
       extractArchiveToDisk(archive, destinationDir.path);
 
-      debugPrint("✅ ZIP extracted successfully to ${destinationDir.path}");
+      //debugPrint("✅ ZIP extracted successfully to ${destinationDir.path}");
 
       // ⭐ FIX: Safely find the .apk file instead of assuming the first file
       String apkPath = '${destinationDir.path}/app-release.apk';
@@ -263,7 +256,7 @@ class _LoginPageState extends State<LoginPage> {
         for (var entity in entities) {
           if (entity is File) {
             var pp = entity.path;
-            debugPrint("$i entity.path ${entity.path}");
+            //debugPrint("$i entity.path ${entity.path}");
             if (pp.contains('apk') || pp.contains('APK')) {
               apkPath = entity.path;
               break;
@@ -272,20 +265,14 @@ class _LoginPageState extends State<LoginPage> {
         }
       }
 
-      if (apkPath != null) {
-        await _installApp(apkPath, zipPath); // Pass zipPath for deletion
-      } else {
-        throw Exception(
-          "No .apk file found in the extracted contents. $apkPath",
-        );
-      }
-    } catch (e) {
+      await _installApp(apkPath, zipPath); // Pass zipPath for deletion
+        } catch (e) {
       throw Exception('Failed to extract ZIP file: $e');
     }
   }
 
   Future<void> _installApp(String apkPath, String zipPathToDelete) async {
-    debugPrint("Installer opening for: $apkPath");
+    //debugPrint("Installer opening for: $apkPath");
     // var toDelete = false;
     if (mounted) {
       showDialog(
@@ -324,14 +311,14 @@ class _LoginPageState extends State<LoginPage> {
 
   /// Deletes a directory and all its contents if it exists.
   Future<void> _deleteDirectory(Directory directory) async {
-    debugPrint("Attempting to delete directory: ${directory.path}");
+    //debugPrint("Attempting to delete directory: ${directory.path}");
     try {
       // 1. Check if the directory exists.
       if (await directory.exists()) {
         // 2. Delete the directory and all its contents.
         await directory.delete(recursive: true);
         if (mounted) {
-          debugPrint('🗑️ Directory cleaned up successfully');
+          //debugPrint('🗑️ Directory cleaned up successfully');
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
               content: Text('🗑️ Directory cleaned up successfully'),
@@ -341,7 +328,7 @@ class _LoginPageState extends State<LoginPage> {
       } else {
         // 3. Show a message if it doesn't exist.
         if (mounted) {
-          debugPrint('Directory not found, nothing to delete.');
+          //debugPrint('Directory not found, nothing to delete.');
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
               content: Text('Directory not found, nothing to delete.'),
@@ -365,7 +352,7 @@ class _LoginPageState extends State<LoginPage> {
       if (downloadsDir != null && await downloadsDir.exists()) {
         final List<FileSystemEntity> files = downloadsDir.listSync();
         final fileList = files.whereType<File>().toList();
-        debugPrint("fileList $fileList");
+        //debugPrint("fileList $fileList");
 
         if (fileList.isNotEmpty) {
           showDialog(
@@ -427,7 +414,7 @@ class _LoginPageState extends State<LoginPage> {
       "type":deviceModel13,"location":Platform.localeName,"numberOfProcessors":Platform.numberOfProcessors};
       // Print device details
       String deviceinfostring = jsonEncode(deviseInfo);
-      debugPrint('android version: $deviceinfostring');
+      //debugPrint('android version: $deviceinfostring');
 
       return deviseInfo;
       
@@ -477,28 +464,28 @@ class _LoginPageState extends State<LoginPage> {
             print_log('Response: ${response.body}');
           } else {
             print_log('Failed to save token ❌');
+            screen_massage(context, "🔥Token Failed to save");
             print_log('Status Code: ${response.statusCode}');
           }
         } catch (e) {
           print_log('Error while saving token: $e');
           }
       } else {
+        screen_massage(context, "🔥Token Failed to Generate");
         print_log('FCM token is null ❌');
       }
   }
 
 
-  Future<void> downloadHotelZip(BuildContext context, String hotelName) async {
+  Future<void> downloadHotelZip(String hotelName) async {
     try {
-      http.Response? apiResponse = await apiCalls("i", hotelName, {});
-        if (apiResponse == null) {
-          return;
-        }
+      // 1️⃣ Fetch filename from your API
+      // (Assuming your apiCalls still uses the http package for now)
+      var apiResponse = await apiCalls("i", hotelName, {});
+      if (apiResponse == null) return;
 
       if (apiResponse.statusCode != 200) {
-        throw Exception(
-          "❌ Failed to fetch filename: ${apiResponse.statusCode}",
-        );
+        throw Exception("❌ Failed to fetch filename: ${apiResponse.statusCode}");
       }
 
       final data = jsonDecode(apiResponse.body);
@@ -506,44 +493,55 @@ class _LoginPageState extends State<LoginPage> {
         throw Exception("❌ API error: ${data['message'] ?? 'Unknown error'}");
       }
 
-      final fileName = data['menu_filename']; // e.g., hotelA.zip
-      debugPrint("📥 Filename received from API: $fileName");
+      final fileId = data['menu_filename']; 
+      final downloadUrl = "https://drive.google.com/uc?export=download&id=$fileId";
+      //debugPrint("📥 Starting download for ID: $fileId");
 
-      final fileId = fileName; // Replace if you return a Google Drive ID directly
-      final downloadUrl = Uri.parse("https://drive.google.com/uc?export=download&id=$fileId",);
+      // 2️⃣ Download the ZIP using Dio
+      // We use ResponseType.bytes to get the data for ZipDecoder
+      final response = await _dio.get<List<int>>(
+        downloadUrl,
+        options: Options(
+          responseType: ResponseType.bytes,
+          headers: {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)',
+          },
+          followRedirects: true,
+        ),
+        onReceiveProgress: (received, total) {
+          if (total != -1) {
+            //debugPrint("Download Progress: ${(received / total * 100).toStringAsFixed(0)}%");
+          }
+        },
+      );
 
-      // 4️⃣ Download the ZIP
-      final response = await http.get(downloadUrl);
-      if (response.statusCode != 200) {
+      if (response.statusCode != 200 || response.data == null) {
         throw Exception("❌ HTTP Error: ${response.statusCode}");
       }
 
-      // 5️⃣ Save ZIP to temporary storage
-      final tempDir = await getTemporaryDirectory();
-      final zipFile = File("${tempDir.path}/$hotelName.zip");
-      await zipFile.writeAsBytes(response.bodyBytes);
+      final Uint8List bytes = Uint8List.fromList(response.data!);
 
+      // 3️⃣ Prepare Directories
       final picturesDir = (await getExternalStorageDirectories(
         type: StorageDirectory.pictures,
       ))?.first;
-      if (picturesDir == null) {
-        throw Exception("❌ Pictures directory unavailable");
-      }
+      
+      if (picturesDir == null) throw Exception("❌ Pictures directory unavailable");
 
       final extractDir = Directory("${picturesDir.path}/menu_images");
 
+      // Clean up old files
       if (!await extractDir.exists()) {
         await extractDir.create(recursive: true);
       } else {
         final files = extractDir.listSync();
         for (var file in files) {
-          if (file is File) {
-            await file.delete();
-          }
+          if (file is File) await file.delete();
         }
       }
 
-      final archive = ZipDecoder().decodeBytes(response.bodyBytes);
+      // 4️⃣ Extract ZIP
+      final archive = ZipDecoder().decodeBytes(bytes);
       int fileCount = 0;
 
       for (final file in archive) {
@@ -555,12 +553,9 @@ class _LoginPageState extends State<LoginPage> {
         }
       }
 
-      debugPrint("✅ Extracted $fileCount images to ${extractDir.path}");
+      //debugPrint("✅ Extracted $fileCount images to ${extractDir.path}");
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text("❌ Error while downloading images: $e")),
-      );
-      debugPrint("❌ Error while downloading images: $e");
+      //debugPrint("❌ Error while downloading images: $e");
     }
   }
 
@@ -572,11 +567,11 @@ class _LoginPageState extends State<LoginPage> {
       // ✅ Insert fresh items
       for (int i = 0; i < menuItems.length; i++) {
         final item = menuItems[i];
-        // debugPrint('💾 Saved item: ${item}');
+        // //debugPrint('💾 Saved item: ${item}');
         menuItemBox.put(item);
       }
     }else{
-      debugPrint("found menuItemBox is null in setting");
+      //debugPrint("found menuItemBox is null in setting");
     }
     // print("✅ Saved ${menuItems.length} fresh menu items");
   }
@@ -587,7 +582,7 @@ class _LoginPageState extends State<LoginPage> {
     Box<MenuItem> menuItemBox = store.box<MenuItem>();
     List<MenuItem> items_all = menuItemBox.getAll();
     
-    if(items_all != null && items_all.isEmpty){
+    if(items_all.isEmpty){
       print_log("menu Not found so download from server $items_all");
             // print("ApiCallPage started...");
       final prefs = await SharedPreferences.getInstance();
@@ -597,10 +592,10 @@ class _LoginPageState extends State<LoginPage> {
       if(role=="captain"){
         hotelName = getHotelIdentifier(username);
         // hotelName = username.split("_").sublist(0, username.split("_").length - 1).join("_");
-        debugPrint("hotelName $hotelName");
+        //debugPrint("hotelName $hotelName");
       }else{
          hotelName = username;
-         debugPrint("hotelName $hotelName");
+         //debugPrint("hotelName $hotelName");
       }
 
       try {
@@ -618,24 +613,35 @@ class _LoginPageState extends State<LoginPage> {
             List<MenuItem> menuItems = dataList.map((item) => MenuItem.fromJson(item)).toList();
             saveMenuItemsReliably(menuItems,menuItemBox);
 
-            downloadHotelZip(context, hotelName);
+            // final username = prefs.getString('username') ?? "";
+            //   final role = prefs.getString('role') ?? "";
+            //   var hotelName='';
+            //   if(role=="captain"){
+            //     hotelName = getHotelIdentifier(username);
+            //     // hotelName = username.split("_").sublist(0, username.split("_").length - 1).join("_");
+            //     //debugPrint("hotelName $hotelName");
+            //   }else{
+            //     hotelName = username;
+            //     //debugPrint("hotelName $hotelName");
+            //   }
+             await downloadHotelZip(hotelName);
             
             print_log("✅ Menu loaded from server: ${menuItems.length} items");
           } else {
             print_log("❌ 'data' is not a list");
           }
         } else {
-          debugPrint('HTTP Error: ${response.statusCode}: ${response.reasonPhrase}');
+          //debugPrint('HTTP Error: ${response.statusCode}: ${response.reasonPhrase}');
         }
       } catch (error) {
           screen_massage(context, "Device Not Connected ${error}");
-        debugPrint("❌ Error in ApiCallPage: $error");
+        //debugPrint("❌ Error in ApiCallPage: $error");
       }
     }
  }
 
   void _login() async {
-    // await hasSmsPermission();
+    await hasSmsPermission();
     try{
     final email = _emailController.text.trim();
     final password = _passwordController.text.trim();
@@ -650,7 +656,7 @@ class _LoginPageState extends State<LoginPage> {
         final Map<String, dynamic> deviceinfo = await getmodeldata();
         // final Map<String, dynamic> deviceinfo = {};
         String deviceinfostring = jsonEncode(deviceinfo);
-        debugPrint('android version: $deviceinfostring');
+        //debugPrint('android version: $deviceinfostring');
         final payload = {
           "username": email,
           "password": password,
@@ -660,18 +666,19 @@ class _LoginPageState extends State<LoginPage> {
         if (response == null) {
           return;
         }
-        debugPrint("server response ${response.statusCode} ${response.body} ");
+        //debugPrint("server response ${response.statusCode} ${response.body} ");
         if (response.statusCode == 200) {
-          debugPrint("Expiry remaining11 ");
+          //debugPrint("Expiry remaining11 ");
           final data = jsonDecode(response.body);
-          debugPrint("Expiry remaining12 ");
-          debugPrint("server response $data");
-          debugPrint("Expiry remaining13 ${data["success"] == true}");
+          print_log("Login response $data ");
+          //debugPrint("server response $data");
+          //debugPrint("Expiry remaining13 ${data["success"] == true}");
           if (data["success"] == true) {
-            debugPrint("Expiry remaining1 ");
+            //debugPrint("Expiry remaining1 ");
             final expiresAtStr = data['expires_at'];
             final app_Version = data['app_version'];
             final expiry_date1 = data['expiry_date'];
+            final adminPanel = data['adminPanel'];
 
             // 2. Parse allowed_device (Fixing the key if you meant 'allowed_device' instead of 'allowed_hotel')
             // If you actually meant to check 'allowed_hotel', keep it as is.
@@ -681,20 +688,22 @@ class _LoginPageState extends State<LoginPage> {
             final deviceCountVal = int.tryParse(data['device_count']?.toString() ?? "0") ?? 0;
 
             // 4. Print
-            debugPrint("--- DEBUGGING ---");
-            debugPrint("Allowed: $allowedDeviceVal (${allowedDeviceVal.runtimeType})");
-            debugPrint("Count: $deviceCountVal (${deviceCountVal.runtimeType})");
-            debugPrint("-----------------");
+            //debugPrint("--- DEBUGGING ---");
+            //debugPrint("Allowed: $allowedDeviceVal (${allowedDeviceVal.runtimeType})");
+            //debugPrint("Count: $deviceCountVal (${deviceCountVal.runtimeType})");
+            //debugPrint("-----------------");
 
             final expiryDate = DateTime.parse(expiresAtStr);
             await prefs.setString('expiresAtStr', expiresAtStr);
             final expiry_Date = DateTime.parse(expiry_date1);
             await prefs.setString('expiry_date', expiry_date1);
+            await prefs.setString('adminPanel', adminPanel);
+            // print_log("adminPanel ${await prefs.getString('adminPanel')}");
             final extendedExpiry = expiryDate.add(Duration(days: 365));
             final now = DateTime.now();
             final difference = extendedExpiry.difference(now).inDays;
             final role = data['role'];
-            debugPrint("Expiry remaining3 ");
+            //debugPrint("Expiry remaining3 ");
             await prefs.setString('role', role);
 
             // Create a date-only version of "today" by setting the time to midnight
@@ -705,27 +714,18 @@ class _LoginPageState extends State<LoginPage> {
 
             // This will be TRUE if the expiry date is any day before today.
             final bool isExpiryToday = expiryDateOnly.isBefore(today);
-            debugPrint("Expiry remaining4 ");
-            debugPrint("Expiry remaining $difference");
-            debugPrint("Expiry remaining ${prefs.getString('expiry_date')}  isExpiryToday $isExpiryToday");
-            debugPrint("Check to download ${(app_Version != app_version)}");
-            debugPrint("Check to download $app_Version == $app_version");
+            //debugPrint("Expiry remaining4 ");
+            //debugPrint("Expiry remaining $difference");
+            //debugPrint("Expiry remaining ${prefs.getString('expiry_date')}  isExpiryToday $isExpiryToday");
+            //debugPrint("Check to download ${(app_Version != app_version)}");
+            //debugPrint("Check to download $app_Version == $app_version");
             // try{
-            debugPrint("Check to allowed_device $deviceCountVal ${allowedDeviceVal <= deviceCountVal} == ${allowedDeviceVal}");
+            //debugPrint("Check to allowed_device $deviceCountVal ${allowedDeviceVal <= deviceCountVal} == ${allowedDeviceVal}");
             // }catch(e){
-            //   debugPrint("🔴 RAW RESPONSE: $e");
-            //   debugPrint("Expiry remaining1 $e");
+            //   //debugPrint("🔴 RAW RESPONSE: $e");
+            //   //debugPrint("Expiry remaining1 $e");
             // }
-            if (app_Version != app_version) {
-              debugPrint("app_Version $app_Version");
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(
-                  content: Text("App version mismatch. Please update your app.",),
-                ),
-              );
-              // _downloadFile();
-              _downloadNewApp(app_Version);
-            } else if (isExpiryToday) {
+            if (isExpiryToday) {
               ScaffoldMessenger.of(context).showSnackBar(
                 SnackBar(content: Text("Your subscription has expired."),
                 duration: Duration(minutes :1),),
@@ -740,9 +740,9 @@ class _LoginPageState extends State<LoginPage> {
               return;
             } 
             else {
-              debugPrint("Expiry remaining5 ");
+              //debugPrint("Expiry remaining5 ");
               if (_rememberMe) {
-                debugPrint("Expiry remaining5 ");
+                //debugPrint("Expiry remaining5 ");
                 await prefs.setString(AppConstants.usernameKey, email);
                 await prefs.setString('password', password);
                 await prefs.setBool('remember_me', true);
@@ -764,7 +764,7 @@ class _LoginPageState extends State<LoginPage> {
                 await secureStorage.delete(key: 'expiry_Date');
               }
               loadMenu();
-              // final prefs = await SharedPreferences.getInstance();
+              
               final captain = prefs.getBool('startcaptain') ?? false;
               print_log("Captain $captain");
               if(captain){
@@ -772,19 +772,17 @@ class _LoginPageState extends State<LoginPage> {
                 // loadToken();
               }
               if (role == 'captain') {
-                // final allowedHotelStr =data['allowed_hotel']; // "gk,pradeep,tk,etc"
-                // final allowedHotels = allowedHotelStr.split(',',); // ['gk', 'pradeep', 'tk', 'etc']
+
                 await _initializeFirebase().then((value)=> loadToken());
                 
                 Navigator.pushReplacement(
                   context,
                   MaterialPageRoute(
-                    builder: (context) =>
-                       TableView()
+                    builder: (context) => const TableView(),
                   ),
                 );
               } else {
-                debugPrint("Expiry remaining6");
+                //debugPrint("Expiry remaining6");
                 Navigator.pushReplacement(context,
                   MaterialPageRoute(
                     builder: (context) => const DostiKitchenPage(),
@@ -799,12 +797,12 @@ class _LoginPageState extends State<LoginPage> {
           }
         }
       } catch (e) {
-        debugPrint("🔴 RAW RESPONSE: $e");
+        //debugPrint("🔴 RAW RESPONSE: $e");
         
         final prefs = await SharedPreferences.getInstance();
         final expiresAtStr = prefs.getString('expiresAtStr');
         final expiry_Date =  prefs.getString('expiry_date');
-        debugPrint("Expiry remaining $expiry_Date expiresAtStr $expiresAtStr ");
+        //debugPrint("Expiry remaining $expiry_Date expiresAtStr $expiresAtStr ");
 
         if (expiry_Date == null) {
           ScaffoldMessenger.of(context).showSnackBar(
@@ -825,12 +823,12 @@ class _LoginPageState extends State<LoginPage> {
         final bool isExpiryToday = expiryDateOnly.isBefore(today);
         
 
-        debugPrint("Expiry remaining $expiryDate  isExpiryToday $isExpiryToday");
+        //debugPrint("Expiry remaining $expiryDate  isExpiryToday $isExpiryToday");
 
         final expiryDate1 = DateTime.parse(expiresAtStr!);
         final extendedExpiry = expiryDate1.add(Duration(days: 365));
         final difference = extendedExpiry.difference(now).inDays;
-        debugPrint("Expiry remaining $difference");
+        //debugPrint("Expiry remaining $difference");
         
 
         if (isExpiryToday) {
@@ -840,7 +838,7 @@ class _LoginPageState extends State<LoginPage> {
             duration: Duration(minutes :1),),
           );
         } else {
-          debugPrint("Expiry remaining7");
+          //debugPrint("Expiry remaining7");
           Navigator.pushReplacement(
             context,
             MaterialPageRoute(builder: (context) => const DostiKitchenPage()),
@@ -853,7 +851,7 @@ class _LoginPageState extends State<LoginPage> {
       }
     }
     }catch(e){
-      debugPrint("🔴 RAW RESPONSE: $e");
+      //debugPrint("🔴 RAW RESPONSE: $e");
       // ❌ Subscription expired
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text("exception login $e"),

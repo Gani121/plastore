@@ -34,7 +34,7 @@ class _AddPartyPageState extends State<AddPartyPage> {
   // Dropdown selections
   String? selectedCategory;
   String? billingTerm;
-  String? billingType;
+  String? billingType = "REGULAR";
 
   // Switches
   bool sendWhatsApp = false;
@@ -177,7 +177,18 @@ class _AddPartyPageState extends State<AddPartyPage> {
   Widget _buildTextField(String label, TextEditingController controller,
       [IconData? icon,
       TextInputType inputType = TextInputType.text,
-      bool isRequired = true]) {
+      bool isRequired = true,
+      String? initialValue]) {  // Add this parameter
+    
+    // If initialValue is provided and controller is empty, set it
+    if (initialValue != null && controller.text.isEmpty) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) {
+          controller.text = initialValue;
+        }
+      });
+    }
+    
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 8),
       child: TextFormField(
@@ -196,24 +207,37 @@ class _AddPartyPageState extends State<AddPartyPage> {
     );
   }
 
-  Widget _buildDropdown(String label, List<String> options,
-      Function(String?) onChanged, String? currentValue,
-      {bool isRequired = true}) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 8),
-      child: DropdownButtonFormField<String>(
-        value: currentValue,
-        decoration: InputDecoration(
-          labelText: isRequired ? "$label *" : label,
-          border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
-        ),
-        // All items must have unique, non-null values
-        items: options.map((opt) => DropdownMenuItem<String>(value: opt, child: Text(opt))).toList(),
-        onChanged: onChanged,
-        validator: isRequired ? (value) => value == null || value!.isEmpty ? "Select $label" : null : null,
+Widget _buildDropdown(String label, List<String> options,
+    Function(String?) onChanged, String? currentValue,
+    {bool isRequired = true, String? defaultValue}) {  // Add defaultValue parameter
+  
+  // Use defaultValue if currentValue is null/empty
+  final String? valueToUse = currentValue?.isNotEmpty == true 
+      ? currentValue 
+      : defaultValue;
+  
+  return Padding(
+    padding: const EdgeInsets.symmetric(vertical: 8),
+    child: DropdownButtonFormField<String>(
+      value: valueToUse,
+      decoration: InputDecoration(
+        labelText: isRequired ? "$label *" : label,
+        border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+        contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
       ),
-    );
-  }
+      items: options.map((opt) => 
+        DropdownMenuItem<String>(
+          value: opt,
+          child: Text(opt),
+        )
+      ).toList(),
+      onChanged: onChanged,
+      validator: isRequired ? (value) {
+        return value == null || value.isEmpty ? "Select $label" : null;
+      } : null,
+    ),
+  );
+}
 
   Future<void> _selectDate(BuildContext context) async {
     // Initial date should be the date in the controller or today
@@ -284,7 +308,7 @@ class _AddPartyPageState extends State<AddPartyPage> {
               _buildDropdown("Billing Term", ["7 Days", "15 Days", "30 Days"],
                   (val) => setState(() => billingTerm = val), billingTerm, isRequired: false),
               _buildDropdown("Billing Type", ["REGULAR", "AC", "Non-Ac", "online-sale", "online Delivery Price (parcel)"],
-                  (val) => setState(() => billingType = val), billingType, isRequired: true),
+                  (val) => setState(() => billingType = val), billingType, isRequired: true,defaultValue:"REGULAR"),
               
               // *** FIXED DROPDOWN IMPLEMENTATION ***
               _buildDropdown(

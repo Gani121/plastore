@@ -15,7 +15,7 @@ class ThemeProvider extends ChangeNotifier {
     _primaryColor = color;
     notifyListeners();
     final prefs = await SharedPreferences.getInstance();
-    await prefs.setInt('primaryColor', color.value);
+    await prefs.setInt('primaryColor', color.toARGB32());
   }
 
   void _loadThemeColor() async {

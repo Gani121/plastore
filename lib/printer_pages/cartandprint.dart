@@ -174,7 +174,7 @@ Future<void> _captureAndPrint() async {
       // 1. Check among already connected system devices for speed
       // var connectedDevices = await FlutterBluePlus.connectedSystemDevices; //.connectedSystemDevices;
       // for (var d in connectedDevices) {
-      //     debugPrint("d remoteId ${d.remoteId} ");
+      //     //debugPrint("d remoteId ${d.remoteId} ");
       //     if (d.remoteId.toString() == _targetPrinterAddress) {
       //         device = d;
       //         print("✅ Printer found among connected devices.");
@@ -183,28 +183,26 @@ Future<void> _captureAndPrint() async {
       // }
 
       // 2. If not found, start scanning to find the printer
-      if (device == null) {
-          print("Printer not connected. Starting scan...");
-          await FlutterBluePlus.startScan(timeout: const Duration(seconds: 5));
+        print("Printer not connected. Starting scan...");
+        await FlutterBluePlus.startScan(timeout: const Duration(seconds: 5));
 
-          // Listen to scan results
-          await for (List<ScanResult> results in FlutterBluePlus.scanResults) {
-            print("✅ Printer found via scan.$results");
-              for (ScanResult r in results) {
-                print("✅ Printer found via scan. $r");
-                  if (r.device.remoteId.toString() == _targetPrinterAddress) {
-                      device = r.device;
-                      print("✅ Printer found via scan.");
-                      break; // Exit inner loop
-                  }
-              }
-              if (device != null) {
-                  break; // Exit stream listener
-              }
-          }
-          await FlutterBluePlus.stopScan();
-      }
-
+        // Listen to scan results
+        await for (List<ScanResult> results in FlutterBluePlus.scanResults) {
+          print("✅ Printer found via scan.$results");
+            for (ScanResult r in results) {
+              print("✅ Printer found via scan. $r");
+                if (r.device.remoteId.toString() == _targetPrinterAddress) {
+                    device = r.device;
+                    print("✅ Printer found via scan.");
+                    break; // Exit inner loop
+                }
+            }
+            if (device != null) {
+                break; // Exit stream listener
+            }
+        }
+        await FlutterBluePlus.stopScan();
+    
       if (device == null) {
         throw Exception("Printer not found.\nPlease ensure it is turned on and in range.");
       }

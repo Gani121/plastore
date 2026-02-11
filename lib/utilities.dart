@@ -33,6 +33,7 @@ class AppConstants {
   static String businessDateKey = 'businessDate';
   static String usernameKey = "username";
   static String appPasswordKey = "app_password";
+  static DateTime? businessDate;
   
   AppConstants._();
 
@@ -49,10 +50,10 @@ class AppConstants {
       final dir = await getApplicationDocumentsDirectory();
       // objectbox_path = '${(dir1 ?? dir).path}/objectbox';
       objectbox_path = '${dir.path}/objectbox';
-      debugPrint(packageInfo.toString());
-      debugPrint("✅ AppConstants initialized: $test_version,$buildNumber, $app_version $objectbox_path");
+      //debugPrint(packageInfo.toString());
+      //debugPrint("✅ AppConstants initialized: $test_version,$buildNumber, $app_version $objectbox_path");
     } catch (e) {
-      debugPrint("⚠️ Failed to load package info: $e");
+      //debugPrint("⚠️ Failed to load package info: $e");
     }
   }
 
@@ -87,9 +88,11 @@ void print_log_red(String massage){
 }
 
 void screen_massage(BuildContext context,String massage){
-  ScaffoldMessenger.of(context).showSnackBar(
-    SnackBar(content: Text("$massage.")),
-  );
+  if(context.mounted){
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text("$massage.")),
+    );
+  }
 }
 
 String getHotelIdentifier(String username) {
@@ -321,7 +324,7 @@ Future<http.Response?> apiCalls(
 /// 
 /// businessDateKey - 'businessDate'
 /// 
-Future<DateTime> getBussinessDate() async {
+Future<DateTime> getBussinessDateStorage() async {
   final prefs = await SharedPreferences.getInstance();
   final businessDateString = prefs.getString(AppConstants.businessDateKey) ?? DateTime.now().toString();
   final now = DateTime.now();

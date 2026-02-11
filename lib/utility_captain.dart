@@ -31,9 +31,9 @@
 // //       test_version = packageInfo.packageName; 
 // //       app_version = packageInfo.version;
 
-// //       debugPrint("✅ AppConstants initialized: $test_version, $app_version");
+// //       //debugPrint("✅ AppConstants initialized: $test_version, $app_version");
 // //     } catch (e) {
-// //       debugPrint("⚠️ Failed to load package info: $e");
+// //       //debugPrint("⚠️ Failed to load package info: $e");
 // //     }
 // //   }
 

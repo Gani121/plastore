@@ -24,7 +24,7 @@ class PermissionUtils {
           .map((entry) => entry.key)
           .toList();
       
-      debugPrint('Denied permissions: $deniedPermissions');
+      //debugPrint('Denied permissions: $deniedPermissions');
       
       // Show dialog to explain why permissions are needed
       await _showPermissionRationaleDialog(deniedPermissions);
@@ -38,10 +38,10 @@ class PermissionUtils {
     
     // Always required
     final List<Permission> permissions = [
-      // Permission.notification,
-      // Permission.bluetooth,
-      // Permission.bluetoothConnect,
-      // Permission.bluetoothScan,
+      Permission.notification,
+      Permission.bluetooth,
+      Permission.bluetoothConnect,
+      Permission.bluetoothScan,
       // Permission.sms,
       // Permission.storage,
       // Permission.contacts,
