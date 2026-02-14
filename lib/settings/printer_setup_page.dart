@@ -326,7 +326,7 @@ Future<void> _connectPrinter() async {
     if (_isTesting) {
       ScaffoldMessenger.of(
         context,
-      ).showSnackBar(SnackBar(content: Text("⏳ Test already in progress...")));
+      ).showSnackBar(SnackBar(content: Text("⏳ Test already in progress..."),duration: Duration(milliseconds: 400),));
       return;
     }
 
@@ -335,8 +335,7 @@ Future<void> _connectPrinter() async {
       _isTesting = true;
       ScaffoldMessenger.of(
         context,
-      ).showSnackBar(SnackBar(content: Text("⏳ Test Print in progress..."),
-      duration: Duration(seconds :10),));
+      ).showSnackBar(SnackBar(content: Text("⏳ Test Print in progress..."),duration: Duration(milliseconds: 400),));
     });
 
     try {
@@ -344,7 +343,7 @@ Future<void> _connectPrinter() async {
       await printer.connect(_selectedDevice!);
 
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text("🔌 Connected to ${_selectedDevice!.name}")),
+        SnackBar(content: Text("🔌 Connected to ${_selectedDevice!.name}"),duration: Duration(milliseconds: 400)),
       );
 
       // 2️⃣ Wait for connection to be stable
@@ -354,11 +353,13 @@ Future<void> _connectPrinter() async {
       printer.printCustom("✅ BILL PRINTER Test", 1, 1);
       printer.printNewLine();
       printer.printNewLine();
+      printer.printNewLine();
+      printer.printNewLine();
 
       ScaffoldMessenger.of(context,).showSnackBar(SnackBar(content: Text("🖨️ Test print sent")));
       
     } catch (e) {
-      print("❌ Connection/Print error: $e");
+      print_log_red("❌ Connection/Print error: $e");
       ScaffoldMessenger.of(
         context,
       ).showSnackBar(SnackBar(content: Text("❌ Error: $e")));
@@ -391,7 +392,7 @@ Future<void> _connectKOTPrinter() async {
     if (_isTesting) {
       ScaffoldMessenger.of(
         context,
-      ).showSnackBar(SnackBar(content: Text("⏳ Test already in progress...")));
+      ).showSnackBar(SnackBar(content: Text("⏳ Test already in progress..."),duration: Duration(milliseconds: 400)));
       return;
     }
 
@@ -400,21 +401,22 @@ Future<void> _connectKOTPrinter() async {
       _isTesting = true;
       ScaffoldMessenger.of(
         context,
-      ).showSnackBar(SnackBar(content: Text("⏳ Test Print in progress..."),
-      duration: Duration(seconds :10),));
+      ).showSnackBar(SnackBar(content: Text("⏳ Test Print in progress..."),duration: Duration(milliseconds: 400),));
     });
 
     try {
       await printer.connect(_selectedKOTDevice!);
 
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text("🔌 Connected to ${_selectedKOTDevice!.name}")),
+        SnackBar(content: Text("🔌 Connected to ${_selectedKOTDevice!.name}"),duration: Duration(milliseconds: 400)),
       );
 
       await Future.delayed(Duration(seconds: 2));
 
       printer.printNewLine();
       printer.printCustom("🔥 KOT PRINTER Test", 1, 1);
+      printer.printNewLine();
+      printer.printNewLine();
       printer.printNewLine();
       printer.printNewLine();
 
@@ -454,7 +456,7 @@ Future<void> _connectKOTPrinter() async {
       try {
         await device.connect(license:bl.License.free);
       } catch (e) {
-        print("Connect error (might be ignored): $e");
+        print_log("Connect error (might be ignored): $e");
       }
 
       List<bl.BluetoothService> services = await device.discoverServices();
@@ -485,7 +487,7 @@ Future<void> _connectKOTPrinter() async {
       
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("✅ Found ${_availableUUIDs.length} writable UUIDs")));
     } catch (e) {
-      print("❌ Error scanning UUIDs: $e");
+      print_log("❌ Error scanning UUIDs: $e");
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("❌ Error scanning UUIDs: $e")));
     } finally {
       setState(() {

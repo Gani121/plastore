@@ -6,11 +6,11 @@ plugins {
 }
 
 android {
-    namespace = "com.orbipay.test8" 
+    namespace = "com.orbipay.test6" 
     compileSdk = 36
 
     defaultConfig {
-        applicationId = "com.orbipay.test8" 
+        applicationId = "com.orbipay.test6" 
         minSdk = flutter.minSdkVersion
         targetSdk = 36
         versionCode = 7

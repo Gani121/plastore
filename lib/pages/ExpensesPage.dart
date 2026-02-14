@@ -1128,14 +1128,6 @@ class ExpensesService {
     final Map<DateTime, double> daywiseTotals = {};
 
     try {
-      // final prefs = await SharedPreferences.getInstance();
-      // late Store store = Provider.of<ObjectBoxService>(context, listen: false).store;
-      // final box = store.box<expences>();
-        // box.remove(id);
-      // final prefs = await SharedPreferences.getInstance();
-      // final expensesJson = prefs.getStringList('expenses') ?? [];
-      // final expensesJson = box.getAll();
-      // final expensesJson = prefs.getStringList('expenses') ?? [];
 
       for (final expenseJson in expensesJson) {
         try {
@@ -1143,26 +1135,23 @@ class ExpensesService {
           final expense = Expense.fromMap(map);
 
           // Normalize the date to remove time component
-          final dateOnly = DateTime(
-            expense.date.year,
-            expense.date.month,
-            expense.date.day,
-          );
-
+          final dateOnly = DateTime(expense.date.year,expense.date.month,expense.date.day,);
+          // print_log_red('Error parsing expense: ${expenseJson.runtimeType} ${expenseJson.toString()}');
           daywiseTotals.update(
             dateOnly,
             (value) => value + expense.amount,
             ifAbsent: () => expense.amount,
           );
+          // print_log_red('Error parsing expense: ${daywiseTotals.runtimeType} ${daywiseTotals.toString()}');
         } catch (e) {
-          //debugPrint('Error parsing expense: $e');
+          print_log_red('Error parsing expense: $e');
         }
       }
 
       // Sort by date (most recent first)
       final sortedEntries = daywiseTotals.entries.toList()
         ..sort((a, b) => b.key.compareTo(a.key));
-
+      // print_log_red('Error parsing expense: ${sortedEntries.runtimeType} ${sortedEntries}');
       return Map.fromEntries(sortedEntries);
     } catch (e) {
       //debugPrint('Error getting daywise expenses: $e');

@@ -1,5 +1,6 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:image_picker/image_picker.dart';
 import '../database_Module/menu_item.dart';
 import 'package:objectbox/objectbox.dart';
@@ -31,6 +32,7 @@ class _AddItemPageState extends State<AddItemPage> {
   final _formKey = GlobalKey<FormState>();
   late final Box<MenuItem> _menuItemBox;
 
+  bool _isProcessing = false;
   File? _image;
   final picker = ImagePicker();
   String? _imagePath;
@@ -263,70 +265,74 @@ class _AddItemPageState extends State<AddItemPage> {
 
   Future<void> _saveItem() async {
     if (_formKey.currentState!.validate()) {
+      setState(() {
+        _isProcessing = true;
+      });
+      try {
       final isEditing = widget.item != null;
       MenuItem menuItem;
       if(isEditing){
         menuItem = MenuItem(
         id: widget.item!.id,
-        name: nameController.text,
-        sellPrice: sellPriceController.text,
-        sellPriceType: sellPriceType,
-        category: selectedCategory ?? '',
-        mrp: mrpController.text,
-        purchasePrice: purchasePriceController.text,
-        acSellPrice: acSellPrice1Controller.text,
-        acSellPriceHalf:acSellPrice1ControllerHalf.text,
-        nonAcSellPrice: nonAcSellPrice1Controller.text,
-        nonAcSellPriceHalf:nonAcSellPrice1ControllerHalf.text,
-        onlineDeliveryPrice: onlineDeliveryPriceController.text,
-        onlineDeliveryPriceHalf:onlineDeliveryPriceControllerHalf.text,
-        onlineSellPrice: onlineSellPriceController.text,
-        onlineSellPriceHalf:onlineSellPriceControllerHalf.text,
-        hsnCode: hsnCodeController.text,
-        itemCode: itemCodeController.text,
-        barCode: barCodeController.text,
-        barCode2: barCode2Controller.text,
-        imagePath: _imagePath,
-        available: int.tryParse(availableController.text) ?? 1,
-        adjustStock: int.tryParse(adjustStockController.text),
-        gstRate: double.tryParse(_gstRateController.text) ?? 0.0,
-        cessRate: double.tryParse(_cessRateController.text) ?? 0.0,
-        withTax: bool.tryParse(_withTaxController.text) ?? false,
-        f_price: fullPriceController.text,
-        h_price: halfPriceController.text,
-        reserved_field : description.text,
+        name: nameController.text.trim(),
+        sellPrice: sellPriceController.text.trim(),
+        sellPriceType: sellPriceType.trim(),
+        category: (selectedCategory ?? '').trim(),
+        mrp: mrpController.text.trim(),
+        purchasePrice: purchasePriceController.text.trim(),
+        acSellPrice: acSellPrice1Controller.text.trim(),
+        acSellPriceHalf:acSellPrice1ControllerHalf.text.trim(),
+        nonAcSellPrice: nonAcSellPrice1Controller.text.trim(),
+        nonAcSellPriceHalf:nonAcSellPrice1ControllerHalf.text.trim(),
+        onlineDeliveryPrice: onlineDeliveryPriceController.text.trim(),
+        onlineDeliveryPriceHalf:onlineDeliveryPriceControllerHalf.text.trim(),
+        onlineSellPrice: onlineSellPriceController.text.trim(),
+        onlineSellPriceHalf:onlineSellPriceControllerHalf.text.trim(),
+        hsnCode: hsnCodeController.text.trim(),
+        itemCode: itemCodeController.text.trim(),
+        barCode: barCodeController.text.trim(),
+        barCode2: barCode2Controller.text.trim(),
+        imagePath: (_imagePath ?? "").trim(),
+        available: int.tryParse(availableController.text.trim()) ?? 1,
+        adjustStock: int.tryParse(adjustStockController.text.trim()),
+        gstRate: double.tryParse(_gstRateController.text.trim()) ?? 0.0,
+        cessRate: double.tryParse(_cessRateController.text.trim()) ?? 0.0,
+        withTax: bool.tryParse(_withTaxController.text.trim()) ?? false,
+        f_price: fullPriceController.text.trim(),
+        h_price: halfPriceController.text.trim(),
+        reserved_field : description.text.trim(),
       );
       }else{
 
          menuItem = MenuItem(
         // id: isEditing ? widget.item!.id : itemCodeController.text ?? 0,
-        name: nameController.text,
-        sellPrice: sellPriceController.text,
-        sellPriceType: sellPriceType,
-        category: selectedCategory ?? '',
-        mrp: mrpController.text,
-        purchasePrice: purchasePriceController.text,
-        acSellPrice: acSellPrice1Controller.text,
-        acSellPriceHalf:acSellPrice1ControllerHalf.text,
-        nonAcSellPrice: nonAcSellPrice1Controller.text,
-        nonAcSellPriceHalf:nonAcSellPrice1ControllerHalf.text,
-        onlineDeliveryPrice: onlineDeliveryPriceController.text,
-        onlineDeliveryPriceHalf:onlineDeliveryPriceControllerHalf.text,
-        onlineSellPrice: onlineSellPriceController.text,
-        onlineSellPriceHalf:onlineSellPriceControllerHalf.text,
-        hsnCode: hsnCodeController.text,
-        itemCode: itemCodeController.text,
-        barCode: barCodeController.text,
-        barCode2: barCode2Controller.text,
-        imagePath: _imagePath,
-        available: int.tryParse(availableController.text) ?? 1,
-        adjustStock: int.tryParse(adjustStockController.text),
-        gstRate: double.tryParse(_gstRateController.text) ?? 0.0,
-        cessRate: double.tryParse(_cessRateController.text) ?? 0.0,
-        withTax: bool.tryParse(_withTaxController.text) ?? false,
-        f_price: fullPriceController.text,
-        h_price: halfPriceController.text,
-        reserved_field : description.text,
+        name: nameController.text.trim(),
+        sellPrice: sellPriceController.text.trim(),
+        sellPriceType: sellPriceType.trim(),
+        category: (selectedCategory ?? '').trim(),
+        mrp: mrpController.text.trim(),
+        purchasePrice: purchasePriceController.text.trim(),
+        acSellPrice: acSellPrice1Controller.text.trim(),
+        acSellPriceHalf:acSellPrice1ControllerHalf.text.trim(),
+        nonAcSellPrice: nonAcSellPrice1Controller.text.trim(),
+        nonAcSellPriceHalf:nonAcSellPrice1ControllerHalf.text.trim(),
+        onlineDeliveryPrice: onlineDeliveryPriceController.text.trim(),
+        onlineDeliveryPriceHalf:onlineDeliveryPriceControllerHalf.text.trim(),
+        onlineSellPrice: onlineSellPriceController.text.trim(),
+        onlineSellPriceHalf:onlineSellPriceControllerHalf.text.trim(),
+        hsnCode: hsnCodeController.text.trim(),
+        itemCode: itemCodeController.text.trim(),
+        barCode: barCodeController.text.trim(),
+        barCode2: barCode2Controller.text.trim(),
+        imagePath: (_imagePath?? "").trim(),
+        available: int.tryParse(availableController.text.trim()) ?? 1,
+        adjustStock: int.tryParse(adjustStockController.text.trim()),
+        gstRate: double.tryParse(_gstRateController.text.trim()) ?? 0.0,
+        cessRate: double.tryParse(_cessRateController.text.trim()) ?? 0.0,
+        withTax: bool.tryParse(_withTaxController.text.trim()) ?? false,
+        f_price: fullPriceController.text.trim(),
+        h_price: halfPriceController.text.trim(),
+        reserved_field : description.text.trim(),
       );
 
       }
@@ -335,12 +341,20 @@ class _AddItemPageState extends State<AddItemPage> {
       final id = _menuItemBox.put(menuItem); // ✅ get actual ID from ObjectBox
       final updatedItem = await _menuItemBox.get(id,) ?? menuItem; // ✅ fetch saved version from disk
       print_log("payload updatedItem $updatedItem");
-      sendItemtoServer(updatedItem);
+      await sendItemtoServer(updatedItem);
 
-
-      screen_massage(context, '✅ Item Saved');
-
-      Navigator.pop(context,updatedItem,); // ✅ Return fresh object to calling page
+      if (mounted) {
+        screen_massage(context, '✅ Item Saved');
+        Navigator.pop(context, updatedItem); // ✅ Return fresh object to calling page
+      }
+      } catch (e) {
+        print_log("Error saving item: $e");
+        if (mounted) {
+          setState(() {
+            _isProcessing = false;
+          });
+        }
+      }
     }
   }
 
@@ -520,10 +534,16 @@ class _AddItemPageState extends State<AddItemPage> {
                         labelText: 'half Price *',
                         border: OutlineInputBorder(),
                       ),
-                      keyboardType: TextInputType.number,
+                      keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                      inputFormatters: [
+                        FilteringTextInputFormatter.allow(RegExp(r'[0-9.]')),
+                      ],
                       validator: (value) {
                         if (value == null || value.isEmpty) {
                           return 'Please enter half price';
+                        }
+                        if (double.tryParse(value) == null) {
+                          return 'Enter valid number';
                         }
                         return null;
                       },
@@ -537,10 +557,16 @@ class _AddItemPageState extends State<AddItemPage> {
                         labelText: 'Full Price *',
                         border: OutlineInputBorder(),
                       ),
-                      keyboardType: TextInputType.number,
+                      keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                      inputFormatters: [
+                        FilteringTextInputFormatter.allow(RegExp(r'[0-9.]')),
+                      ],
                       validator: (value) {
                         if (value == null || value.isEmpty) {
                           return 'Please enter Full price';
+                        }
+                        if (double.tryParse(value) == null) {
+                          return 'Enter valid number';
                         }
                         return null;
                       },
@@ -674,7 +700,14 @@ class _AddItemPageState extends State<AddItemPage> {
                         labelText: 'MRP',
                         border: OutlineInputBorder(),
                       ),
-                      keyboardType: TextInputType.number,
+                      keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                      inputFormatters: [
+                        FilteringTextInputFormatter.allow(RegExp(r'[0-9.]')),
+                      ],
+                      validator: (value) {
+                        if (value != null && value.isNotEmpty && double.tryParse(value) == null) return 'Invalid';
+                        return null;
+                      },
                     ),
                   ),
                   SizedBox(width: 10),
@@ -685,7 +718,14 @@ class _AddItemPageState extends State<AddItemPage> {
                         labelText: 'Purchase Price',
                         border: OutlineInputBorder(),
                       ),
-                      keyboardType: TextInputType.number,
+                      keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                      inputFormatters: [
+                        FilteringTextInputFormatter.allow(RegExp(r'[0-9.]')),
+                      ],
+                      validator: (value) {
+                        if (value != null && value.isNotEmpty && double.tryParse(value) == null) return 'Invalid';
+                        return null;
+                      },
                     ),
                   ),
                 ],
@@ -702,7 +742,14 @@ class _AddItemPageState extends State<AddItemPage> {
                         labelText: 'AC Price',
                         border: OutlineInputBorder(),
                       ),
-                      keyboardType: TextInputType.number,
+                      keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                      inputFormatters: [
+                        FilteringTextInputFormatter.allow(RegExp(r'[0-9.]')),
+                      ],
+                      validator: (value) {
+                        if (value != null && value.isNotEmpty && double.tryParse(value) == null) return 'Invalid';
+                        return null;
+                      },
                     ),
                   ),
                   SizedBox(width: 10),
@@ -713,7 +760,14 @@ class _AddItemPageState extends State<AddItemPage> {
                         labelText: 'Half AC Price',
                         border: OutlineInputBorder(),
                       ),
-                      keyboardType: TextInputType.number,
+                      keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                      inputFormatters: [
+                        FilteringTextInputFormatter.allow(RegExp(r'[0-9.]')),
+                      ],
+                      validator: (value) {
+                        if (value != null && value.isNotEmpty && double.tryParse(value) == null) return 'Invalid';
+                        return null;
+                      },
                     ),
                   ),
                 ],
@@ -731,7 +785,14 @@ class _AddItemPageState extends State<AddItemPage> {
                   labelText: 'Non-AC Price',
                   border: OutlineInputBorder(),
                 ),
-                keyboardType: TextInputType.number,
+                keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                inputFormatters: [
+                  FilteringTextInputFormatter.allow(RegExp(r'[0-9.]')),
+                ],
+                validator: (value) {
+                  if (value != null && value.isNotEmpty && double.tryParse(value) == null) return 'Invalid';
+                  return null;
+                },
               ),
                   ),
                   SizedBox(width: 10),
@@ -742,7 +803,14 @@ class _AddItemPageState extends State<AddItemPage> {
                   labelText: 'Half Non-AC Price',
                   border: OutlineInputBorder(),
                 ),
-                keyboardType: TextInputType.number,
+                keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                inputFormatters: [
+                  FilteringTextInputFormatter.allow(RegExp(r'[0-9.]')),
+                ],
+                validator: (value) {
+                  if (value != null && value.isNotEmpty && double.tryParse(value) == null) return 'Invalid';
+                  return null;
+                },
               ),
                   ),
                 ],
@@ -760,7 +828,14 @@ class _AddItemPageState extends State<AddItemPage> {
                   labelText: 'Online Delivery Price',
                   border: OutlineInputBorder(),
                 ),
-                keyboardType: TextInputType.number,
+                keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                inputFormatters: [
+                  FilteringTextInputFormatter.allow(RegExp(r'[0-9.]')),
+                ],
+                validator: (value) {
+                  if (value != null && value.isNotEmpty && double.tryParse(value) == null) return 'Invalid';
+                  return null;
+                },
               ),
                   ),
                   SizedBox(width: 10),
@@ -771,7 +846,14 @@ class _AddItemPageState extends State<AddItemPage> {
                   labelText: 'Half Online Delivery Price',
                   border: OutlineInputBorder(),
                 ),
-                keyboardType: TextInputType.number,
+                keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                inputFormatters: [
+                  FilteringTextInputFormatter.allow(RegExp(r'[0-9.]')),
+                ],
+                validator: (value) {
+                  if (value != null && value.isNotEmpty && double.tryParse(value) == null) return 'Invalid';
+                  return null;
+                },
               ),
                   ),
                 ],
@@ -789,7 +871,14 @@ class _AddItemPageState extends State<AddItemPage> {
                   labelText: 'Online Price',
                   border: OutlineInputBorder(),
                 ),
-                keyboardType: TextInputType.number,
+                keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                inputFormatters: [
+                  FilteringTextInputFormatter.allow(RegExp(r'[0-9.]')),
+                ],
+                validator: (value) {
+                  if (value != null && value.isNotEmpty && double.tryParse(value) == null) return 'Invalid';
+                  return null;
+                },
               ),
                   ),
                   SizedBox(width: 10),
@@ -800,7 +889,14 @@ class _AddItemPageState extends State<AddItemPage> {
                   labelText: 'Half Online Price',
                   border: OutlineInputBorder(),
                 ),
-                keyboardType: TextInputType.number,
+                keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                inputFormatters: [
+                  FilteringTextInputFormatter.allow(RegExp(r'[0-9.]')),
+                ],
+                validator: (value) {
+                  if (value != null && value.isNotEmpty && double.tryParse(value) == null) return 'Invalid';
+                  return null;
+                },
               ),
                   ),
                 ],
@@ -1028,15 +1124,21 @@ class _AddItemPageState extends State<AddItemPage> {
               SizedBox(
                 width: double.infinity,
                 child: ElevatedButton(
-                  onPressed: _saveItem,
+                  onPressed: _isProcessing ? null : _saveItem,
                   style: ElevatedButton.styleFrom(
                     backgroundColor: Colors.purple.shade700,
                     padding: EdgeInsets.symmetric(vertical: 14),
                   ),
-                  child: Text("SAVE", style: TextStyle(fontSize: 16,
-                              fontWeight: FontWeight.bold,
-                              color: Colors.white,
-                  )),
+                  child: _isProcessing
+                      ? const SizedBox(
+                          height: 20,
+                          width: 20,
+                          child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
+                        )
+                      : Text("SAVE", style: TextStyle(fontSize: 16,
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.white,
+                      )),
                 ),
               ),
             ],

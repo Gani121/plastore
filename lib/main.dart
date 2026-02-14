@@ -233,6 +233,7 @@ class _DostiKitchenPageState extends State<DostiKitchenPage> {
   bool hide2 =  false;
   final excludedOrderTypes = ['Parcel', 'Dine-In', 'Takeaway'];
   bool transectionColor = false;
+  bool _isNewOrderProcessing = false;
 
 
   @override
@@ -1123,28 +1124,68 @@ class _DostiKitchenPageState extends State<DostiKitchenPage> {
         crossAxisAlignment: CrossAxisAlignment.end,
         children: [
           FloatingActionButton.extended(
-            label: Text(AppLocalizations.of(context)!.newOrder,style:TextStyle(color:Colors.white,fontSize: 20,fontWeight: FontWeight.w800)),
-            icon: Icon(Icons.add,color: Colors.white,),
-            backgroundColor: themeProvider.primaryColor,
-            onPressed: () async {
-              _initializeAndStoreBusinessDate();
-              await loadSelectedStyle();
-              if (selectedStyle == "half-Full View") {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (context) => MenuItemPage()),
-                ).then((_) {
-                  loadRecentTransactions(store);
-                });
-              } else {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (context) => NewOrderPage()),
-                ).then((_) {
-                  loadRecentTransactions(store);
-                });
-              }
-            },
+            label: _isNewOrderProcessing
+                ? const SizedBox(
+                    height: 24,
+                    width: 24,
+                    child: CircularProgressIndicator(
+                      color: Colors.white,
+                      strokeWidth: 2,
+                    ),
+                  )
+                : Text(AppLocalizations.of(context)!.newOrder,
+                    style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 20,
+                        fontWeight: FontWeight.w800)),
+            icon: _isNewOrderProcessing
+                ? null
+                : Icon(
+                    Icons.add,
+                    color: Colors.white,
+                  ),
+            backgroundColor: _isNewOrderProcessing
+                ? Colors.grey
+                : themeProvider.primaryColor,
+            onPressed: _isNewOrderProcessing
+                ? null
+                : () async {
+                    setState(() {
+                      _isNewOrderProcessing = true;
+                    });
+                    try {
+                      _initializeAndStoreBusinessDate();
+                      await loadSelectedStyle();
+
+                      // make cart empty
+                      final cartProvider =
+                          Provider.of<CartProvider>(context, listen: false);
+                      do {
+                        cartProvider.clearCart();
+                      } while (cartProvider.total != 0);
+
+                      if (selectedStyle == "half-Full View") {
+                        await Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                              builder: (context) => MenuItemPage()),
+                        );
+                      } else {
+                        await Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                              builder: (context) => NewOrderPage()),
+                        );
+                      }
+                      loadRecentTransactions(store);
+                    } finally {
+                      if (mounted) {
+                        setState(() {
+                          _isNewOrderProcessing = false;
+                        });
+                      }
+                    }
+                  },
           ),
         ],
       ),

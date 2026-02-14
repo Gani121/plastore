@@ -206,6 +206,7 @@ class _NewOrderPageState extends State<NewOrderPage> with AutomaticKeepAliveClie
   final TextEditingController _searchController = TextEditingController();
   bool _isPrinting = false;
   String? billingType;
+  bool _isProcessing = false;
 
   @override
   void initState() {
@@ -2098,7 +2099,7 @@ class _NewOrderPageState extends State<NewOrderPage> with AutomaticKeepAliveClie
   }
 
     // --- Your page's methods ---
-  void _handleDetails() async{
+  Future<void> _handleDetails() async{
     final cartProviderOld = Provider.of<CartProvider>(context, listen: false);
     cartProviderOld.removeZeroQTYFromCart();
     await Navigator.push(context, MaterialPageRoute(builder: (context) => DetailPage(hideadd: widget.hideadd)));
@@ -2319,6 +2320,7 @@ class _NewOrderPageState extends State<NewOrderPage> with AutomaticKeepAliveClie
       builder: (context, cartData, child) {
         final cart = cartData.cart;
         final total = cartData.total;
+        print_log("Total in newOrderpage $total");
 
         return BottomAppBar(
           color: Colors.grey[300],
@@ -2330,7 +2332,12 @@ class _NewOrderPageState extends State<NewOrderPage> with AutomaticKeepAliveClie
                 ? Container(
                     width: double.infinity,
                     child: ElevatedButton.icon(
-                      onPressed: _addItemsinTable,
+                      onPressed: _isProcessing ? null : () {
+                        setState(() {
+                          _isProcessing = true;
+                        });
+                        _addItemsinTable();
+                      },
                       icon: const Icon(Icons.add),
                       label: const Text('ADD Items',textScaler: TextScaler.linear(1.0),),
                       style: ElevatedButton.styleFrom(
@@ -2352,8 +2359,11 @@ class _NewOrderPageState extends State<NewOrderPage> with AutomaticKeepAliveClie
                         Expanded(
                           child: (widget.mode != null)
                               ? ElevatedButton(
-                                  onPressed: cart.isNotEmpty
+                                  onPressed: (cart.isNotEmpty && !_isProcessing)
                                       ? () {
+                                          setState(() {
+                                            _isProcessing = true;
+                                          });
                                           final cartProviderOld = Provider.of<CartProvider>(context, listen: false);
                                           cartProviderOld.removeZeroQTYFromCart();
                                           Navigator.pop(context, cart);
@@ -2375,7 +2385,17 @@ class _NewOrderPageState extends State<NewOrderPage> with AutomaticKeepAliveClie
                                   ),
                                 )
                               : ElevatedButton(
-                                  onPressed: cart.isNotEmpty ? _handleDetails : null,
+                                  onPressed: (cart.isNotEmpty && !_isProcessing) ? () async {
+                                    setState(() {
+                                      _isProcessing = true;
+                                    });
+                                    await _handleDetails();
+                                    if (mounted) {
+                                      setState(() {
+                                        _isProcessing = false;
+                                      });
+                                    }
+                                  } : null,
                                   style: ElevatedButton.styleFrom(
                                     backgroundColor: Colors.blue,
                                     foregroundColor: Colors.white,

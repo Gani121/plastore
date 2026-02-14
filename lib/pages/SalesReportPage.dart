@@ -62,7 +62,7 @@ class _SalesReportPageState extends State<SalesReportPage> {
   double todayExpenses = 0;
   double expensesToday = 0.0;
   double expensesDateRange = 0.0;
-  Map<DateTime, double> daywiseExpensesMap = {};
+  // Map<DateTime, double> daywiseExpensesMap = {};
   List<String> expensesList = [];
   Map<String, int> itemQtyMap = {};
   Map<String, double> itemPriceMap = {};
@@ -72,7 +72,7 @@ class _SalesReportPageState extends State<SalesReportPage> {
   Map<String, double> orderTypeTotalMap = {};
   Map<String, int> adjustStock = {};
   Map<String, int> unavailabelstock = {};
-  Map<String, int> purchesprice = {};
+  Map<String, double> purchesprice = {};
   DateTime? fromDate;
   DateTime? toDate;
   late Store store;
@@ -87,7 +87,9 @@ class _SalesReportPageState extends State<SalesReportPage> {
     store = Provider.of<ObjectBoxService>(context, listen: false).store;
     fromDate = getDateWithFourAMOffset();
     toDate = getDateWithFourAMOffset();
+    if(mounted){
     Future.delayed(const Duration(milliseconds: 200), _loadTransactions);
+    }
   }
 
   // Helper method to format date
@@ -147,21 +149,23 @@ class _SalesReportPageState extends State<SalesReportPage> {
       final itemsAll = menuItemBox.getAll();
       final items = itemsAll.map((item) => item.toMap()).toList();
       Map<String, int> adjustStock1 = {};
-      Map<String, int> _purchesprice = {};
+      Map<String, double> _purchesprice = {};
 
       for (var tx in items) {
         if (tx['adjustStock'] != null && tx['adjustStock'] > 0) {
           final raw = tx['adjustStock'];
           final value = raw is int ? raw : int.tryParse(raw.toString()) ?? 0;
           adjustStock1["${tx['name']}"] = value;
-
-          final purchasePrice = tx['purchasePrice'];
-          final purchasePriceValue = purchasePrice is int ? purchasePrice : int.tryParse(purchasePrice.toString()) ?? 0;
-          _purchesprice["${tx['name']}"] = purchasePriceValue;
-          // print_log("massage $tx");
+        }
+        final purchasePrice = tx['purchasePrice']; // "25.00"
+        final purchasePriceDouble = double.tryParse(purchasePrice) ?? 0.0;
+        final purchasePriceValue = purchasePriceDouble.round();
+        if (purchasePriceValue > 0) {
+          _purchesprice["${tx['name']}"] = purchasePriceDouble;
+          // print_log("purchase _purchesprice $_purchesprice");
           // print_log("massage $purchasePrice ${purchasePrice.runtimeType}");
           // print_log("massage $purchasePriceValue ${purchasePriceValue.runtimeType}");
-        }
+         }
       }
       
       if (mounted) {
@@ -256,20 +260,21 @@ class _SalesReportPageState extends State<SalesReportPage> {
       List<String> expensesListData = [];
 
       try {
-        final todayNormalized = AppConstants.businessDate!;
+        // final todayNormalized = AppConstants.businessDate!;
         final expensesBox = store.box<expences>();
         final expensesJson = expensesBox.getAll();
-        final daywiseData = await ExpensesService.getDaywiseExpenses(expensesJson);
+        // final daywiseData = await ExpensesService.getDaywiseExpenses(expensesJson);
 
-        expensesTodayTotal = daywiseData[todayNormalized] ?? 0.0;
-
+        // expensesTodayTotal = daywiseData[todayNormalized] ?? 0.0;
+        // print_log("expense expensesListData $expensesListData $expensesDateRangeTotal $todayNormalized");
         Map<String, dynamic> expenceMap = await ExpensesService.getDateRangeTotal(from, to, expensesJson);
         expensesDateRangeTotal = expenceMap['total'] ?? 0.0;
+        expensesTodayTotal = expensesDateRangeTotal;
         expensesListData = List<String>.from(jsonDecode(expenceMap['expenses'] ?? '[]'));
-        print_log("expense expensesListData $expensesListData");
-        daywiseExpenses = daywiseData;
+        print_log("expense expensesListData $expensesListData expensesDateRangeTotal $expensesDateRangeTotal expensesTodayTotal $expensesTodayTotal");
+        // daywiseExpenses = daywiseData;
       } catch (e) {
-        //debugPrint('Error loading expenses data: $e');
+        print_log_red('Error loading expenses data: $e');
       }
 
       // Process transactions
@@ -293,7 +298,7 @@ class _SalesReportPageState extends State<SalesReportPage> {
             cartItems = jsonDecode(tx.cartData);
           }
         } catch (e) {
-          //debugPrint('Error parsing cart data: $e');
+          print_log_red('Error parsing cart data: $e');
         }
 
         // Calculate profit for this transaction
@@ -305,6 +310,7 @@ class _SalesReportPageState extends State<SalesReportPage> {
             final qty = int.tryParse(item['qty']?.toString() ?? '') ?? 0;
             
             // Get purchase price from the map we loaded earlier
+            print_log("purchasePriceMap $purchasePriceMap");
             final purchasePrice = purchasePriceMap[itemName] ?? 0;
             print_log("purchasePrice  $sellPrice - ${purchasePrice.toDouble()} * $qty");
             // Calculate profit for this item: (sellPrice - purchasePrice) * quantity
@@ -320,7 +326,7 @@ class _SalesReportPageState extends State<SalesReportPage> {
             cpriceMap[itemCategory] = (cpriceMap[itemCategory] ?? 0) + (sellPrice * qty);
             
           } catch (e) {
-            //debugPrint('Error processing cart item: $e');
+            print_log('Error processing cart item: $e');
           }
         }
         
@@ -378,7 +384,7 @@ class _SalesReportPageState extends State<SalesReportPage> {
           expensesDateRange = expensesDateRangeTotal;
           orderTypeCountMap = tempOrderTypeCount;
           orderTypeTotalMap = tempOrderTypeTotal;
-          daywiseExpensesMap = daywiseExpenses;
+          // daywiseExpensesMap = daywiseExpenses;
           adjustStock = _adjustStock2;
           unavailabelstock = _unavailabelstock;
           expensesList = expensesListData;
@@ -459,10 +465,10 @@ class _SalesReportPageState extends State<SalesReportPage> {
     reportBuffer.writeln("💰 $expensesLabel:");
     reportBuffer.writeln("₹ ${displayExpenses.toStringAsFixed(2)}");
     
-    reportBuffer.writeln("");
-    if (isDateRangeSelected && expensesToday > 0) {
-      reportBuffer.writeln("Today's expenses:- ₹${expensesToday.toStringAsFixed(2)}");
-    }
+    // reportBuffer.writeln("");
+    // if (isDateRangeSelected && expensesToday > 0) {
+    //   reportBuffer.writeln("Today's expenses:- ₹${expensesToday.toStringAsFixed(2)}");
+    // }
 
     reportBuffer.writeln("");
     reportBuffer.writeln("💼 Sales:");

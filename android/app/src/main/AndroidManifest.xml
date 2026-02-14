@@ -75,7 +75,7 @@
 
         <provider
             android:name="androidx.core.content.FileProvider"
-            android:authorities="com.orbipay.test8.provider"
+            android:authorities="com.orbipay.test6.provider"
             android:exported="false"
             android:grantUriPermissions="true">
             <meta-data

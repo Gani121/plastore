@@ -67,7 +67,7 @@ class DefaultFirebaseOptions {
     messagingSenderId: '529015739148',
     projectId: 'captain-o360',
     storageBucket: 'captain-o360.firebasestorage.app',
-    iosBundleId: 'com.orbipay.test8',
+    iosBundleId: 'com.orbipay.test6',
   );
 
   static const FirebaseOptions windows = FirebaseOptions(

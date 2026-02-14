@@ -127,6 +127,7 @@ class _InventoryPageState extends State<InventoryPage> {
     await showDialog(
       context: context,
       builder: (context) {
+        bool _isProcessing = false;
         return StatefulBuilder(
           builder: (context, setDialogState) {
             return AlertDialog(
@@ -165,7 +166,10 @@ class _InventoryPageState extends State<InventoryPage> {
                   child: Text(AppLocalizations.of(context)!.cancel),
                 ),
                 ElevatedButton(
-                  onPressed: () async {
+                  onPressed: _isProcessing ? null : () async {
+                    setDialogState(() {
+                      _isProcessing = true;
+                    });
                     final store = Provider.of<ObjectBoxService>(context, listen: false).store;
                     final Box<MenuItem> menuItemBox = store.box<MenuItem>();
 
@@ -174,6 +178,9 @@ class _InventoryPageState extends State<InventoryPage> {
                       ScaffoldMessenger.of(context).showSnackBar(
                         SnackBar(content: Text(AppLocalizations.of(context)!.enter_valid_number)),
                       );
+                      setDialogState(() {
+                        _isProcessing = false;
+                      });
                       return;
                     }
 
@@ -190,15 +197,28 @@ class _InventoryPageState extends State<InventoryPage> {
                     print_log("✅ Stock updated in $item");
                     await sendItemtoServer(item);
 
-                    Navigator.pop(context); // Close dialog
+                    if (context.mounted) {
+                      setDialogState(() {
+                        _isProcessing = false;
+                      });
+                      Navigator.pop(context); // Close dialog
 
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(content: Text("✅ Stock updated to ${item.adjustStock}")),
-                    );
-                    // _filteredItems
-                    setState(() {});
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(content: Text("✅ Stock updated to ${item.adjustStock}")),
+                      );
+                      // _filteredItems
+                      setState(() {});
+                    }
                   },
-                  child: const Text("OK"),
+                  child: _isProcessing
+                      ? const SizedBox(
+                          height: 20,
+                          width: 20,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                          ),
+                        )
+                      : const Text("OK"),
                 ),
               ],
             );

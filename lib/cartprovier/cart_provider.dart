@@ -202,6 +202,9 @@ class CartProvider extends ChangeNotifier {
 
   void clearCart() {
     _cart.clear();
+    do{
+      _cart = [];
+    }while(total != 0);
     notifyListeners();
   }
 

@@ -1010,31 +1010,24 @@ class _DetailPageState extends State<DetailPage> {
     }
 
     // 3. URL-encode the message
-    // String encodedMessage = Uri.encodeComponent(billDetails);
-    // Uri whatsappUrl = Uri.parse("https://wa.me/$mobileNumber?text=$encodedMessage");
+    String encodedMessage = Uri.encodeComponent(billDetails);
+    Uri whatsappUrl = Uri.parse("https://wa.me/$mobileNumber?text=$encodedMessage");
     try {
         try{
-          bool isBusinessInstalled = await whatsapp.WhatsappSharePlus.isWhatsappBusinessInstalled();
-          // print("Response: $response");
-          if(isBusinessInstalled){
-            await whatsapp.WhatsappSharePlus.shareToWhatsappBusiness(
-              text: billDetails,
-              // imagePath: file.path,
-              phone: mobileNumber,
+          if (await canLaunchUrl(whatsappUrl)) {
+            await launchUrl(whatsappUrl, mode: LaunchMode.externalApplication);
+        } else {
+             ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                content: Text('Could not launch WhatsApp. Is it installed?'),
+                 backgroundColor: Colors.red,
+                ),
             );
-          } else{
-            await whatsapp.WhatsappSharePlus.shareToWhatsapp(
-              text: billDetails,
-              // imagePath: file.path,
-              phone: mobileNumber,
-            );
-          }
-          
+        }
         } catch (e){
           if(Platform.isAndroid){
             await _appinioSocialShare.android.shareToWhatsapp("Bill","");
           }
-
         }
     } catch (e) {
          ScaffoldMessenger.of(context).showSnackBar(
@@ -2034,7 +2027,7 @@ class __BottomBarState extends State<_BottomBar> {
           },
         };
 
-        //debugPrint("Sending FCM notification to all: ${json.encode(requestData)}");
+        print_log("Sending FCM notification to all: ${json.encode(requestData)}");
 
         // Make API call
         final response = await apiCalls('s',hotelname,requestData);
@@ -2612,7 +2605,7 @@ Have a nice day!
                                       }
                                     // _sendsettleFcmNotification();
                                     } else {
-                                      //debugPrint("Payment selection canceled OR cart is empty");
+                                      print_log("Payment selection canceled OR cart is empty");
                                     }
 
                                     if(!_isChecked){

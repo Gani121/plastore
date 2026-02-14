@@ -1174,6 +1174,17 @@ Future<void> printBillWithLogo(thermal.BlueThermalPrinter bluetooth) async {
           );
         }
 
+        if (businessAddress.isNotEmpty) {
+          bytes += _generator!.text(
+            businessAddress,
+            styles: PosStyles(
+              align: PosAlign.center,
+              fontType: PosFontType.fontA,
+              height: PosTextSize.size1, // Set height to minimum
+            ),
+          );
+        }
+        
         if (contactPhone.isNotEmpty) {
           bytes += _generator!.text(
             "Ph: $contactPhone",
@@ -1188,17 +1199,6 @@ Future<void> printBillWithLogo(thermal.BlueThermalPrinter bluetooth) async {
         if (contactEmail.isNotEmpty) {
           bytes += _generator!.text(
             contactEmail,
-            styles: PosStyles(
-              align: PosAlign.center,
-              fontType: PosFontType.fontA,
-              height: PosTextSize.size1, // Set height to minimum
-            ),
-          );
-        }
-        
-        if (businessAddress.isNotEmpty) {
-          bytes += _generator!.text(
-            businessAddress,
             styles: PosStyles(
               align: PosAlign.center,
               fontType: PosFontType.fontA,
@@ -1460,7 +1460,7 @@ Future<void> printBillWithLogo(thermal.BlueThermalPrinter bluetooth) async {
             final String encodedBusinessName = Uri.encodeComponent(businessName);
             String qrData = "upi://pay?pa=$upiId&pn=$encodedBusinessName&am=$total.00&cu=INR";
             bytes += _generator!.qrcode( qrData, size : getQRSize(int.tryParse(_qrSize) ?? 5) );        //.qrCode(qrData, size: QRSize.Size4);
-            bytes += _generator!.feed(1);
+            // bytes += _generator!.feed(1);
           }
         } 
 
@@ -2273,9 +2273,10 @@ Future<void> printBillWithLogo(thermal.BlueThermalPrinter bluetooth) async {
     final prefs = await SharedPreferences.getInstance();
     final apicall = await prefs.getString("adminPanel") ?? "no";
     
-    print_log("❌ in settel transection adminPanel not yes so Not send transection to the sever $apicall");
+    
     
     if (apicall.toLowerCase().contains("no")) {
+      print_log("❌ in settel transection adminPanel not yes so Not send transection to the sever $apicall");
       return false;
     }
     try {

@@ -1,4 +1,4 @@
-package com.orbipay.test8
+package com.orbipay.test6
 
 import android.os.Bundle
 import androidx.annotation.NonNull
@@ -25,7 +25,7 @@ import BpPrinter.mylibrary.Scrybe
 
 class MainActivity : FlutterActivity(), Scrybe, CardScanner {
     
-    private val CHANNEL = "com.orbipay.test8/printer"
+    private val CHANNEL = "com.orbipay.test6/printer"
     private lateinit var bluetoothConn: BluetoothConnectivity
     private var printer: BpPrinter? = null
     private var socket: BluetoothSocket? = null
