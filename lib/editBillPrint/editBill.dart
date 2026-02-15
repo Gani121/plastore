@@ -82,7 +82,7 @@ class _DetailPageState extends State<DetailPage> {
   List<Map<String, dynamic>> existingcart = [];
   late bool isRetail = false;
   String ordertype = 'Dine-In';
-  late Store store;
+  late Store _store;
   final share.AppinioSocialShare _appinioSocialShare = share.AppinioSocialShare();
 
   
@@ -116,8 +116,8 @@ class _DetailPageState extends State<DetailPage> {
       if (!mounted) return;
 
       final cartProvider = Provider.of<CartProvider>(context, listen: false);
-      store = Provider.of<ObjectBoxService>(context, listen: false).store;
-      billCounterBox = store.box<BillCounter>();
+      _store = Provider.of<ObjectBoxService>(context, listen: false).store;
+      billCounterBox = _store.box<BillCounter>();
 
       // 1. First, load the cart so the subtotal is available
       if (widget.mode == "edit") {
@@ -343,7 +343,7 @@ class _DetailPageState extends State<DetailPage> {
     final stringCart = json.encode(cartProvider.cart);
 
     // 3. Find if an entry for this table already exists
-    final box = store.box<tableCart>();
+    final box = _store.box<tableCart>();
     final query = box.query(tableCart_.tableNo.equals(tableNo)).build();
     tableCart? existingTableCart = query.findFirst();
     query.close();
@@ -1131,8 +1131,8 @@ DateTime getBusinessDate({int cutoffHour = 4}) {
                             }
 
                             // Get the box
-                            // final store = Provider.of<ObjectBoxService>(context, listen: false).store;
-                            final box = store.box<Parties>();
+                            // final _store = Provider.of<ObjectBoxService>(context, listen: false)._store;
+                            final box = _store.box<Parties>();
 
                             // Query: Find names containing the text (Case Insensitive)
                             final query = box.query(
@@ -1612,7 +1612,7 @@ class __BottomBarState extends State<_BottomBar> {
   String _customermobile= "";
   String _cusomername = "";
   String _customeradd = "";
-  late Store store;
+  late Store _store;
   List<String> deliveryTypes = [];
   BillPrinter printer = BillPrinter();
   TextEditingController _receivedAmountController = TextEditingController();
@@ -1632,7 +1632,7 @@ class __BottomBarState extends State<_BottomBar> {
     _customeradd = widget.adreess ?? "";
     print_log("Controller text set to:- $_orderType  / ${widget.ordertype}");
     if(mounted){
-       store = Provider.of<ObjectBoxService>(context, listen: false).store;
+       _store = Provider.of<ObjectBoxService>(context, listen: false).store;
     }
 
   }
@@ -1926,7 +1926,7 @@ class __BottomBarState extends State<_BottomBar> {
   void saveEntry(String name, String phone,String adreess, String amountController, String descriptionController) {
     
     // Get the ObjectBox service and the customer box
-    Box<udhariCustomer> customerBox = store.box<udhariCustomer>();
+    Box<udhariCustomer> customerBox = _store.box<udhariCustomer>();
 
     // This is the logic you wanted:
     // "i want to check the name is exist in the udhariCustomer if not create else assign to currentCustomer"
@@ -1951,12 +1951,12 @@ class __BottomBarState extends State<_BottomBar> {
     newTransaction.customer.target = currentCustomer;
 
     // Save the transaction
-    store.box<TransactionUdhari>().put(newTransaction);
+    _store.box<TransactionUdhari>().put(newTransaction);
     
     // Save the customer to update their list of transactions
     // (This is from your original code and is correct for updating the relation)
     currentCustomer.transactions.add(newTransaction);
-    store.box<udhariCustomer>().put(currentCustomer);
+    _store.box<udhariCustomer>().put(currentCustomer);
 
     //debugPrint("Udhari currentCustomer Transaction saved for customer: ${currentCustomer.name}");
 

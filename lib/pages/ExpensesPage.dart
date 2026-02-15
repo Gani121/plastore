@@ -11,6 +11,8 @@ import '../objectbox.g.dart';
 import '../database_Module/expensDB.dart';
 import 'package:provider/provider.dart';
 import '../database_Module/ObjectBoxService.dart';
+import 'package:http/http.dart' as http;
+import 'dart:convert';
 
 String foldername = "expense_images";
 
@@ -32,7 +34,7 @@ class _ExpensesPageState extends State<ExpensesPage> {
   File? _selectedImage; // used while adding a new expense
   String? _imagePath; // path used while adding a new expense
   final ImagePicker _picker = ImagePicker();
-  late Store store = Provider.of<ObjectBoxService>(context, listen: false).store;
+  late Store _store = Provider.of<ObjectBoxService>(context, listen: false).store;
 
   final List<String> _categories = [
     'Food',
@@ -51,8 +53,9 @@ class _ExpensesPageState extends State<ExpensesPage> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       
       _loadExpenses().then((_) {
-        // _printAllExpensesFromBox(); // Print after loading
+        fetchExpenses();
       });
+
     });
   }
 
@@ -62,22 +65,28 @@ class _ExpensesPageState extends State<ExpensesPage> {
 
       _selectedDate = AppConstants.businessDate!;
       print_log("selected date in _loadExpenses $_selectedDate");
-      final box = store.box<expences>();
+      final box = _store.box<expences>();
       final prefs = await SharedPreferences.getInstance();
       final loadedExpenses = <Expense>[];
 
       // 1. Load from SharedPreferences (old source)
       final expensesJson1 = prefs.getStringList('expenses') ?? [];
-      print_log("Expenses from SharedPreferences: ${expensesJson1.length}");
-      for (final s in expensesJson1) {
-        try {
-          final map = Map<String, dynamic>.from(jsonDecode(s));
-          loadedExpenses.add(Expense.fromMap(map));
-        } catch (e) {
-          //debugPrint('Skipping malformed expense from SharedPreferences: $e');
+      if(expensesJson1.isNotEmpty){
+        print_log("Expenses from SharedPreferences: ${expensesJson1.length}");
+        for (final s in expensesJson1) {
+          try {
+            final map = Map<String, dynamic>.from(jsonDecode(s));
+            String expence_string = jsonEncode(map);
+            print_log("expence_string ${expence_string}");
+            final expenseEntity = expences(expence: expence_string,);
+            box.put(expenseEntity);
+            // loadedExpenses.add(Expense.fromMap(map));
+          } catch (e) {
+            print_log_red('Skipping malformed expense from SharedPreferences: $e');
+          }
         }
+        prefs.remove('expenses');
       }
-
       // 2. Load from ObjectBox (new source)
       final expensesJson = box.getAll();
       print_log("Expenses from ObjectBox: ${expensesJson.length}");
@@ -86,7 +95,7 @@ class _ExpensesPageState extends State<ExpensesPage> {
           final map = Map<String, dynamic>.from(jsonDecode(s.expence));
           loadedExpenses.add(Expense.fromMap(map));
         } catch (e) {
-          //debugPrint('Skipping malformed expense entry: $e');
+          print_log_red('Skipping malformed expense entry: $e');
         }
       }
 
@@ -107,7 +116,10 @@ class _ExpensesPageState extends State<ExpensesPage> {
 
   Future<void> _saveExpensesToPrefs({Expense? newExpense, int? id, String? update}) async {
     try {
-      final box = store.box<expences>();
+      final prefs = await SharedPreferences.getInstance();
+      final hotelName = await prefs.getString(AppConstants.usernameKey) ?? "";
+
+      final box = _store.box<expences>();
       if (id != null && newExpense == null && update == null) {
         // Delete expense
         final allExpenses = box.getAll();
@@ -143,8 +155,9 @@ class _ExpensesPageState extends State<ExpensesPage> {
         String expence_string = jsonEncode(newExpense.toMap());
         print_log("expence_string ${expence_string}");
         final expenseEntity = expences(expence: expence_string,);
-        box.put(expenseEntity);
+        int id = await box.put(expenseEntity);
         
+        syncExpenseToCloud(id,newExpense,hotelName);
 
         // update shared total
         await ExpensesService.updateTotal(_totalExpenses);
@@ -167,6 +180,115 @@ class _ExpensesPageState extends State<ExpensesPage> {
         ).showSnackBar(SnackBar(content: Text('Error saving data: $e')));
       }
     }
+  }
+
+  // SAVE OR UPDATE
+  Future<void> syncExpenseToCloud(int id, Expense expense, String hotelName) async {
+    final prefs = await SharedPreferences.getInstance();
+    final apicall = await prefs.getString("adminPanel") ?? "no";
+    bool demo = prefs.getBool('demo') ?? false;   
+    
+    if (apicall.toLowerCase().contains("no") || demo) {
+      print_log("❌ in settel transection adminPanel not yes so Not send transection to the sever $apicall");
+      return;
+    }
+    try {
+      final payload = {
+          'login_user': hotelName,
+          'id': expense.id.toString(), // External ID
+          'amount': expense.amount,
+          'date': expense.date.toIso8601String(),
+          'expense_data': expense.toMap(), // Full JSON blob
+        };
+       http.Response? response = await apiCalls("ex_save", hotelName, payload);
+        if (response == null) {
+          return;
+        }
+
+      if (response.statusCode == 200) {
+        print_log("Cloud Sync Successful ${response.toString()}");
+      }
+    } catch (e) {
+      print_log_red("Sync Error: $e");
+    }
+  }
+
+  // FETCH ALL
+  Future<void> fetchExpenses() async {
+    final box = _store.box<expences>();
+    final prefs = await SharedPreferences.getInstance();
+    final hotelName = await prefs.getString(AppConstants.usernameKey) ?? "";
+    
+    // 1. Fetch from Server
+    http.Response? response = await apiCalls("ex_get", hotelName, {});
+    if (response == null || response.statusCode != 200) return;
+
+    final data = jsonDecode(response.body);
+    List<dynamic> serverList = data['data']; // List of {expense_json: {...}}
+    print_log("Added missing expense from cloud: ID $serverList");
+    // 2. Get all local IDs from ObjectBox to prevent duplicates
+    final localEntities = box.getAll();
+    final Set<String> localIds = localEntities.map((e) {
+        final map = jsonDecode(e.expence);
+        return map['id'].toString(); // Using the ID stored inside your JSON string
+      }).toSet();
+    print_log("Added missing expense from cloud: ID $localIds");
+    bool addedNew = false;
+
+    // 3. Identify and add missing expenses
+    for (var item in serverList) {
+      final Map<String, dynamic> expenseMap = item['expense_json'];
+      final String serverId = expenseMap['id'].toString();
+      print_log("Added missing expense from cloud: ID $serverId $localIds");
+      if (!localIds.contains(serverId)) {
+        // This expense is on the server but NOT in the local box
+        final newEntity = expences(
+          expence: jsonEncode(expenseMap),
+          // Match other fields if necessary, e.g. reserved_field: expenseMap['category']
+        );
+        box.put(newEntity);
+        addedNew = true;
+        print_log("Added missing expense from cloud: ID $serverId $newEntity");
+      }
+    }
+
+    // 4. Update the UI if something changed or if it's the first load
+    if (addedNew || _expenses.isEmpty) {
+      final updatedEntities = box.getAll();
+      final List<Expense> loadedExpenses = [];
+
+      for (final s in updatedEntities) {
+        try {
+          final map = Map<String, dynamic>.from(jsonDecode(s.expence));
+          loadedExpenses.add(Expense.fromMap(map));
+        } catch (e) {
+          print_log_red('Error parsing entity: $e');
+        }
+      }
+
+      // Sort: Newest first
+      loadedExpenses.sort((a, b) => b.date.compareTo(a.date));
+
+      setState(() {
+        _expenses.clear();
+        _expenses.addAll(loadedExpenses);
+        ExpensesService.updateTotal(_totalExpenses);
+      });
+    }
+  }
+
+  // DELETE
+  Future<void> deleteExpenseFromCloud(String id,) async {
+    final prefs = await SharedPreferences.getInstance();
+    final apicall = await prefs.getString("adminPanel") ?? "no";
+    
+    if (apicall.toLowerCase().contains("no")) {
+      print_log("❌ in settel expense adminPanel not yes so Not send transection to the sever $apicall");
+      return;
+    }
+    final hotelName = await prefs.getString(AppConstants.usernameKey) ?? "";
+    print_log("deleted id $id hotelName $hotelName");
+    await apiCalls("ex_delete", hotelName,{},id:id);
   }
 
   // ---------- Totals & stats ----------
@@ -378,7 +500,8 @@ class _ExpensesPageState extends State<ExpensesPage> {
   void _deleteExpense(Expense expense) {
     final removed = expense;
     setState(() => _expenses.removeWhere((e) => e.id == expense.id));
-    _saveExpensesToPrefs(id : int.tryParse(expense.id));
+    deleteExpenseFromCloud(expense.id);
+    // _saveExpensesToPrefs(id : int.tryParse(expense.id));
     screen_massage(context, '${expense.title} deleted successfully!');
 
     // ScaffoldMessenger.of(context).showSnackBar(
@@ -664,7 +787,7 @@ class _ExpensesPageState extends State<ExpensesPage> {
   }
 
   void _printAllExpensesFromBox() async {
-    final box = store.box<expences>();
+    final box = _store.box<expences>();
     final allExpenses = box.getAll();
     //debugPrint('--- Printing all expenses from ObjectBox ---');
     if (allExpenses.isEmpty) {
@@ -1018,10 +1141,10 @@ class Expense {
     return Expense(
       id: map['id'].toString(),
       title: map['title']?.toString() ?? '',
-      amount: double.tryParse(map['amount']?.toString() ?? '0') ?? 0.0,
-      date: DateTime.tryParse(map['date']?.toString() ?? '') ?? DateTime.now(),
-      category: map['category']?.toString() ?? 'Other',
-      photoPath: map['photoPath']?.toString(),
+      amount: double.tryParse((map['amount'] ?? "").toString()) ?? 0.0,
+      date: DateTime.tryParse((map['date'] ?? "").toString()) ?? DateTime.now(),
+      category: (map['category']?? 'Other').toString() ,
+      photoPath: (map['photoPath'] ?? "").toString(),
     );
   }
 

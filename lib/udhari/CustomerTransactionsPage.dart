@@ -8,6 +8,7 @@ import '../database_Module/udharicustomer.dart';
 import '../objectbox.g.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:intl/intl.dart'; // Added for Date formatting
+import './UdhariSyncService.dart';
 
 class CustomerTransactionsPage extends StatefulWidget {
   final udhariCustomer customer;
@@ -252,6 +253,8 @@ void _deleteTransaction(int transactionId, udhariCustomer customer) {
   // 2. CRITICAL FIX: "Touch" the customer to trigger the StreamBuilder to refresh
   // We don't change data, we just save the customer again to force an update event.
   objectbox.store.box<udhariCustomer>().put(customer);
+
+  UdhariSyncService.syncCustomer(customer);
   
   ScaffoldMessenger.of(context).showSnackBar(
     const SnackBar(content: Text("Entry deleted successfully")),
@@ -539,6 +542,9 @@ void _showOptionsBottomSheet(BuildContext context, TransactionUdhari transaction
                     currentCustomer.transactions.add(transactionToEdit);
                     objectbox.store.box<udhariCustomer>().put(currentCustomer);
 
+                    // ✅ ADD THIS: Sync with Server after Edit
+                    UdhariSyncService.syncCustomer(currentCustomer);
+
                     // ✅ FIX 3: Check if context is mounted before showing SnackBar
                     // because the parent widget might be rebuilding.
                     if (context.mounted) {
@@ -562,6 +568,8 @@ void _showOptionsBottomSheet(BuildContext context, TransactionUdhari transaction
                     objectbox.store.box<TransactionUdhari>().put(newTransaction);
                     currentCustomer.transactions.add(newTransaction);
                     objectbox.store.box<udhariCustomer>().put(currentCustomer);
+
+                    UdhariSyncService.syncCustomer(currentCustomer);
 
                     // Note: _sendTransactionSms is part of the class, so we can call it.
                     // However, if this is inside a State class, make sure the method is available.

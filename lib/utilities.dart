@@ -268,7 +268,7 @@ Future<http.Response?> apiCalls(
   String apiCalls,
   String hotelName,
   Map<String, Object?>  payload,
-  {String? token}
+  {String? token, String? id}
   ) async {
     print_log("apiCalls in utility $apiCalls hotelName $hotelName payload $payload");
     
@@ -314,6 +314,46 @@ Future<http.Response?> apiCalls(
       case "st":
         final String apiUrl = 'https://api2.nextorbitals.in/api/save_token.php?hotel=$hotelName&token=$token';
         final response = await http.get(Uri.parse(apiUrl));
+        return response;
+      case "ex_save":
+        final response = await http.post(
+          Uri.parse("https://api2.nextorbitals.in/api/save_expenses.php"),
+          headers: {"Content-Type": "application/json"},
+          body: jsonEncode(payload),
+        );
+        return response;
+      case "ex_get":
+        final response = await http.get(
+          Uri.parse("https://api2.nextorbitals.in/api/save_expenses.php?login_user=$hotelName"),
+          headers: {"Content-Type": "application/json"},
+        ).timeout(const Duration(seconds: 300));
+        return response;
+      case "ex_delete":
+        final response = await http.delete(
+          Uri.parse("https://api2.nextorbitals.in/api/save_expenses.php?login_user=$hotelName&id=$id"),
+          headers: {"Content-Type": "application/json"},
+          body: jsonEncode(payload),
+        );
+        return response;
+        case "ud_save":
+        final response = await http.post(
+          Uri.parse("https://api2.nextorbitals.in/api/save_udhari.php"),
+          headers: {"Content-Type": "application/json"},
+          body: jsonEncode(payload),
+        );
+        return response;
+      case "ud_get":
+        final response = await http.get(
+          Uri.parse("https://api2.nextorbitals.in/api/save_udhari.php?login_user=$hotelName"),
+          headers: {"Content-Type": "application/json"},
+        ).timeout(const Duration(seconds: 300));
+        return response;
+      case "ud_delete":
+        final response = await http.delete(
+          Uri.parse("https://api2.nextorbitals.in/api/save_udhari.php?login_user=$hotelName&id=$id"),
+          headers: {"Content-Type": "application/json"},
+          body: jsonEncode(payload),
+        );
         return response;
       default:
         return null;

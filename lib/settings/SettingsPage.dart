@@ -22,6 +22,7 @@ import 'package:test1/utilities.dart';
 import 'package:test1/settings/hideData.dart';
 import 'package:flutter/foundation.dart';
 import 'package:dio/dio.dart';
+import 'package:test1/settings/control_page.dart';
 
 
 
@@ -345,6 +346,14 @@ class SettingsPage extends StatelessWidget {
                         );
                       }
 
+                      if (index == 10) {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => ControlPage(),
+                          ),
+                        );
+                      }
                       
                       if (index == 11) {
                         //debugPrint("going to apicall");

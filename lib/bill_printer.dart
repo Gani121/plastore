@@ -591,7 +591,11 @@ Future<void> printBillWithLogo(thermal.BlueThermalPrinter bluetooth) async {
     required String mode,
     required Map<String, dynamic>? transactionData,
   }) async {
-
+    bool demo = prefs.getBool('demo') ?? false;
+    print_log("demo $demo");
+    if(demo){
+      return false;
+    }
     if (tableNo > 0){
       final ttid = prefs.getInt("tt$tableNo");
       print_log("this is $tableNo table order of ttid $ttid ");
@@ -2272,10 +2276,9 @@ Future<void> printBillWithLogo(thermal.BlueThermalPrinter bluetooth) async {
   Future<bool> sendTransactionToServer(Box<Transaction> box,int id,) async {
     final prefs = await SharedPreferences.getInstance();
     final apicall = await prefs.getString("adminPanel") ?? "no";
+    bool demo = prefs.getBool('demo') ?? false;   
     
-    
-    
-    if (apicall.toLowerCase().contains("no")) {
+    if (apicall.toLowerCase().contains("no") || demo) {
       print_log("❌ in settel transection adminPanel not yes so Not send transection to the sever $apicall");
       return false;
     }
@@ -2416,8 +2419,10 @@ Future<void> printBillWithLogo(thermal.BlueThermalPrinter bluetooth) async {
     final apicall = await prefs.getString("adminPanel") ?? "no";
     
     print_log("adminPanel $apicall");
+    bool demo = prefs.getBool('demo') ?? false;   
     
-    if (apicall.toLowerCase().contains("no")) {
+    if (apicall.toLowerCase().contains("no") || demo) {
+      print_log("❌ in settel transection adminPanel not yes so Not send transection to the sever $apicall");
       return;
     }
     _isSyncing = true;

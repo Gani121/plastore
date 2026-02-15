@@ -5,6 +5,8 @@ import 'CustomerTransactionsPage.dart';
 import '../database_Module/ObjectBoxService.dart';
 import '../database_Module/udharicustomer.dart';
 import '../utilities.dart';
+import './UdhariSyncService.dart';
+import 'package:test1/objectbox.g.dart';
 
 class DashboardPage extends StatefulWidget {
   const DashboardPage({super.key});
@@ -24,6 +26,7 @@ class _DashboardPageState extends State<DashboardPage> {
     // We get the ObjectBoxService instance once and set up the stream to watch for changes.
     final objectbox = Provider.of<ObjectBoxService>(context, listen: false);
     
+    // 1. Setup Stream
     // .watch() creates a stream. We use .map() to transform the stream of 'Query' objects
     // into a stream of 'List<udhariCustomer>', which is easier to use in StreamBuilder.
     // triggerImmediately: true ensures the stream provides the current data right away.
@@ -31,12 +34,110 @@ class _DashboardPageState extends State<DashboardPage> {
         .query()
         .watch(triggerImmediately: true)
         .map((query) => query.find());
+
+    // 2. Trigger Cloud Sync on Load (Optional but recommended)
+    _syncWithCloud(objectbox);
   }
+
+  
+Future<void> _syncWithCloud(ObjectBoxService ob) async {
+  try {
+    // 1. Fetch data from server
+    List<Map<String, dynamic>> cloudData = await UdhariSyncService.fetchFromCloud();
+    final _store = ob.store;
+    final customerBox = _store.box<udhariCustomer>();
+
+    for (Map<String, dynamic> cloudCus in cloudData) {
+      String name = cloudCus['name']?.toString() ?? "Unknown";
+      String phone = cloudCus['mobile']?.toString() ?? "";
+      String address = cloudCus['adreess']?.toString() ?? "";
+      
+      // ✅ FIX 1: Parse the 'balance' field from the cloud, not 'adreess'
+      double cloudBalance = double.tryParse(cloudCus['balance']?.toString() ?? '0') ?? 0.0;
+
+      final udhariCustomer currentCustomer = _findOrCreateCustomer(customerBox, name, phone, address);
+
+      if (currentCustomer != null) {
+        // ✅ FIX 2: Calculate the difference
+        double localBalance = currentCustomer.balance;
+        double difference = cloudBalance - localBalance;
+        print_log("udhari : ${currentCustomer.name} localBalance $localBalance cloudBalance $cloudBalance difference $difference");
+
+        // ✅ ONLY save if there is a difference
+        if (difference.abs() > 0.01) { // Using 0.01 to avoid floating point precision issues
+          
+          /* LOGIC CHECK:
+            Your getter: balance = (Gave) - (Got)
+            If difference > 0: Cloud balance is higher -> We need to ADD a 'Gave' entry.
+            If difference < 0: Cloud balance is lower -> We need to ADD a 'Got' entry.
+          */
+          
+          TransactionType type = difference > 0 ? TransactionType.gave : TransactionType.got;
+          double transactionAmount = difference.abs();
+          String description = "Updated by Admin";
+
+          TransactionUdhari newTransaction = TransactionUdhari.create(
+            amount: transactionAmount,
+            type: type,
+            date: DateTime.now(),
+            description: description,
+          );
+
+          // Link the transaction to the customer
+          newTransaction.customer.target = currentCustomer;
+
+          // Save the transaction
+          _store.box<TransactionUdhari>().put(newTransaction);
+          
+          // Update the customer's ToMany relationship
+          currentCustomer.transactions.add(newTransaction);
+          customerBox.put(currentCustomer);
+
+          print_log("✅ udhari Sync: ${currentCustomer.name} updated. New Balance: $cloudBalance (Adj: $transactionAmount as ${type.name})");
+        } else {
+          print_log("ℹ️ udhari Sync: ${currentCustomer.name} is already up to date.");
+        }
+      }
+    }
+  } catch (e) {
+    print_log_red("❌ Error in udhari _syncWithCloud: $e");
+  }
+}
+
+  udhariCustomer _findOrCreateCustomer(Box<udhariCustomer> customerBox, String name, String phone,String adreess) {
+    //debugPrint("currentCustomer $name ");
+
+    final query = customerBox.query(udhariCustomer_.name.equals(name.trim())).build();
+    udhariCustomer? existingCustomer = query.findFirst();
+    query.close(); // Always close your queries
+
+    if (existingCustomer != null) {
+      // Customer was found, return them
+      //debugPrint("Udhari currentCustomer Found existing customer: ${existingCustomer.name}");
+      return existingCustomer;
+    } else {
+      // Customer not found, create a new one
+      //debugPrint("Udhari currentCustomer Creating new customer: $name");
+      final newCustomer = udhariCustomer(
+        name: name.trim(),
+        phone: phone.isNotEmpty ? phone.trim() : '',
+        adreess: adreess.isNotEmpty ? adreess.trim() : '',
+      );
+      
+      // Save the new customer to the box and return them
+      customerBox.put(newCustomer);
+      return newCustomer;
+    }
+  }
+
+
 
   // Method to delete a customer
   void _deleteCustomer(udhariCustomer customer) {
     final objectbox = Provider.of<ObjectBoxService>(context, listen: false);
     objectbox.store.box<udhariCustomer>().remove(customer.id);
+
+    UdhariSyncService.deleteCustomer((customer.id).toString());
 
     // Show a confirmation snackbar
     ScaffoldMessenger.of(context).showSnackBar(
