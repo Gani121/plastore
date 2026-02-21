@@ -72,7 +72,7 @@ class _ExpensesPageState extends State<ExpensesPage> {
       // 1. Load from SharedPreferences (old source)
       final expensesJson1 = prefs.getStringList('expenses') ?? [];
       if(expensesJson1.isNotEmpty){
-        print_log("Expenses from SharedPreferences: ${expensesJson1.length}");
+        // print_log("Expenses from SharedPreferences: ${expensesJson1.length}");
         for (final s in expensesJson1) {
           try {
             final map = Map<String, dynamic>.from(jsonDecode(s));
@@ -105,8 +105,6 @@ class _ExpensesPageState extends State<ExpensesPage> {
       setState(() {
         _expenses.clear();
         _expenses.addAll(loadedExpenses);
-        // print_log("loadedExpenses in _loadExpenses $loadedExpenses");
-        // update shared total notifier
         ExpensesService.updateTotal(_totalExpenses);
       });
     } catch (e) {
@@ -218,34 +216,22 @@ class _ExpensesPageState extends State<ExpensesPage> {
     final box = _store.box<expences>();
     final prefs = await SharedPreferences.getInstance();
     final hotelName = await prefs.getString(AppConstants.usernameKey) ?? "";
-    
-    // 1. Fetch from Server
     http.Response? response = await apiCalls("ex_get", hotelName, {});
     if (response == null || response.statusCode != 200) return;
 
     final data = jsonDecode(response.body);
-    List<dynamic> serverList = data['data']; // List of {expense_json: {...}}
-    print_log("Added missing expense from cloud: ID $serverList");
-    // 2. Get all local IDs from ObjectBox to prevent duplicates
+    List<dynamic> serverList = data['data'];
     final localEntities = box.getAll();
     final Set<String> localIds = localEntities.map((e) {
         final map = jsonDecode(e.expence);
-        return map['id'].toString(); // Using the ID stored inside your JSON string
+        return map['id'].toString(); 
       }).toSet();
-    print_log("Added missing expense from cloud: ID $localIds");
     bool addedNew = false;
-
-    // 3. Identify and add missing expenses
     for (var item in serverList) {
       final Map<String, dynamic> expenseMap = item['expense_json'];
       final String serverId = expenseMap['id'].toString();
-      print_log("Added missing expense from cloud: ID $serverId $localIds");
       if (!localIds.contains(serverId)) {
-        // This expense is on the server but NOT in the local box
-        final newEntity = expences(
-          expence: jsonEncode(expenseMap),
-          // Match other fields if necessary, e.g. reserved_field: expenseMap['category']
-        );
+        final newEntity = expences(expence: jsonEncode(expenseMap),);
         box.put(newEntity);
         addedNew = true;
         print_log("Added missing expense from cloud: ID $serverId $newEntity");
@@ -1183,12 +1169,6 @@ class ExpensesService {
     return prefs.getDouble('totalExpenses') ?? 0.0;
   }
 
-  // Add this method to your _ExpensesPageState class
-
-  // static final ExpensesService _instance = ExpensesService._internal();
-  // factory ExpensesService() => _instance;
-  // ExpensesService._internal();
-
   // Method to get date range total from any page
   static Future<Map<String,dynamic>> getDateRangeTotal(
     DateTime startDate,
@@ -1196,13 +1176,8 @@ class ExpensesService {
     List<expences> expensesJson
   ) async {
     try {
-      // final prefs = await SharedPreferences.getInstance();
-      // final expensesJson = prefs.getStringList('expenses') ?? [];
       List<String> expensesmap = [];
-      
 
-
-      // Normalize dates to include entire days
       final normalizedStart = DateTime(
         startDate.year,
         startDate.month,
@@ -1212,9 +1187,6 @@ class ExpensesService {
         endDate.year,
         endDate.month,
         endDate.day,
-        // 23,
-        // 59,
-        // 59,
       );
 
       double total = 0.0;
@@ -1226,22 +1198,18 @@ class ExpensesService {
           final expense = Expense.fromMap(map);
 
           // Check if expense falls within the date range
-          // //debugPrint("expense ${expense.date} $normalizedStart $normalizedEnd ${expense.date.isAfter(normalizedStart)} ${expense.date.isBefore(normalizedEnd)}");
-          // print_log("expense  ${(expense.date == normalizedStart)} {${expense.date} == $normalizedStart)}  normalizedEnd $normalizedEnd");
-          // print_log("expense  ${expense.date.isAfter(normalizedStart) && expense.date.isBefore(normalizedEnd)} {${expense.date.isAfter(normalizedStart)} && ${expense.date.isBefore(normalizedEnd)}}");
           if ((expense.date.isAfter(normalizedStart) || expense.date.isAtSameMomentAs(normalizedStart)) && (expense.date.isBefore(normalizedEnd) || expense.date.isAtSameMomentAs(normalizedEnd))) {
             total += expense.amount;
             expensesmap.add(expenseJson.expence);
-            //debugPrint("expense ${expenseJson}");
           } 
         } catch (e) {
-          //debugPrint('Error parsing expense: $e');
+          print_log_red('Error parsing expense: $e');
         }
       }
 
       return {'total':total, 'expenses': jsonEncode(expensesmap)};
     } catch (e) {
-      //debugPrint('Error getting date range total: $e');
+      print_log_red('Error getting date range total: $e');
       return {'total':0.0, 'expenses': jsonEncode([])};
     }
   }
@@ -1277,7 +1245,7 @@ class ExpensesService {
       // print_log_red('Error parsing expense: ${sortedEntries.runtimeType} ${sortedEntries}');
       return Map.fromEntries(sortedEntries);
     } catch (e) {
-      //debugPrint('Error getting daywise expenses: $e');
+      print_log_red('Error getting daywise expenses: $e');
       return {};
     }
   }

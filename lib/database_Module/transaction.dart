@@ -63,8 +63,7 @@ class Transaction {
     return 'Transaction(id: $id, time: $time, tableNo: $tableNo, total: $total, status : $status, payment_mode: $payment_mode, synced: $synced, orderType: $orderType, mobileNo:$mobileNo, customerName: $customerName billNo :$billNo, discountPercent: $discountPercent discount: $discount  serviceCharge:$serviceCharge reserved :$reserved,reserved_field:$reserved_field,reserved_field1:$reserved_field1,reserved_field2:$reserved_field2,reserved_field3:$reserved_field3,reserved_field4:$reserved_field4,reserved_field5:$reserved_field5 cartData: $cartData, upiamount $upiamount cashamount $cashamount)';
   }
 
-  List<Map<String, dynamic>> get decodedCart =>
-      List<Map<String, dynamic>>.from(jsonDecode(cartData));
+  List<Map<String, dynamic>> get decodedCart => List<Map<String, dynamic>>.from(jsonDecode(cartData));
 
 
   /// Converts a Transaction instance into a Map.
@@ -77,7 +76,6 @@ class Transaction {
       'total': total,
       'cart': jsonDecode(cartData),
       'payment_mode': payment_mode,
-      'synced': synced,
       'status': status,
       'serviceCharge': serviceCharge,
       'discount': discount,
@@ -89,6 +87,8 @@ class Transaction {
       'orderType':orderType,
       'upiamount':upiamount,
       'cashamount':cashamount,
+      "reserved_field": reserved_field,
+      'synced': synced,
     };
   }
 
@@ -102,7 +102,6 @@ class Transaction {
       total: map['total'],
       cartData: map['cartData'],
       payment_mode: map['payment_mode'],
-      synced: map['synced'] ?? false,
       status: map['status'] ?? '',
       serviceCharge: map['serviceCharge'],
       discount: map['discount'],
@@ -114,6 +113,9 @@ class Transaction {
       orderType: map['orderType'],
       upiamount: map['upiamount'],
       cashamount: map['cashamount'],
+      reserved_field: map['reserved_field'] ?? '',
+      synced: map['synced'] ?? false,
+
     );
   }
 

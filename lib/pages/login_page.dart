@@ -24,8 +24,12 @@ import '../firebase/notification_service.dart';
 import 'package:provider/provider.dart';
 import '../database_Module/ObjectBoxService.dart';
 import '../database_Module/menu_item.dart';
+import '../database_Module/transaction.dart';
 import '../objectbox.g.dart';
 import 'package:flutter/foundation.dart';
+import 'package:test1/bill_printer.dart'; 
+
+final printer = BillPrinter();
 
 // Create a secure storage instance (you can make this global or in a service)
 final FlutterSecureStorage secureStorage = const FlutterSecureStorage();
@@ -605,7 +609,7 @@ class _LoginPageState extends State<LoginPage> {
         }
         if (response.statusCode == 200) {
           final jsonData = jsonDecode(response.body);
-          // print_log("server response $jsonData");
+          print_log("jsonData server response $jsonData");
 
           final dataList = jsonData['data'];
           print_log("server response $dataList");
@@ -639,6 +643,185 @@ class _LoginPageState extends State<LoginPage> {
       }
     }
  }
+
+  int _safeParseInt(dynamic value, {int defaultValue = 0}) {
+    if (value == null) return defaultValue;
+    if (value is int) return value;
+    if (value is double) return value.toInt();
+    if (value is String) {
+      if (value.isEmpty) return defaultValue;
+      return int.tryParse(value) ?? defaultValue;
+    }
+    if (value is num) return value.toInt();
+    return defaultValue;
+  }
+
+  double _safeParseDouble(dynamic value, {double defaultValue = 0.0}) {
+    if (value == null) return defaultValue;
+    if (value is double) return value;
+    if (value is int) return value.toDouble();
+    if (value is String) {
+      if (value.isEmpty) return defaultValue;
+      return double.tryParse(value) ?? defaultValue;
+    }
+    if (value is num) return value.toDouble();
+    return defaultValue;
+  }
+
+  String _safeParseString(dynamic value, {String defaultValue = ''}) {
+    if (value == null) return defaultValue;
+    if (value is String) return value;
+    return value.toString();
+  }
+
+  DateTime _safeParseDateTime(dynamic value, {DateTime? defaultValue}) {
+    defaultValue ??= DateTime.now();
+    
+    if (value == null) return defaultValue;
+    if (value is DateTime) return value;
+    if (value is String) {
+      if (value.isEmpty) return defaultValue;
+      return DateTime.tryParse(value) ?? defaultValue;
+    }
+    return defaultValue;
+  }
+
+  Future<void> loadtransections(http.Response? response, SharedPreferences prefs) async {
+      final store = Provider.of<ObjectBoxService>(context, listen: false).store;
+      final box = store.box<Transaction>();
+      try {
+        if (response == null) {
+          print_log_red("transection server response GOT NULL");
+          return;
+        }
+        if (response.statusCode == 200) {
+          final jsonData = jsonDecode(response.body);
+          final dataList = jsonData['data'];
+          if (dataList is List) {
+            final localTransactions = box.getAll();
+            final localBillNos = localTransactions.map((tx) => tx.billNo).toSet();
+            int newTransactionsCount = 0;
+
+            for (var serverTxData in dataList) {
+              try {
+                final serverTxMap = Map<String, dynamic>.from(serverTxData);
+                final transactionField = serverTxMap['transaction'];
+                Map<String, dynamic> transactionData;
+                
+                if (transactionField is String) {
+                  final decoded = jsonDecode(transactionField);
+                  if (decoded is Map) {
+                    transactionData = Map<String, dynamic>.from(decoded);
+                  } else {
+                    print_log("❌ Decoded data is not a Map");
+                    continue;
+                  }
+                } else if (transactionField is Map) {
+                  transactionData = Map<String, dynamic>.from(transactionField);
+                } else {
+                  print_log("❌ Unexpected transaction field type");
+                  continue;
+                }
+                
+                // SAFELY parse all fields with proper null handling
+                final int serverBillNo = _safeParseInt(transactionData['billNo'], defaultValue: 0);
+                final int total = _safeParseInt(transactionData['total'], defaultValue: 0);
+                final int tableNo = _safeParseInt(transactionData['tableNo'], defaultValue: 0);
+                final int upiamount = _safeParseInt(transactionData['upiamount'], defaultValue: 0);
+                final int cashamount = _safeParseInt(transactionData['cashamount'], defaultValue: 0);
+                final double discount = _safeParseDouble(transactionData['discount'], defaultValue: 0.0);
+                final double serviceCharge = _safeParseDouble(transactionData['serviceCharge'], defaultValue: 0.0);
+                final double discountPercent = _safeParseDouble(transactionData['discountPercent'], defaultValue: 0.0);
+                
+                // Handle string fields with empty string as default
+                final String status = _safeParseString(transactionData['status'], defaultValue: 'settle');
+                final String paymentMode = _safeParseString(
+                  transactionData['payment_mode'] ?? serverTxMap['payment_mode'], 
+                  defaultValue: 'UNKNOWN'
+                );
+                final String mobileNo = _safeParseString(transactionData['mobileNo']);
+                final String reserved = _safeParseString(transactionData['reserved']);
+                final String orderType = _safeParseString(transactionData['orderType'], defaultValue: 'Dine-In');
+                final String customerName = _safeParseString(transactionData['customerName']);
+                final String reservedField = _safeParseString(transactionData['reserved_field']);
+                
+                // Parse time
+                final DateTime time = _safeParseDateTime(
+                  transactionData['time'] ?? serverTxMap['transaction_time'],
+                  defaultValue: DateTime.now()
+                );
+                
+                // Handle cart data
+                String cartDataString = '[]';
+                if (transactionData.containsKey('cart')) {
+                  final cartValue = transactionData['cart'];
+                  if (cartValue is List) {
+                    cartDataString = jsonEncode(cartValue);
+                  } else if (cartValue is String) {
+                    try {
+                      jsonDecode(cartValue);
+                      cartDataString = cartValue;
+                    } catch (e) {
+                      cartDataString = '[]';
+                    }
+                  }
+                }
+                
+                if (serverBillNo != 0 && !localBillNos.contains(serverBillNo)) {
+                  final Map<String, dynamic> cleanTransactionData = {
+                    'id': serverBillNo,
+                    'billNo': serverBillNo,
+                    'time': time.toIso8601String(),
+                    'tableNo': tableNo,
+                    'total': total,
+                    'cartData': cartDataString,
+                    'payment_mode': paymentMode,
+                    'status': status,
+                    'synced': true,
+                    'discount': discount,
+                    'mobileNo': mobileNo,
+                    'reserved': reserved,
+                    'orderType': orderType,
+                    'upiamount': upiamount,
+                    'cashamount': cashamount,
+                    'customerName': customerName,
+                    'serviceCharge': serviceCharge,
+                    'reserved_field': reservedField,
+                    'discountPercent': discountPercent,
+                  };
+                  
+                  try {
+                    final transaction = Transaction.fromMap(cleanTransactionData);
+                    box.put(transaction);
+                    printer.setNextBillNo(context, cleanTransactionData['billNo']);
+                    newTransactionsCount++;
+                    print_log("✅ Added transaction: $serverBillNo");
+                  } catch (e) {
+                    print_log_red("❌ Error creating transaction: $e");
+                    print_log("Transaction data: $cleanTransactionData");
+                  }
+                }
+                
+              } catch (e) {
+                print_log_red("❌ Error processing transaction: $e");
+                continue;
+              }
+            }
+            if (newTransactionsCount > 0) {
+              print_log("✅ Synced $newTransactionsCount new transactions from server.");
+            }
+          } else {
+            print_log_red("❌ 'data' is not a list");
+          }
+        } else {
+          print_log_red('HTTP Error: ${response.statusCode}: ${response.reasonPhrase}');
+        }
+      } catch (error) {
+        screen_massage(context, "Error syncing transactions: $error");
+        print_log_red("❌ Error in loadtransections: $error");
+      }
+    }
+
 
   void _login() async {
     await hasSmsPermission();
@@ -679,6 +862,7 @@ class _LoginPageState extends State<LoginPage> {
             final app_Version = data['app_version'];
             final expiry_date1 = data['expiry_date'];
             final adminPanel = data['adminPanel'];
+            AppConstants.username = email;
 
             // 2. Parse allowed_device (Fixing the key if you meant 'allowed_device' instead of 'allowed_hotel')
             // If you actually meant to check 'allowed_hotel', keep it as is.
@@ -742,7 +926,6 @@ class _LoginPageState extends State<LoginPage> {
             else {
               //debugPrint("Expiry remaining5 ");
               if (_rememberMe) {
-                //debugPrint("Expiry remaining5 ");
                 await prefs.setString(AppConstants.usernameKey, email);
                 await prefs.setString('password', password);
                 await prefs.setBool('remember_me', true);
@@ -763,8 +946,31 @@ class _LoginPageState extends State<LoginPage> {
                 await secureStorage.delete(key: 'expiresAtStr');
                 await secureStorage.delete(key: 'expiry_Date');
               }
-              loadMenu();
+
+
+
+
               
+              if (role != 'captain') {
+                final businessDate = (AppConstants.businessDate).toString().split(" ")[0];
+                DateTime currentDate = DateTime.parse(businessDate);
+                DateTime previousDate = currentDate.subtract(Duration(days: 1));
+                String previousDateString = "${previousDate.year}-${previousDate.month.toString().padLeft(2, '0')}-${previousDate.day.toString().padLeft(2, '0')}";
+                print_log("dates are $businessDate $previousDateString");
+                final hotelname = email;
+                http.Response? response = await apiCalls('get_t', hotelname, {}, start:previousDateString, end:businessDate);
+                // print_log("jsonData server response $response");
+                loadtransections(response,prefs);
+              }
+
+
+
+
+
+
+
+              loadMenu();
+
               final captain = prefs.getBool('startcaptain') ?? false;
               print_log("Captain $captain");
               if(captain){

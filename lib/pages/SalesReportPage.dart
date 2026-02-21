@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'package:http/http.dart' as http;
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
@@ -404,6 +405,236 @@ class _SalesReportPageState extends State<SalesReportPage> {
     }
   }
 
+  Future<void> _syncTransactionsFromServer() async {
+    setState(() {
+      _isLoading = true;
+    });
+
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      // Date range logic: 1 year
+      // final businessDate = (AppConstants.businessDate ?? DateTime.now()).toString().split(" ")[0];
+      // DateTime currentDate = DateTime.parse(businessDate);
+      // DateTime previousDate = currentDate.subtract(const Duration(days: 365)); // One year
+      // String previousDateString = "${previousDate.year}-${previousDate.month.toString().padLeft(2, '0')}-${previousDate.day.toString().padLeft(2, '0')}";
+      final businessDate = (fromDate ?? DateTime.now()).toString().split(" ")[0];
+      String previousDateString = (toDate ?? DateTime.now()).toString().split(" ")[0];
+      final hotelname = AppConstants.username;
+      
+      print_log("Syncing transactions from $previousDateString to $businessDate $hotelname");
+      
+      http.Response? response = await apiCalls('get_t', hotelname, {}, start:previousDateString, end:businessDate);
+      
+      await loadtransections(response, prefs);
+      
+      // Reload local transactions to update UI
+      await _loadTransactions();
+      
+    } catch (e) {
+      print_log_red("Error syncing transactions: $e");
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text("Error syncing: $e")),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
+    }
+  }
+
+  Future<void> loadtransections(http.Response? response, SharedPreferences prefs) async {
+      final box = store.box<Transaction>();
+      final printer = BillPrinter();
+      try {
+        if (response == null) {
+          print_log_red("transection server response GOT NULL");
+          return;
+        }
+        if (response.statusCode == 200) {
+          final jsonData = jsonDecode(response.body);
+          final dataList = jsonData['data'];
+          if (dataList is List) {
+            final localTransactions = box.getAll();
+            final localBillNos = localTransactions.map((tx) => tx.billNo).toSet();
+            int newTransactionsCount = 0;
+
+            for (var serverTxData in dataList) {
+              try {
+                final serverTxMap = Map<String, dynamic>.from(serverTxData);
+                final transactionField = serverTxMap['transaction'];
+                Map<String, dynamic> transactionData;
+                
+                if (transactionField is String) {
+                  final decoded = jsonDecode(transactionField);
+                  if (decoded is Map) {
+                    transactionData = Map<String, dynamic>.from(decoded);
+                  } else {
+                    print_log("❌ Decoded data is not a Map");
+                    continue;
+                  }
+                } else if (transactionField is Map) {
+                  transactionData = Map<String, dynamic>.from(transactionField);
+                } else {
+                  print_log("❌ Unexpected transaction field type");
+                  continue;
+                }
+                
+                // SAFELY parse all fields with proper null handling
+                final int serverBillNo = _safeParseInt(transactionData['billNo'], defaultValue: 0);
+                final int total = _safeParseInt(transactionData['total'], defaultValue: 0);
+                final int tableNo = _safeParseInt(transactionData['tableNo'], defaultValue: 0);
+                final int upiamount = _safeParseInt(transactionData['upiamount'], defaultValue: 0);
+                final int cashamount = _safeParseInt(transactionData['cashamount'], defaultValue: 0);
+                final double discount = _safeParseDouble(transactionData['discount'], defaultValue: 0.0);
+                final double serviceCharge = _safeParseDouble(transactionData['serviceCharge'], defaultValue: 0.0);
+                final double discountPercent = _safeParseDouble(transactionData['discountPercent'], defaultValue: 0.0);
+                
+                // Handle string fields with empty string as default
+                final String status = _safeParseString(transactionData['status'], defaultValue: 'settle');
+                final String paymentMode = _safeParseString(
+                  transactionData['payment_mode'] ?? serverTxMap['payment_mode'], 
+                  defaultValue: 'UNKNOWN'
+                );
+                final String mobileNo = _safeParseString(transactionData['mobileNo']);
+                final String reserved = _safeParseString(transactionData['reserved']);
+                final String orderType = _safeParseString(transactionData['orderType'], defaultValue: 'Dine-In');
+                final String customerName = _safeParseString(transactionData['customerName']);
+                final String reservedField = _safeParseString(transactionData['reserved_field']);
+                
+                // Parse time
+                final DateTime time = _safeParseDateTime(
+                  transactionData['time'] ?? serverTxMap['transaction_time'],
+                  defaultValue: DateTime.now()
+                );
+                
+                // Handle cart data
+                String cartDataString = '[]';
+                if (transactionData.containsKey('cart')) {
+                  final cartValue = transactionData['cart'];
+                  if (cartValue is List) {
+                    cartDataString = jsonEncode(cartValue);
+                  } else if (cartValue is String) {
+                    try {
+                      jsonDecode(cartValue);
+                      cartDataString = cartValue;
+                    } catch (e) {
+                      cartDataString = '[]';
+                    }
+                  }
+                }
+                
+                if (serverBillNo != 0 && !localBillNos.contains(serverBillNo)) {
+                  final Map<String, dynamic> cleanTransactionData = {
+                    'id': serverBillNo,
+                    'billNo': serverBillNo,
+                    'time': time.toIso8601String(),
+                    'tableNo': tableNo,
+                    'total': total,
+                    'cartData': cartDataString,
+                    'payment_mode': paymentMode,
+                    'status': status,
+                    'synced': true,
+                    'discount': discount,
+                    'mobileNo': mobileNo,
+                    'reserved': reserved,
+                    'orderType': orderType,
+                    'upiamount': upiamount,
+                    'cashamount': cashamount,
+                    'customerName': customerName,
+                    'serviceCharge': serviceCharge,
+                    'reserved_field': reservedField,
+                    'discountPercent': discountPercent,
+                  };
+                  
+                  try {
+                    final transaction = Transaction.fromMap(cleanTransactionData);
+                    box.put(transaction);
+                    printer.setNextBillNo(context, cleanTransactionData['billNo']);
+                    newTransactionsCount++;
+                    print_log("✅ Added transaction: $serverBillNo");
+                  } catch (e) {
+                    print_log_red("❌ Error creating transaction: $e");
+                    print_log("Transaction data: $cleanTransactionData");
+                  }
+                }
+                
+              } catch (e) {
+                print_log_red("❌ Error processing transaction: $e");
+                continue;
+              }
+            }
+            if (newTransactionsCount > 0) {
+              print_log("✅ Synced $newTransactionsCount new transactions from server.");
+              if (mounted) {
+                 ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(content: Text("Synced $newTransactionsCount new transactions")),
+                );
+              }
+            } else {
+               if (mounted) {
+                 ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(content: Text("No new transactions found")),
+                );
+              }
+            }
+          } else {
+            print_log_red("❌ 'data' is not a list");
+          }
+        } else {
+          print_log_red('HTTP Error: ${response.statusCode}: ${response.reasonPhrase}');
+        }
+      } catch (error) {
+        screen_massage(context, "Error syncing transactions: $error");
+        print_log_red("❌ Error in loadtransections: $error");
+      }
+    }
+
+  int _safeParseInt(dynamic value, {int defaultValue = 0}) {
+    if (value == null) return defaultValue;
+    if (value is int) return value;
+    if (value is double) return value.toInt();
+    if (value is String) {
+      if (value.isEmpty) return defaultValue;
+      return int.tryParse(value) ?? defaultValue;
+    }
+    if (value is num) return value.toInt();
+    return defaultValue;
+  }
+
+  double _safeParseDouble(dynamic value, {double defaultValue = 0.0}) {
+    if (value == null) return defaultValue;
+    if (value is double) return value;
+    if (value is int) return value.toDouble();
+    if (value is String) {
+      if (value.isEmpty) return defaultValue;
+      return double.tryParse(value) ?? defaultValue;
+    }
+    if (value is num) return value.toDouble();
+    return defaultValue;
+  }
+
+  String _safeParseString(dynamic value, {String defaultValue = ''}) {
+    if (value == null) return defaultValue;
+    if (value is String) return value;
+    return value.toString();
+  }
+
+  DateTime _safeParseDateTime(dynamic value, {DateTime? defaultValue}) {
+    defaultValue ??= DateTime.now();
+    
+    if (value == null) return defaultValue;
+    if (value is DateTime) return value;
+    if (value is String) {
+      if (value.isEmpty) return defaultValue;
+      return DateTime.tryParse(value) ?? defaultValue;
+    }
+    return defaultValue;
+  }
+
   Future<void> _shareReport() async {
     final now = DateTime.now();
     final formattedDate = DateFormat('dd MMM yyyy, hh:mm a').format(now);
@@ -504,6 +735,11 @@ class _SalesReportPageState extends State<SalesReportPage> {
         title: const Text('Sales Report'),
         actions: [
           IconButton(
+            icon: const Icon(Icons.cloud_download),
+            onPressed: _syncTransactionsFromServer,
+            tooltip: 'Sync Transactions',
+          ),
+          IconButton(
             icon: const Icon(Icons.refresh),
             onPressed: _loadTransactions,
             tooltip: 'Refresh',
@@ -513,29 +749,29 @@ class _SalesReportPageState extends State<SalesReportPage> {
             onPressed: _shareReport,
             tooltip: 'Share Report',
           ),
-          IconButton(
-            icon: const Icon(Icons.print),
-            onPressed: () {
-              BillPrinter().printSalesReportSummary(
-                context: context,
-                fromDate: fromDate,
-                toDate: toDate,
-                todayTotal: todayTotal,
-                weekTotal: weekTotal,
-                monthTotal: monthTotal,
-                cashTotal: cashTotal,
-                cardTotal: cardTotal,
-                upiTotal: upiTotal,
-                otherTotal: otherTotal,
-                giveamount: giveamount,
-                takeamount: takeamount,
-                expensesDateRange: expensesDateRange,
-                expensesToday: expensesToday,
-                isDateRangeSelected: isDateRangeSelected,
-              );
-            },
-            tooltip: 'Print Summary Report',
-          ),
+          // IconButton(
+          //   icon: const Icon(Icons.print),
+          //   onPressed: () {
+          //     BillPrinter().printSalesReportSummary(
+          //       context: context,
+          //       fromDate: fromDate,
+          //       toDate: toDate,
+          //       todayTotal: todayTotal,
+          //       weekTotal: weekTotal,
+          //       monthTotal: monthTotal,
+          //       cashTotal: cashTotal,
+          //       cardTotal: cardTotal,
+          //       upiTotal: upiTotal,
+          //       otherTotal: otherTotal,
+          //       giveamount: giveamount,
+          //       takeamount: takeamount,
+          //       expensesDateRange: expensesDateRange,
+          //       expensesToday: expensesToday,
+          //       isDateRangeSelected: isDateRangeSelected,
+          //     );
+          //   },
+          //   tooltip: 'Print Summary Report',
+          // ),
         ],
       ),
       body: _isLoading
@@ -1042,6 +1278,7 @@ class _SalesReportPageState extends State<SalesReportPage> {
                     fromDate = getDateWithFourAMOffset();
                     toDate = getDateWithFourAMOffset();
                   });
+                  
                   _loadTransactions();
                 },
                 icon: const Icon(Icons.refresh, size: 16),

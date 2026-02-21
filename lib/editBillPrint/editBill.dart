@@ -97,10 +97,6 @@ class _DetailPageState extends State<DetailPage> {
     void _updateCalculations() {
     if (!mounted) return;
       // //debugPrint(" widget.hideadd == null ${widget.table} ${widget.table == null } ${widget.table == null && widget.hideadd == null} ${widget.hideadd != null} ${widget.hideadd}");
-      // This function will now be the single source of truth for all calculations
-      // It should handle subtotal, apply discounts, apply service charges, and update the final total.
-      // I'm assuming the logic is inside your listeners, so we can just call one of them
-      // or a new, dedicated function.
       _calculateSubtotal(); // This likely updates the subtotal state
       _onDiscountChanged(); // This should now use the correct subtotal
       _onServiceChargeChanged(); // This will add the service charge on top
@@ -1912,6 +1908,7 @@ class __BottomBarState extends State<_BottomBar> {
       // Customer not found, create a new one
       //debugPrint("Udhari currentCustomer Creating new customer: $name");
       final newCustomer = udhariCustomer(
+        ucuniid : DateTime.now().millisecondsSinceEpoch.toString(),
         name: name.trim(),
         phone: phone.isNotEmpty ? phone.trim() : '',
         adreess: adreess.isNotEmpty ? adreess.trim() : '',

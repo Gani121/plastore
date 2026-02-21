@@ -48,14 +48,13 @@ Future<void> _syncWithCloud(ObjectBoxService ob) async {
     final customerBox = _store.box<udhariCustomer>();
 
     for (Map<String, dynamic> cloudCus in cloudData) {
+      String ucuniid = cloudCus['external_id']?.toString() ?? DateTime.now().millisecondsSinceEpoch.toString();
       String name = cloudCus['name']?.toString() ?? "Unknown";
       String phone = cloudCus['mobile']?.toString() ?? "";
       String address = cloudCus['adreess']?.toString() ?? "";
-      
-      // ✅ FIX 1: Parse the 'balance' field from the cloud, not 'adreess'
       double cloudBalance = double.tryParse(cloudCus['balance']?.toString() ?? '0') ?? 0.0;
 
-      final udhariCustomer currentCustomer = _findOrCreateCustomer(customerBox, name, phone, address);
+      final udhariCustomer currentCustomer = _findOrCreateCustomer(customerBox, ucuniid, name, phone, address);
 
       if (currentCustomer != null) {
         // ✅ FIX 2: Calculate the difference
@@ -95,7 +94,7 @@ Future<void> _syncWithCloud(ObjectBoxService ob) async {
 
           print_log("✅ udhari Sync: ${currentCustomer.name} updated. New Balance: $cloudBalance (Adj: $transactionAmount as ${type.name})");
         } else {
-          print_log("ℹ️ udhari Sync: ${currentCustomer.name} is already up to date.");
+          // print_log("ℹ️ udhari Sync: ${currentCustomer.name} is already up to date.");
         }
       }
     }
@@ -104,7 +103,7 @@ Future<void> _syncWithCloud(ObjectBoxService ob) async {
   }
 }
 
-  udhariCustomer _findOrCreateCustomer(Box<udhariCustomer> customerBox, String name, String phone,String adreess) {
+  udhariCustomer _findOrCreateCustomer(Box<udhariCustomer> customerBox, String ucuniid, String name, String phone,String adreess) {
     //debugPrint("currentCustomer $name ");
 
     final query = customerBox.query(udhariCustomer_.name.equals(name.trim())).build();
@@ -119,6 +118,7 @@ Future<void> _syncWithCloud(ObjectBoxService ob) async {
       // Customer not found, create a new one
       //debugPrint("Udhari currentCustomer Creating new customer: $name");
       final newCustomer = udhariCustomer(
+        ucuniid : ucuniid,
         name: name.trim(),
         phone: phone.isNotEmpty ? phone.trim() : '',
         adreess: adreess.isNotEmpty ? adreess.trim() : '',
@@ -137,7 +137,7 @@ Future<void> _syncWithCloud(ObjectBoxService ob) async {
     final objectbox = Provider.of<ObjectBoxService>(context, listen: false);
     objectbox.store.box<udhariCustomer>().remove(customer.id);
 
-    UdhariSyncService.deleteCustomer((customer.id).toString());
+    UdhariSyncService.deleteCustomer((customer.ucuniid).toString());
 
     // Show a confirmation snackbar
     ScaffoldMessenger.of(context).showSnackBar(

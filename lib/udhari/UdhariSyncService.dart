@@ -22,18 +22,20 @@ class UdhariSyncService {
     final loginUser = await prefs.getString(AppConstants.usernameKey) ?? "";
       
       final payload = {
-          'login_user': loginUser,
-          'id': customer.id.toString(), // ObjectBox ID
-          'name': customer.name,
-          'mobile': customer.phone ?? "", // Assuming you have a mobile field
-          'balance': customer.balance,
-        };
-       http.Response? response = await apiCalls("ud_save", loginUser, payload);
-        if (response == null) {
-          return;
-        }
+        'login_user': loginUser,
+        'id': customer.ucuniid.toString(), // ObjectBox ID
+        'name': customer.name,
+        'mobile': customer.phone ?? "", // Assuming you have a mobile field
+        'balance': customer.balance,
+      };
+      http.Response? response = await apiCalls("ud_save", loginUser, payload);
+      if (response == null) {
+        return;
+      }
       if (response.statusCode != 200) {
-        print_log("Failed to sync customer: ${response.body}");
+        print_log_red("Failed to sync customer: ${response.body}");
+      } else{
+        print_log(" customer: ${response.body}");
       }
     } catch (e) {
       print_log_red("Error syncing customer: $e");

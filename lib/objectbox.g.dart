@@ -491,7 +491,7 @@ final _entities = <obx_int.ModelEntity>[
   obx_int.ModelEntity(
     id: const obx_int.IdUid(7, 8243572385061020594),
     name: 'udhariCustomer',
-    lastPropertyId: const obx_int.IdUid(12, 6332134424552111661),
+    lastPropertyId: const obx_int.IdUid(13, 2590552078034253499),
     flags: 0,
     properties: <obx_int.ModelProperty>[
       obx_int.ModelProperty(
@@ -542,6 +542,12 @@ final _entities = <obx_int.ModelEntity>[
         type: 9,
         flags: 0,
       ),
+      obx_int.ModelProperty(
+        id: const obx_int.IdUid(13, 2590552078034253499),
+        name: 'ucuniid',
+        type: 9,
+        flags: 0,
+      ),
     ],
     relations: <obx_int.ModelRelation>[],
     backlinks: <obx_int.ModelBacklink>[
@@ -555,7 +561,7 @@ final _entities = <obx_int.ModelEntity>[
   obx_int.ModelEntity(
     id: const obx_int.IdUid(8, 1884757268945243640),
     name: 'TransactionUdhari',
-    lastPropertyId: const obx_int.IdUid(14, 5803474790427682343),
+    lastPropertyId: const obx_int.IdUid(15, 629919279716649099),
     flags: 0,
     properties: <obx_int.ModelProperty>[
       obx_int.ModelProperty(
@@ -1247,6 +1253,7 @@ obx_int.ModelDefinition getObjectBoxModel() {
       1392690088717919001,
       8135050372608154532,
       729086968309304893,
+      629919279716649099,
     ],
     retiredRelationUids: const [],
     modelVersion: 5,
@@ -1886,7 +1893,8 @@ obx_int.ModelDefinition getObjectBoxModel() {
         final reserved_field3Offset = object.reserved_field3 == null
             ? null
             : fbb.writeString(object.reserved_field3!);
-        fbb.startTable(13);
+        final ucuniidOffset = fbb.writeString(object.ucuniid);
+        fbb.startTable(14);
         fbb.addInt64(0, object.id);
         fbb.addOffset(1, nameOffset);
         fbb.addOffset(2, phoneOffset);
@@ -1895,12 +1903,16 @@ obx_int.ModelDefinition getObjectBoxModel() {
         fbb.addOffset(9, reserved_field1Offset);
         fbb.addOffset(10, reserved_field2Offset);
         fbb.addOffset(11, reserved_field3Offset);
+        fbb.addOffset(12, ucuniidOffset);
         fbb.finish(fbb.endTable());
         return object.id;
       },
       objectFromFB: (obx.Store store, ByteData fbData) {
         final buffer = fb.BufferContext(fbData);
         final rootOffset = buffer.derefObject(0);
+        final ucuniidParam = const fb.StringReader(
+          asciiOptimization: true,
+        ).vTableGet(buffer, rootOffset, 28, '');
         final nameParam = const fb.StringReader(
           asciiOptimization: true,
         ).vTableGet(buffer, rootOffset, 6, '');
@@ -1923,6 +1935,7 @@ obx_int.ModelDefinition getObjectBoxModel() {
           asciiOptimization: true,
         ).vTableGetNullable(buffer, rootOffset, 26);
         final object = udhariCustomer(
+          ucuniid: ucuniidParam,
           name: nameParam,
           phone: phoneParam,
           adreess: adreessParam,
@@ -1965,7 +1978,7 @@ obx_int.ModelDefinition getObjectBoxModel() {
         final reserved_field3Offset = object.reserved_field3 == null
             ? null
             : fbb.writeString(object.reserved_field3!);
-        fbb.startTable(15);
+        fbb.startTable(16);
         fbb.addInt64(0, object.id);
         fbb.addFloat64(1, object.amount);
         fbb.addInt64(2, object.date.millisecondsSinceEpoch);
@@ -3093,6 +3106,11 @@ class udhariCustomer_ {
   /// See [udhariCustomer.reserved_field3].
   static final reserved_field3 = obx.QueryStringProperty<udhariCustomer>(
     _entities[3].properties[7],
+  );
+
+  /// See [udhariCustomer.ucuniid].
+  static final ucuniid = obx.QueryStringProperty<udhariCustomer>(
+    _entities[3].properties[8],
   );
 
   /// see [udhariCustomer.transactions]

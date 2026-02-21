@@ -210,7 +210,7 @@ class SettingsPage extends StatelessWidget {
         }
         if (response.statusCode == 200) {
           final jsonData = jsonDecode(response.body);
-          // print_log("server response $jsonData");
+          print_log("jsonData server response $jsonData");
 
           final dataList = jsonData['data'];
           print_log("server response $dataList");

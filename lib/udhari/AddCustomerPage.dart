@@ -54,6 +54,7 @@ class _AddCustomerPageState extends State<AddCustomerPage> {
   void _saveCustomer() {
     if (_formKey.currentState!.validate()) {
       final newCustomer = udhariCustomer(
+        ucuniid : DateTime.now().millisecondsSinceEpoch.toString(),
         name: _nameController.text,
         phone: _phoneController.text.isNotEmpty ? _phoneController.text : '',
         adreess: _adreessController.text.isNotEmpty ? _adreessController.text : '',

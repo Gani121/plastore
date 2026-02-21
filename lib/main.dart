@@ -104,6 +104,8 @@ class MyApp extends StatelessWidget {
       builder: (context, localeProvider, child) {
         // 'localeProvider' (lowercase 'l') is now the
         // ACTUAL INSTANCE of your provider.
+        getBusinessDate();
+
 
         return MaterialApp(
           // initialRoute: '/',
@@ -162,7 +164,7 @@ DateTime getBusinessDate({int cutoffHour = 4}) {
   // Check if the current hour is before the cutoff time (e.g., 00:00 to 03:59)
   if (now.hour < cutoffHour) {
     DateTime businessDate = now.subtract(const Duration(days: 1));
-    AppConstants.businessDate = DateTime(businessDate.year, businessDate.month, businessDate.day);;
+    AppConstants.businessDate = DateTime(businessDate.year, businessDate.month, businessDate.day);
     print_log_red("business date saved ${AppConstants.businessDate}");
     return businessDate;
   } else {

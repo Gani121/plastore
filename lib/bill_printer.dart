@@ -590,12 +590,14 @@ Future<void> printBillWithLogo(thermal.BlueThermalPrinter bluetooth) async {
     required String payment_mode,
     required String mode,
     required Map<String, dynamic>? transactionData,
+    bool? synced,
   }) async {
     bool demo = prefs.getBool('demo') ?? false;
     print_log("demo $demo");
     if(demo){
       return false;
     }
+
     if (tableNo > 0){
       final ttid = prefs.getInt("tt$tableNo");
       print_log("this is $tableNo table order of ttid $ttid ");
@@ -625,6 +627,7 @@ Future<void> printBillWithLogo(thermal.BlueThermalPrinter bluetooth) async {
           payment_mode: payment_mode,
           status: mode,
           transactionData: transactionData,
+          synced : synced,
         );
       }
       
@@ -694,7 +697,7 @@ Future<void> printBillWithLogo(thermal.BlueThermalPrinter bluetooth) async {
   }
     
   void deletetablecart(int tableNo) async {
-
+    try{
     // 3. Find if an entry for this table already exists
     final box = store.box<tableCart>();
     final query = box.query(tableCart_.tableNo.equals(tableNo)).build();
@@ -706,6 +709,9 @@ Future<void> printBillWithLogo(thermal.BlueThermalPrinter bluetooth) async {
     if (existingTableCart != null) {
       box.remove(existingTableCart.id);
       //debugPrint("🗑️ Removed empty cart for table #$tableNo from ObjectBox.");
+    }
+    }catch(e){
+      print_log_red("error in the removing table cart $e");
     }
   }
 
@@ -2094,6 +2100,7 @@ Future<void> printBillWithLogo(thermal.BlueThermalPrinter bluetooth) async {
     required int total,
     required int tableNo,
     int? pageback,
+    bool? synced,
     required String payment_mode,
     required String status,
     required Map<String, dynamic>? transactionData,
@@ -2110,6 +2117,25 @@ Future<void> printBillWithLogo(thermal.BlueThermalPrinter bluetooth) async {
     final fullDateTime = businessDatePart;
     // //debugPrint("Final combined DateTime: $fullDateTime"); // Will show the correct date and current time
     // //debugPrint("now time in hhmmss: $now");
+
+    final prefs = await SharedPreferences.getInstance();
+    final apicall = await prefs.getString("adminPanel") ?? "no";
+    bool demo = prefs.getBool('demo') ?? false;   
+
+    if (!apicall.toLowerCase().contains("no") || !demo) {
+      
+      http.Response? response = await apiCalls('get_billno', AppConstants.username, {});
+
+      if (response != null && response.statusCode == 200) {
+        final Map<String, dynamic> data = jsonDecode(response.body);
+        final rawBillNo = data['bill_no'] ?? data['data'][0]['transactions_id'];
+        transactionData?['billNo'] = (int.tryParse(rawBillNo.toString()) ?? 0) + 1;
+        // print_log('Extracted Bill No: $rawBillNo transactionData?[billNo] ${transactionData?['billNo']}');
+      } else {
+        print_log_red('Failed to fetch bill no or response was null');
+      }
+    }
+
     late int createdId = 0;
 
     final tx = Transaction(
@@ -2130,6 +2156,7 @@ Future<void> printBillWithLogo(thermal.BlueThermalPrinter bluetooth) async {
       cashamount: cash_amount,
       upiamount: upi_amount,
       reserved_field: transactionData?['reserved_field'] ?? '',
+      synced : false,
       
     );
     //debugPrint("Transaction Data to be sent: $tx");
@@ -2277,7 +2304,7 @@ Future<void> printBillWithLogo(thermal.BlueThermalPrinter bluetooth) async {
     final prefs = await SharedPreferences.getInstance();
     final apicall = await prefs.getString("adminPanel") ?? "no";
     bool demo = prefs.getBool('demo') ?? false;   
-    
+
     if (apicall.toLowerCase().contains("no") || demo) {
       print_log("❌ in settel transection adminPanel not yes so Not send transection to the sever $apicall");
       return false;
@@ -2286,16 +2313,15 @@ Future<void> printBillWithLogo(thermal.BlueThermalPrinter bluetooth) async {
 
       final existingTx = box.get(id);
       if (existingTx == null) {
-        print_log_red("❌ Transaction with ID $id not found so not sending to the server");
+        print_log_red("❌ Transaction with ID $id not found so not sending to the server of existingTx.synced is true");
         return false;
       }
-
-      // String businessName = prefs.getString('businessName') ?? 'Hotel Test';
+      Map<String, dynamic> transectiondata = existingTx.toMap();
       String login_user = prefs.getString(AppConstants.usernameKey) ?? 'Hotel Test';
       String cart_String = existingTx.cartData.toString().replaceAll('"', "'");
-      // String cart_String = jsonEncode(existingTx.cartData);
+
       final payload = {
-        "transactions_id": id,
+        "transactions_id": existingTx.billNo ?? id,
         "hotelName": login_user,
         "tableNo": existingTx.tableNo,
         "total": existingTx.total,
@@ -2303,9 +2329,10 @@ Future<void> printBillWithLogo(thermal.BlueThermalPrinter bluetooth) async {
         "payment_mode": existingTx.payment_mode,
         "time": existingTx.time.toIso8601String(),
         "login_user":login_user,
+        "transaction": jsonEncode(transectiondata),
       };
 
-      //debugPrint("✅ payload $payload ");
+      debugPrint("✅ payload $payload ");
 
       http.Response? response = await apiCalls("t", login_user, payload);
         if (response == null) {
@@ -2415,6 +2442,9 @@ Future<void> printBillWithLogo(thermal.BlueThermalPrinter bluetooth) async {
     if (_isSyncing) {
       return;
     }
+    _isSyncing = true;
+    print_log("Lock sync process: $_isSyncing");
+    
     final prefs = await SharedPreferences.getInstance();
     final apicall = await prefs.getString("adminPanel") ?? "no";
     
@@ -2425,33 +2455,25 @@ Future<void> printBillWithLogo(thermal.BlueThermalPrinter bluetooth) async {
       print_log("❌ in settel transection adminPanel not yes so Not send transection to the sever $apicall");
       return;
     }
-    _isSyncing = true;
-    print_log("Lock sync process: $_isSyncing");
+    
 
     try {
       final objectBoxService = Provider.of<ObjectBoxService>(context,listen: false,);
       final store1 = objectBoxService.store;
       final box = store1.box<Transaction>();
       final List<int> unsyncedIds = box.getAll().where((tx) => !(tx.synced)).map((tx) => tx.id).toList();
-      //debugPrint("Unsynced transaction IDs: $unsyncedIds");
-      // final isOnline = await isDeviceOnline();
-      // final isOnline = await isDeviceConnected();
-      // final prefs = await SharedPreferences.getInstance();
-      // final isOnline = prefs.getBool('isOnline') ?? true;
-      //debugPrint(" unsyncedIds.isNotEmpty: ${unsyncedIds.isNotEmpty} both: ${unsyncedIds.isNotEmpty}");
+      print_log_red("Unsynced transaction IDs: $unsyncedIds");
 
       int successfulSyncs = 0;
       for (int i in unsyncedIds) {
         try {
-          // Wait for 1 second before sending (except for the first one)
-          // await Future.delayed(Duration(seconds: 5));
           final success = await sendTransactionToServer(box, i).timeout(const Duration(seconds: 5));
           // await Future.delayed(Duration(seconds: 5));
           if (success) {
             successfulSyncs++;
           }
         } catch (e) {
-          print_log("❌ Got Exception Transaction failed ${unsyncedIds.length} $e ");
+          print_log_red("❌ Got Exception Transaction failed ${unsyncedIds.length} $e ");
           // break;
         }
       }
