@@ -1219,32 +1219,6 @@ Future<void> _connectKOTPrinter() async {
               child: Row(
                 crossAxisAlignment: CrossAxisAlignment.center,
                 children: [
-                  const Expanded(
-                    child: Text(
-                      "Footer",
-                      style: TextStyle(fontSize: 16.0),
-                    ),
-                  ),
-                  const SizedBox(width: 4.0),
-                  SizedBox(
-                    width: 250.0,
-                    child: TextField(
-                      controller: _footerController,
-                      keyboardType: TextInputType.text,
-                      textAlign: TextAlign.center,
-                      decoration: const InputDecoration(
-                        hintText: "e.g. Thank You",
-                        border: OutlineInputBorder(),
-                        isDense: true,
-                        contentPadding: EdgeInsets.all(12.0),
-                      ),
-                      onChanged: (val) {
-                         // ✨ NEW: Auto-save on change for text field
-                         _autoSaveSettings();
-                      },
-                    ),
-                  ),
-                  const SizedBox(width: 4.0),
                   Expanded(
                     child: Text(
                       "whatsapp text",
@@ -1260,6 +1234,39 @@ Future<void> _connectKOTPrinter() async {
                       textAlign: TextAlign.center,
                       decoration: const InputDecoration(
                         hintText: "Thank you for your business!",
+                        border: OutlineInputBorder(),
+                        isDense: true,
+                        contentPadding: EdgeInsets.all(12.0),
+                      ),
+                      onChanged: (val) {
+                         // ✨ NEW: Auto-save on change for text field
+                         _autoSaveSettings();
+                      },
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 12.0),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.center,
+                children: [
+                  const Expanded(
+                    child: Text(
+                      "Footer",
+                      style: TextStyle(fontSize: 16.0),
+                    ),
+                  ),
+                  const SizedBox(width: 4.0),
+                  SizedBox(
+                    width: 250.0,
+                    child: TextField(
+                      controller: _footerController,
+                      keyboardType: TextInputType.text,
+                      textAlign: TextAlign.center,
+                      decoration: const InputDecoration(
+                        hintText: "e.g. Thank You",
                         border: OutlineInputBorder(),
                         isDense: true,
                         contentPadding: EdgeInsets.all(12.0),
