@@ -697,6 +697,7 @@ class _LoginPageState extends State<LoginPage> {
         if (response.statusCode == 200) {
           final jsonData = jsonDecode(response.body);
           final dataList = jsonData['data'];
+          print_log_red("transection server response $dataList");
           if (dataList is List) {
             final localTransactions = box.getAll();
             final localBillNos = localTransactions.map((tx) => tx.billNo).toSet();
@@ -826,10 +827,11 @@ class _LoginPageState extends State<LoginPage> {
   void _login() async {
     await hasSmsPermission();
     try{
-    final email = _emailController.text.trim();
+    final email = (_emailController.text.trim()).toLowerCase();
     final password = _passwordController.text.trim();
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString(AppConstants.usernameKey, email);
+    AppConstants.username = email;
     if (_formKey.currentState!.validate()) {
       setState(() {
         _isLoading = true; // ⏳ Start loading
@@ -862,7 +864,6 @@ class _LoginPageState extends State<LoginPage> {
             final app_Version = data['app_version'];
             final expiry_date1 = data['expiry_date'];
             final adminPanel = data['adminPanel'];
-            AppConstants.username = email;
 
             // 2. Parse allowed_device (Fixing the key if you meant 'allowed_device' instead of 'allowed_hotel')
             // If you actually meant to check 'allowed_hotel', keep it as is.
@@ -926,7 +927,7 @@ class _LoginPageState extends State<LoginPage> {
             else {
               //debugPrint("Expiry remaining5 ");
               if (_rememberMe) {
-                await prefs.setString(AppConstants.usernameKey, email);
+                // await prefs.setString(AppConstants.usernameKey, email);
                 await prefs.setString('password', password);
                 await prefs.setBool('remember_me', true);
 
@@ -1029,7 +1030,7 @@ class _LoginPageState extends State<LoginPage> {
         final bool isExpiryToday = expiryDateOnly.isBefore(today);
         
 
-        //debugPrint("Expiry remaining $expiryDate  isExpiryToday $isExpiryToday");
+        print_log("Expiry remaining $expiryDate  isExpiryToday $isExpiryToday");
 
         final expiryDate1 = DateTime.parse(expiresAtStr!);
         final extendedExpiry = expiryDate1.add(Duration(days: 365));

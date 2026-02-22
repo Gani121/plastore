@@ -2476,7 +2476,6 @@ Future<void> printBillWithLogo(thermal.BlueThermalPrinter bluetooth) async {
             final Map<String, dynamic> data = jsonDecode(response.body);
             final rawBillNo = data['bill_no'] ?? data['data'][0]['transactions_id'];
             bill_no = (int.tryParse(rawBillNo.toString()) ?? 0) + 1;
-            // print_log('Extracted Bill No: $rawBillNo transactionData?[billNo] ${transactionData?['billNo']}');
           } else {
             print_log_red('Failed to fetch bill no or response was null');
           }

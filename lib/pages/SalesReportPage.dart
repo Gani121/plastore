@@ -158,7 +158,7 @@ class _SalesReportPageState extends State<SalesReportPage> {
           final value = raw is int ? raw : int.tryParse(raw.toString()) ?? 0;
           adjustStock1["${tx['name']}"] = value;
         }
-        final purchasePrice = tx['purchasePrice']; // "25.00"
+        final purchasePrice = tx['purchasePrice'] ?? "0.0"; // "25.00"
         final purchasePriceDouble = double.tryParse(purchasePrice) ?? 0.0;
         final purchasePriceValue = purchasePriceDouble.round();
         if (purchasePriceValue > 0) {
@@ -417,13 +417,13 @@ class _SalesReportPageState extends State<SalesReportPage> {
       // DateTime currentDate = DateTime.parse(businessDate);
       // DateTime previousDate = currentDate.subtract(const Duration(days: 365)); // One year
       // String previousDateString = "${previousDate.year}-${previousDate.month.toString().padLeft(2, '0')}-${previousDate.day.toString().padLeft(2, '0')}";
-      final businessDate = (fromDate ?? DateTime.now()).toString().split(" ")[0];
-      String previousDateString = (toDate ?? DateTime.now()).toString().split(" ")[0];
+      final _fromDate = (fromDate ?? DateTime.now()).toString().split(" ")[0];
+      String _toDate = (toDate ?? DateTime.now()).toString().split(" ")[0];
       final hotelname = AppConstants.username;
       
-      print_log("Syncing transactions from $previousDateString to $businessDate $hotelname");
+      print_log("Syncing transactions from $_fromDate to $_toDate $hotelname");
       
-      http.Response? response = await apiCalls('get_t', hotelname, {}, start:previousDateString, end:businessDate);
+      http.Response? response = await apiCalls('get_t', hotelname, {}, start:_fromDate, end:_toDate);
       
       await loadtransections(response, prefs);
       
@@ -456,6 +456,7 @@ class _SalesReportPageState extends State<SalesReportPage> {
         }
         if (response.statusCode == 200) {
           final jsonData = jsonDecode(response.body);
+          // print_log_red("transection server response $jsonData");
           final dataList = jsonData['data'];
           if (dataList is List) {
             final localTransactions = box.getAll();
@@ -467,7 +468,7 @@ class _SalesReportPageState extends State<SalesReportPage> {
                 final serverTxMap = Map<String, dynamic>.from(serverTxData);
                 final transactionField = serverTxMap['transaction'];
                 Map<String, dynamic> transactionData;
-                
+                // print_log_red("transection server response ${transactionField.runtimeType}");
                 if (transactionField is String) {
                   final decoded = jsonDecode(transactionField);
                   if (decoded is Map) {
@@ -479,7 +480,7 @@ class _SalesReportPageState extends State<SalesReportPage> {
                 } else if (transactionField is Map) {
                   transactionData = Map<String, dynamic>.from(transactionField);
                 } else {
-                  print_log("❌ Unexpected transaction field type");
+                  print_log("❌ Unexpected transaction field type $transactionField");
                   continue;
                 }
                 
