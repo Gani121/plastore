@@ -823,6 +823,7 @@ class _DetailPageState extends State<DetailPage> {
     // Example bill number - you can make this dynamic
     final prefs = await SharedPreferences.getInstance();
     String businessName = prefs.getString('businessName') ?? 'Hotel Test';
+    String whatsapptext = prefs.getString('whatsapptext') ?? 'Thank you for your business!';
     String contactPhone = prefs.getString('contactPhone') ?? '';
     String businessAddress = prefs.getString('businessAddress') ?? '';
     String _myUpiId = prefs.getString('upi') ?? '';
@@ -862,7 +863,7 @@ class _DetailPageState extends State<DetailPage> {
       *Click here to pay using UPI:*
       $upiPaymentLink
       -----------------------------------
-      Thank you for your business!
+      $whatsapptext
       *---------------------------------*
     ''';
     // '''

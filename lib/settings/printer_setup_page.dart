@@ -62,6 +62,7 @@ class _PrinterSetupPageState extends State<PrinterSetupPage> with WidgetsBinding
   final List<String> _paperSizes = ["2", "3","4"];
   final List<String> _fontSizess = ["fontA", "fontB"];
   late TextEditingController _footerController = TextEditingController();
+  late TextEditingController _whatsapptextController = TextEditingController();
 
   thermal.BlueThermalPrinter printer = thermal.BlueThermalPrinter.instance;
 
@@ -79,6 +80,7 @@ class _PrinterSetupPageState extends State<PrinterSetupPage> with WidgetsBinding
     WidgetsBinding.instance.removeObserver(this);
     _bluetoothStateSubscription?.cancel();
     _footerController.dispose();
+    _whatsapptextController.dispose();
     super.dispose();
   }
 
@@ -231,6 +233,7 @@ class _PrinterSetupPageState extends State<PrinterSetupPage> with WidgetsBinding
       _chunkSize =  prefs.getInt('chunkSize')?? 200;
       _logoheight =  prefs.getInt('logoheight')?? 200;
        _footerController = TextEditingController(text: prefs.getString('footerText')?? "** thank you **");
+      _whatsapptextController = TextEditingController(text: prefs.getString('whatsapptext')?? "Thank you for your business!");
 
       _selectedUUID = prefs.getString('selected_printer_uuid') ?? "49535343-8841-43f4-a8d4-ecbe34729bb3";
       _availableUUIDs = [_selectedUUID];
@@ -288,6 +291,7 @@ class _PrinterSetupPageState extends State<PrinterSetupPage> with WidgetsBinding
     await prefs.setBool('otherprinter', _otherPrnter);
     await prefs.setBool('isgst', _isgst);
     await prefs.setString('footerText', _footerController.text);
+    await prefs.setString('whatsapptext', _whatsapptextController.text);
     await prefs.setInt('logoWidth', _logoWidth);
     await prefs.setInt('chunkSize', _chunkSize);
     await prefs.setInt('logoheight', _logoheight);
@@ -1230,6 +1234,32 @@ Future<void> _connectKOTPrinter() async {
                       textAlign: TextAlign.center,
                       decoration: const InputDecoration(
                         hintText: "e.g. Thank You",
+                        border: OutlineInputBorder(),
+                        isDense: true,
+                        contentPadding: EdgeInsets.all(12.0),
+                      ),
+                      onChanged: (val) {
+                         // ✨ NEW: Auto-save on change for text field
+                         _autoSaveSettings();
+                      },
+                    ),
+                  ),
+                  const SizedBox(width: 4.0),
+                  Expanded(
+                    child: Text(
+                      "whatsapp text",
+                      style: TextStyle(fontSize: 16.0),
+                    ),
+                  ),
+                  const SizedBox(width: 4.0),
+                  SizedBox(
+                    width: 250.0,
+                    child: TextField(
+                      controller: _whatsapptextController,
+                      keyboardType: TextInputType.text,
+                      textAlign: TextAlign.center,
+                      decoration: const InputDecoration(
+                        hintText: "Thank you for your business!",
                         border: OutlineInputBorder(),
                         isDense: true,
                         contentPadding: EdgeInsets.all(12.0),

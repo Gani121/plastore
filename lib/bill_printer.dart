@@ -959,7 +959,7 @@ Future<void> printBillWithLogo(thermal.BlueThermalPrinter bluetooth) async {
     return billNo;
   }
 
-  void setNextBillNo(BuildContext context, int billNo) async {
+  Future<int> setNextBillNo(BuildContext context, int billNo) async {
     final store = Provider.of<ObjectBoxService>(context, listen: false).store;
     final billCounterBox = store.box<BillCounter>();
 
@@ -977,8 +977,9 @@ Future<void> printBillWithLogo(thermal.BlueThermalPrinter bluetooth) async {
       BillCounter newCounter = BillCounter(lastBillNo: nextBillNo);
       billCounterBox.put(newCounter);
     }
-
-    //debugPrint("✅ BillCounter saved successfully with billNo: $nextBillNo");
+    debugPrint("✅ BillCounter saved successfully with billNo: $nextBillNo");
+    return nextBillNo;
+    //
   }
 
   Future<void> getavailabeldevice({BuildContext? context}) async {
@@ -2450,6 +2451,7 @@ Future<void> printBillWithLogo(thermal.BlueThermalPrinter bluetooth) async {
     
     print_log("adminPanel $apicall");
     bool demo = prefs.getBool('demo') ?? false;   
+    int? bill_no;
     
     if (apicall.toLowerCase().contains("no") || demo) {
       print_log("❌ in settel transection adminPanel not yes so Not send transection to the sever $apicall");
@@ -2467,6 +2469,25 @@ Future<void> printBillWithLogo(thermal.BlueThermalPrinter bluetooth) async {
       int successfulSyncs = 0;
       for (int i in unsyncedIds) {
         try {
+          
+          http.Response? response = await apiCalls('get_billno', AppConstants.username, {});
+
+          if (response != null && response.statusCode == 200) {
+            final Map<String, dynamic> data = jsonDecode(response.body);
+            final rawBillNo = data['bill_no'] ?? data['data'][0]['transactions_id'];
+            bill_no = (int.tryParse(rawBillNo.toString()) ?? 0) + 1;
+            // print_log('Extracted Bill No: $rawBillNo transactionData?[billNo] ${transactionData?['billNo']}');
+          } else {
+            print_log_red('Failed to fetch bill no or response was null');
+          }
+          
+          final existingTx = box.get(i);
+          if(bill_no != null && existingTx != null){
+            existingTx.billNo = bill_no;
+            await setNextBillNo(context, bill_no);
+            box.put(existingTx);
+          }
+
           final success = await sendTransactionToServer(box, i).timeout(const Duration(seconds: 5));
           // await Future.delayed(Duration(seconds: 5));
           if (success) {
