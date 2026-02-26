@@ -36,7 +36,7 @@ class _ExpensesPageState extends State<ExpensesPage> {
   final ImagePicker _picker = ImagePicker();
   late Store _store = Provider.of<ObjectBoxService>(context, listen: false).store;
 
-  final List<String> _categories = [
+  List<String> _categories = [
     'Food',
     'Transport',
     'Entertainment',
@@ -51,12 +51,33 @@ class _ExpensesPageState extends State<ExpensesPage> {
     super.initState();
     
     WidgetsBinding.instance.addPostFrameCallback((_) {
+      _loadCategories();
       
       _loadExpenses().then((_) {
         fetchExpenses();
       });
 
+      
+
     });
+  }
+
+  Future<void> _loadCategories() async {
+    final prefs = await SharedPreferences.getInstance();
+    final savedCategories = prefs.getStringList('expense_categories');
+    if (savedCategories != null && savedCategories.isNotEmpty) {
+      setState(() {
+        _categories = savedCategories;
+        if (!_categories.contains(_selectedCategory) && _categories.isNotEmpty) {
+          _selectedCategory = _categories.first;
+        }
+      });
+    }
+  }
+
+  Future<void> _saveCategories() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setStringList('expense_categories', _categories);
   }
 
   // ---------- Persistence ----------
@@ -818,6 +839,44 @@ class _ExpensesPageState extends State<ExpensesPage> {
     return Map.fromEntries(sortedEntries);
   }
 
+  void _showAddCategoryDialog(StateSetter setModalState) {
+    final TextEditingController categoryController = TextEditingController();
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Add New Category'),
+        content: TextField(
+          controller: categoryController,
+          decoration: const InputDecoration(hintText: 'Category Name'),
+          textCapitalization: TextCapitalization.sentences,
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              final newCategory = categoryController.text.trim();
+              if (newCategory.isNotEmpty && !_categories.contains(newCategory)) {
+                setState(() {
+                  _categories.add(newCategory);
+                  _selectedCategory = newCategory;
+                });
+                _saveCategories();
+                setModalState(() {
+                  _selectedCategory = newCategory;
+                });
+                Navigator.pop(context);
+              }
+            },
+            child: const Text('Add'),
+          ),
+        ],
+      ),
+    );
+  }
+
   /// ---------- Add new expense ----------
 void _addNewExpense() {
   _clearForm();
@@ -884,21 +943,31 @@ void _addNewExpense() {
                         },
                       ),
                       const SizedBox(height: 15),
-                      DropdownButtonFormField<String>(
-                        value: _selectedCategory,
-                        decoration: const InputDecoration(
-                          labelText: 'Category',
-                          border: OutlineInputBorder(),
-                          prefixIcon: Icon(Icons.category),
-                        ),
-                        items: _categories
-                            .map((c) => DropdownMenuItem(value: c, child: Text(c)))
-                            .toList(),
-                        onChanged: (v) {
-                          // Update both the local modal state and the parent state
-                          setModalState(() => _selectedCategory = v ?? 'Food');
-                          setState(() => _selectedCategory = v ?? 'Food');
-                        },
+                      Row(
+                        children: [
+                          Expanded(
+                            child: DropdownButtonFormField<String>(
+                              value: _categories.contains(_selectedCategory) ? _selectedCategory : null,
+                              decoration: const InputDecoration(
+                                labelText: 'Category',
+                                border: OutlineInputBorder(),
+                                prefixIcon: Icon(Icons.category),
+                              ),
+                              items: _categories
+                                  .map((c) => DropdownMenuItem(value: c, child: Text(c)))
+                                  .toList(),
+                              onChanged: (v) {
+                                // Update both the local modal state and the parent state
+                                setModalState(() => _selectedCategory = v ?? _categories.first);
+                                setState(() => _selectedCategory = v ?? _categories.first);
+                              },
+                            ),
+                          ),
+                          IconButton(
+                            icon: const Icon(Icons.add_circle, color: Colors.blue),
+                            onPressed: () => _showAddCategoryDialog(setModalState),
+                          ),
+                        ],
                       ),
                       const SizedBox(height: 15),
                       ListTile(
@@ -1041,7 +1110,7 @@ void _addNewExpense() {
     _titleController.clear();
     _amountController.clear();
     _selectedDate = await getBussinessDateStorage();
-    _selectedCategory = 'Food';
+    _selectedCategory = _categories.contains('Food') ? 'Food' : (_categories.isNotEmpty ? _categories.first : 'Other');
     _selectedImage = null;
     _imagePath = null;
   }

@@ -922,10 +922,74 @@
         }
       ],
       "relations": []
+    },
+    {
+      "id": "16:5727313015559224984",
+      "lastPropertyId": "4:4170777672823309710",
+      "name": "InventoryItem",
+      "properties": [
+        {
+          "id": "1:5366424113033602609",
+          "name": "id",
+          "type": 6,
+          "flags": 1
+        },
+        {
+          "id": "2:4826226632296469013",
+          "name": "name",
+          "type": 9
+        },
+        {
+          "id": "3:6056645672714592632",
+          "name": "unit",
+          "type": 9
+        },
+        {
+          "id": "4:4170777672823309710",
+          "name": "stockQuantity",
+          "type": 8
+        }
+      ],
+      "relations": []
+    },
+    {
+      "id": "17:8669011261676476061",
+      "lastPropertyId": "4:6498618532039859085",
+      "name": "ItemConsumption",
+      "properties": [
+        {
+          "id": "1:1835212633743458895",
+          "name": "id",
+          "type": 6,
+          "flags": 1
+        },
+        {
+          "id": "2:602454582872039594",
+          "name": "quantityUsed",
+          "type": 8
+        },
+        {
+          "id": "3:2657087880704276456",
+          "name": "menuItemId",
+          "indexId": "8:5412195011319211698",
+          "type": 11,
+          "flags": 520,
+          "relationTarget": "MenuItem"
+        },
+        {
+          "id": "4:6498618532039859085",
+          "name": "inventoryItemId",
+          "indexId": "9:8854451117807104129",
+          "type": 11,
+          "flags": 520,
+          "relationTarget": "InventoryItem"
+        }
+      ],
+      "relations": []
     }
   ],
-  "lastEntityId": "15:4201487541336974071",
-  "lastIndexId": "7:5887073448237941227",
+  "lastEntityId": "17:8669011261676476061",
+  "lastIndexId": "9:8854451117807104129",
   "lastRelationId": "0:0",
   "lastSequenceId": "0:0",
   "modelVersion": 5,

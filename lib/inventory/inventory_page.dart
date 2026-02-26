@@ -14,6 +14,7 @@ import '../utilities.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:test1/inventory/InventoryMasterPage.dart';
 
 class InventoryPage extends StatefulWidget {
   //final Store store;
@@ -345,19 +346,40 @@ class _InventoryPageState extends State<InventoryPage> {
                           onPressed: () {},
                           child: Text(
                             "${AppLocalizations.of(context)!.inventoryHeader} (${_items.length})",
-                            style: const TextStyle(color: Colors.purple),
+                            style: const TextStyle(color: Colors.purple,fontSize: 12),
                           ),
                         ),
                       ),
-                      //   Expanded(
-                      //     child: TextButton(
-                      //       onPressed: () {},
-                      //       child: const Text(
-                      //         "CATEGORIES",
-                      //         style: TextStyle(color: Colors.grey),
-                      //       ),
-                      //     ),
-                      //   ),
+                        Expanded(
+                          child: TextButton(
+                            onPressed: () {},
+                            child: const Text(
+                              "CATEGORIES",
+                              style: TextStyle(color: Colors.grey,fontSize: 12),
+                            ),
+                          ),
+                        ),
+                        Expanded(
+                          child: TextButton(
+                            onPressed: () {
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (context) => InventoryMasterPage(
+                                    store: store, // Pass your ObjectBox store here
+                                  ),
+                                ),
+                              );
+                            },
+                            child: const Text(
+                              "CUNSUMPTION", 
+                              style: TextStyle(
+                                color: Color.fromARGB(255, 3, 7, 255),
+                                fontSize: 12,
+                              ),
+                            ),
+                          ),
+                        ),
                     ],
                   ),
                 ),

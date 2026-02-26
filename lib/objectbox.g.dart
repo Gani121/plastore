@@ -15,6 +15,7 @@ import 'package:objectbox/objectbox.dart' as obx;
 import 'package:objectbox_flutter_libs/objectbox_flutter_libs.dart';
 
 import 'database_Module/BillCounter.dart';
+import 'database_Module/cunsuption.dart';
 import 'database_Module/expensDB.dart';
 import 'database_Module/menu_item.dart';
 import 'database_Module/party_database.dart';
@@ -1130,6 +1131,80 @@ final _entities = <obx_int.ModelEntity>[
     relations: <obx_int.ModelRelation>[],
     backlinks: <obx_int.ModelBacklink>[],
   ),
+  obx_int.ModelEntity(
+    id: const obx_int.IdUid(16, 5727313015559224984),
+    name: 'InventoryItem',
+    lastPropertyId: const obx_int.IdUid(4, 4170777672823309710),
+    flags: 0,
+    properties: <obx_int.ModelProperty>[
+      obx_int.ModelProperty(
+        id: const obx_int.IdUid(1, 5366424113033602609),
+        name: 'id',
+        type: 6,
+        flags: 1,
+      ),
+      obx_int.ModelProperty(
+        id: const obx_int.IdUid(2, 4826226632296469013),
+        name: 'name',
+        type: 9,
+        flags: 0,
+      ),
+      obx_int.ModelProperty(
+        id: const obx_int.IdUid(3, 6056645672714592632),
+        name: 'unit',
+        type: 9,
+        flags: 0,
+      ),
+      obx_int.ModelProperty(
+        id: const obx_int.IdUid(4, 4170777672823309710),
+        name: 'stockQuantity',
+        type: 8,
+        flags: 0,
+      ),
+    ],
+    relations: <obx_int.ModelRelation>[],
+    backlinks: <obx_int.ModelBacklink>[],
+  ),
+  obx_int.ModelEntity(
+    id: const obx_int.IdUid(17, 8669011261676476061),
+    name: 'ItemConsumption',
+    lastPropertyId: const obx_int.IdUid(4, 6498618532039859085),
+    flags: 0,
+    properties: <obx_int.ModelProperty>[
+      obx_int.ModelProperty(
+        id: const obx_int.IdUid(1, 1835212633743458895),
+        name: 'id',
+        type: 6,
+        flags: 1,
+      ),
+      obx_int.ModelProperty(
+        id: const obx_int.IdUid(2, 602454582872039594),
+        name: 'quantityUsed',
+        type: 8,
+        flags: 0,
+      ),
+      obx_int.ModelProperty(
+        id: const obx_int.IdUid(3, 2657087880704276456),
+        name: 'menuItemId',
+        type: 11,
+        flags: 520,
+        indexId: const obx_int.IdUid(8, 5412195011319211698),
+        relationField: 'menuItem',
+        relationTarget: 'MenuItem',
+      ),
+      obx_int.ModelProperty(
+        id: const obx_int.IdUid(4, 6498618532039859085),
+        name: 'inventoryItemId',
+        type: 11,
+        flags: 520,
+        indexId: const obx_int.IdUid(9, 8854451117807104129),
+        relationField: 'inventoryItem',
+        relationTarget: 'InventoryItem',
+      ),
+    ],
+    relations: <obx_int.ModelRelation>[],
+    backlinks: <obx_int.ModelBacklink>[],
+  ),
 ];
 
 /// Shortcut for [obx.Store.new] that passes [getObjectBoxModel] and for Flutter
@@ -1175,8 +1250,8 @@ obx_int.ModelDefinition getObjectBoxModel() {
     // Typically, this is done with `dart run build_runner build`.
     generatorVersion: obx_int.GeneratorVersion.v2025_12_16,
     entities: _entities,
-    lastEntityId: const obx_int.IdUid(15, 4201487541336974071),
-    lastIndexId: const obx_int.IdUid(7, 5887073448237941227),
+    lastEntityId: const obx_int.IdUid(17, 8669011261676476061),
+    lastIndexId: const obx_int.IdUid(9, 8854451117807104129),
     lastRelationId: const obx_int.IdUid(0, 0),
     lastSequenceId: const obx_int.IdUid(0, 0),
     retiredEntityUids: const [
@@ -2692,6 +2767,97 @@ obx_int.ModelDefinition getObjectBoxModel() {
         return object;
       },
     ),
+    InventoryItem: obx_int.EntityDefinition<InventoryItem>(
+      model: _entities[11],
+      toOneRelations: (InventoryItem object) => [],
+      toManyRelations: (InventoryItem object) => {},
+      getId: (InventoryItem object) => object.id,
+      setId: (InventoryItem object, int id) {
+        object.id = id;
+      },
+      objectToFB: (InventoryItem object, fb.Builder fbb) {
+        final nameOffset = fbb.writeString(object.name);
+        final unitOffset = fbb.writeString(object.unit);
+        fbb.startTable(5);
+        fbb.addInt64(0, object.id);
+        fbb.addOffset(1, nameOffset);
+        fbb.addOffset(2, unitOffset);
+        fbb.addFloat64(3, object.stockQuantity);
+        fbb.finish(fbb.endTable());
+        return object.id;
+      },
+      objectFromFB: (obx.Store store, ByteData fbData) {
+        final buffer = fb.BufferContext(fbData);
+        final rootOffset = buffer.derefObject(0);
+        final nameParam = const fb.StringReader(
+          asciiOptimization: true,
+        ).vTableGet(buffer, rootOffset, 6, '');
+        final unitParam = const fb.StringReader(
+          asciiOptimization: true,
+        ).vTableGet(buffer, rootOffset, 8, '');
+        final stockQuantityParam = const fb.Float64Reader().vTableGet(
+          buffer,
+          rootOffset,
+          10,
+          0,
+        );
+        final object = InventoryItem(
+          name: nameParam,
+          unit: unitParam,
+          stockQuantity: stockQuantityParam,
+        )..id = const fb.Int64Reader().vTableGet(buffer, rootOffset, 4, 0);
+
+        return object;
+      },
+    ),
+    ItemConsumption: obx_int.EntityDefinition<ItemConsumption>(
+      model: _entities[12],
+      toOneRelations: (ItemConsumption object) => [
+        object.menuItem,
+        object.inventoryItem,
+      ],
+      toManyRelations: (ItemConsumption object) => {},
+      getId: (ItemConsumption object) => object.id,
+      setId: (ItemConsumption object, int id) {
+        object.id = id;
+      },
+      objectToFB: (ItemConsumption object, fb.Builder fbb) {
+        fbb.startTable(5);
+        fbb.addInt64(0, object.id);
+        fbb.addFloat64(1, object.quantityUsed);
+        fbb.addInt64(2, object.menuItem.targetId);
+        fbb.addInt64(3, object.inventoryItem.targetId);
+        fbb.finish(fbb.endTable());
+        return object.id;
+      },
+      objectFromFB: (obx.Store store, ByteData fbData) {
+        final buffer = fb.BufferContext(fbData);
+        final rootOffset = buffer.derefObject(0);
+        final quantityUsedParam = const fb.Float64Reader().vTableGet(
+          buffer,
+          rootOffset,
+          6,
+          0,
+        );
+        final object = ItemConsumption(quantityUsed: quantityUsedParam)
+          ..id = const fb.Int64Reader().vTableGet(buffer, rootOffset, 4, 0);
+        object.menuItem.targetId = const fb.Int64Reader().vTableGet(
+          buffer,
+          rootOffset,
+          8,
+          0,
+        );
+        object.menuItem.attach(store);
+        object.inventoryItem.targetId = const fb.Int64Reader().vTableGet(
+          buffer,
+          rootOffset,
+          10,
+          0,
+        );
+        object.inventoryItem.attach(store);
+        return object;
+      },
+    ),
   };
 
   return obx_int.ModelDefinition(model, bindings);
@@ -3550,4 +3716,51 @@ class Parties_ {
   static final completionDate = obx.QueryDateProperty<Parties>(
     _entities[10].properties[20],
   );
+}
+
+/// [InventoryItem] entity fields to define ObjectBox queries.
+class InventoryItem_ {
+  /// See [InventoryItem.id].
+  static final id = obx.QueryIntegerProperty<InventoryItem>(
+    _entities[11].properties[0],
+  );
+
+  /// See [InventoryItem.name].
+  static final name = obx.QueryStringProperty<InventoryItem>(
+    _entities[11].properties[1],
+  );
+
+  /// See [InventoryItem.unit].
+  static final unit = obx.QueryStringProperty<InventoryItem>(
+    _entities[11].properties[2],
+  );
+
+  /// See [InventoryItem.stockQuantity].
+  static final stockQuantity = obx.QueryDoubleProperty<InventoryItem>(
+    _entities[11].properties[3],
+  );
+}
+
+/// [ItemConsumption] entity fields to define ObjectBox queries.
+class ItemConsumption_ {
+  /// See [ItemConsumption.id].
+  static final id = obx.QueryIntegerProperty<ItemConsumption>(
+    _entities[12].properties[0],
+  );
+
+  /// See [ItemConsumption.quantityUsed].
+  static final quantityUsed = obx.QueryDoubleProperty<ItemConsumption>(
+    _entities[12].properties[1],
+  );
+
+  /// See [ItemConsumption.menuItem].
+  static final menuItem = obx.QueryRelationToOne<ItemConsumption, MenuItem>(
+    _entities[12].properties[2],
+  );
+
+  /// See [ItemConsumption.inventoryItem].
+  static final inventoryItem =
+      obx.QueryRelationToOne<ItemConsumption, InventoryItem>(
+        _entities[12].properties[3],
+      );
 }

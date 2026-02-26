@@ -28,6 +28,7 @@ import '../database_Module/transaction.dart';
 import '../objectbox.g.dart';
 import 'package:flutter/foundation.dart';
 import 'package:test1/bill_printer.dart'; 
+import 'package:test1/inventory/sync_service.dart';
 
 final printer = BillPrinter();
 
@@ -49,6 +50,7 @@ class _LoginPageState extends State<LoginPage> {
   bool _rememberMe = false;
   bool _obscurePassword = true;
   final Dio _dio = Dio();
+  late Store _store;
 
   String app_version = 'v1.2';
   final String _downloadUrl = 'http://nextorbitals.in/images/app-release.zip';
@@ -582,8 +584,8 @@ class _LoginPageState extends State<LoginPage> {
 
 
  void loadMenu() async {
-    final store = Provider.of<ObjectBoxService>(context, listen: false).store;
-    Box<MenuItem> menuItemBox = store.box<MenuItem>();
+    _store = Provider.of<ObjectBoxService>(context, listen: false).store;
+    Box<MenuItem> menuItemBox = _store.box<MenuItem>();
     List<MenuItem> items_all = menuItemBox.getAll();
     
     if(items_all.isEmpty){
@@ -687,8 +689,8 @@ class _LoginPageState extends State<LoginPage> {
   }
 
   Future<void> loadtransections(http.Response? response, SharedPreferences prefs) async {
-      final store = Provider.of<ObjectBoxService>(context, listen: false).store;
-      final box = store.box<Transaction>();
+      _store = Provider.of<ObjectBoxService>(context, listen: false).store;
+      final box = _store.box<Transaction>();
       try {
         if (response == null) {
           print_log_red("transection server response GOT NULL");
@@ -971,6 +973,8 @@ class _LoginPageState extends State<LoginPage> {
 
 
               loadMenu();
+
+              SyncService().fetchFromServer(_store);
 
               final captain = prefs.getBool('startcaptain') ?? false;
               print_log("Captain $captain");

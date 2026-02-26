@@ -18,6 +18,10 @@ import '../database_Module/expensDB.dart'; // Fixed typo: expensDB
 import '../utilities.dart';
 import '../database_Module/menu_item.dart';
 import '../bill_printer.dart';
+import 'package:pdf/pdf.dart';
+import 'package:pdf/widgets.dart' as pw;
+import 'package:printing/printing.dart';
+import '../database_Module/cunsuption.dart';
 
 // Add Expense model if not already defined elsewhere
 class Expense {
@@ -71,6 +75,8 @@ class _SalesReportPageState extends State<SalesReportPage> {
   Map<String, double> citemPriceMap = {};
   Map<String, int> orderTypeCountMap = {};
   Map<String, double> orderTypeTotalMap = {};
+  Map<String, double> categoryPriceMap = {};
+  Map<String, int> categoryQtyMap = {};
   Map<String, int> adjustStock = {};
   Map<String, int> unavailabelstock = {};
   Map<String, double> purchesprice = {};
@@ -81,6 +87,10 @@ class _SalesReportPageState extends State<SalesReportPage> {
   bool _showMoreOptions = false;
   String takeamount = "0";
   bool _isLoading = false;
+  Map<String, double> consumptionReport = {};
+  Map<String, double> currentInventoryStock = {};
+  Map<String, Map<String, double>> menuItemConsumptionMap = {};
+  Map<String, String> inventoryUnitMap = {};
 
   @override
   void initState() {
@@ -214,6 +224,12 @@ class _SalesReportPageState extends State<SalesReportPage> {
       Map<String, int> _adjustStock2 = await _loadMenu();
       Map<String, int> _unavailabelstock = await _loadUnavailabelstock();
 
+      // Create a map of item names to categories for quick lookup
+      final menuItemBox = store.box<MenuItem>();
+      final allMenuItems = menuItemBox.getAll();
+      final Map<String, String> itemCategoryMap = {
+        for (var item in allMenuItems) item.name: item.category
+      };
       giveamount = await getDatafromPrefs("You_will_give");
       takeamount = await getDatafromPrefs("You_will_get");
       
@@ -246,6 +262,37 @@ class _SalesReportPageState extends State<SalesReportPage> {
       Map<String, double> cpriceMap = {};
       Map<String, int> tempOrderTypeCount = {};
       Map<String, double> tempOrderTypeTotal = {};
+      Map<String, double> tempCategoryPriceMap = {};
+      Map<String, int> tempCategoryQtyMap = {};
+
+      // --- Consumption Logic Setup ---
+      final consumptionBox = store.box<ItemConsumption>();
+      final inventoryBox = store.box<InventoryItem>();
+      
+      // Load Inventory Stock
+      Map<String, double> _currentInventoryStock = {};
+      Map<String, String> _inventoryUnitMap = {};
+      final allInventory = inventoryBox.getAll();
+      for (var item in allInventory) {
+        _currentInventoryStock[item.name] = item.stockQuantity;
+        _inventoryUnitMap[item.name] = item.unit;
+      }
+
+      // Load Recipes (Map MenuItem Name -> List of Consumption Rules)
+      final allConsumption = consumptionBox.getAll();
+      Map<String, List<ItemConsumption>> recipeMap = {};
+      for (var c in allConsumption) {
+        final menuName = c.menuItem.target?.name;
+        if (menuName != null) {
+          if (!recipeMap.containsKey(menuName)) {
+            recipeMap[menuName] = [];
+          }
+          recipeMap[menuName]!.add(c);
+        }
+      }
+      Map<String, double> _consumptionReport = {};
+      Map<String, Map<String, double>> _menuItemConsumptionMap = {};
+      // -------------------------------
 
       DateTime from = fromDate != null
           ? DateTime(fromDate!.year, fromDate!.month, fromDate!.day)
@@ -325,7 +372,36 @@ class _SalesReportPageState extends State<SalesReportPage> {
             final itemCategory = item['portion']?.toString() ?? 'Uncategorized';
             cqtyMap[itemCategory] = (cqtyMap[itemCategory] ?? 0) + qty;
             cpriceMap[itemCategory] = (cpriceMap[itemCategory] ?? 0) + (sellPrice * qty);
+
+            // --- Category-wise aggregation ---
+            String baseNameForCategory = itemName.replaceAll(' (Half)', '').trim();
+            final category = itemCategoryMap[baseNameForCategory] ?? 'Uncategorized';
+            tempCategoryPriceMap[category] = (tempCategoryPriceMap[category] ?? 0) + (sellPrice * qty);
+            tempCategoryQtyMap[category] = (tempCategoryQtyMap[category] ?? 0) + qty;
             
+            // --- Calculate Consumption ---
+            String baseName = itemName.replaceAll(' (Half)', '').trim();
+            // Assume half portion uses 50% of ingredients if not explicitly defined otherwise
+            bool isHalf = itemName.toLowerCase().contains('(half)') || (item['portion']?.toString().toLowerCase() == 'half');
+            double ratio = isHalf ? 0.5 : 1.0;
+
+            if (recipeMap.containsKey(baseName)) {
+              for (var rule in recipeMap[baseName]!) {
+                final invItemName = rule.inventoryItem.target?.name;
+                if (invItemName != null) {
+                  double used = rule.quantityUsed * qty * ratio;
+                  _consumptionReport[invItemName] = (_consumptionReport[invItemName] ?? 0) + used;
+                  
+                  // --- Item-wise Consumption ---
+                  if (!_menuItemConsumptionMap.containsKey(itemName)) {
+                    _menuItemConsumptionMap[itemName] = {};
+                  }
+                  _menuItemConsumptionMap[itemName]![invItemName] = (_menuItemConsumptionMap[itemName]![invItemName] ?? 0) + used;
+                }
+              }
+            }
+            // -----------------------------
+
           } catch (e) {
             print_log('Error processing cart item: $e');
           }
@@ -382,6 +458,8 @@ class _SalesReportPageState extends State<SalesReportPage> {
           citemPriceMap = cpriceMap;
           todayExpenses = storedExpenses;
           expensesToday = expensesTodayTotal;
+          categoryPriceMap = tempCategoryPriceMap;
+          categoryQtyMap = tempCategoryQtyMap;
           expensesDateRange = expensesDateRangeTotal;
           orderTypeCountMap = tempOrderTypeCount;
           orderTypeTotalMap = tempOrderTypeTotal;
@@ -389,6 +467,10 @@ class _SalesReportPageState extends State<SalesReportPage> {
           adjustStock = _adjustStock2;
           unavailabelstock = _unavailabelstock;
           expensesList = expensesListData;
+          consumptionReport = _consumptionReport;
+          currentInventoryStock = _currentInventoryStock;
+          menuItemConsumptionMap = _menuItemConsumptionMap;
+          inventoryUnitMap = _inventoryUnitMap;
           _isLoading = false;
         });
       }
@@ -729,6 +811,164 @@ class _SalesReportPageState extends State<SalesReportPage> {
     );
   }
 
+  Future<void> _generatePdf() async {
+    final doc = pw.Document();
+    
+    // Use standard font to avoid loading issues
+    final font = pw.Font.helvetica();
+    final boldFont = pw.Font.helveticaBold();
+
+    doc.addPage(
+      pw.MultiPage(
+        pageFormat: PdfPageFormat.a4,
+        build: (pw.Context context) {
+          return [
+            pw.Header(
+              level: 0,
+              child: pw.Text('Sales & Consumption Report', style: pw.TextStyle(fontSize: 24, fontWeight: pw.FontWeight.bold, font: boldFont)),
+            ),
+            pw.Text("Date: ${DateFormat('dd MMM yyyy').format(fromDate!)} - ${DateFormat('dd MMM yyyy').format(toDate!)}", style: pw.TextStyle(font: font)),
+            pw.Divider(),
+            pw.SizedBox(height: 10),
+            
+            // Sales Summary
+            pw.Text("Sales Summary", style: pw.TextStyle(fontSize: 18, fontWeight: pw.FontWeight.bold, font: boldFont)),
+            pw.SizedBox(height: 5),
+            pw.Row(mainAxisAlignment: pw.MainAxisAlignment.spaceBetween, children: [
+              pw.Text("Total Sales:", style: pw.TextStyle(font: font)),
+              pw.Text("Rs. ${todayTotal.toStringAsFixed(2)}", style: pw.TextStyle(font: boldFont)),
+            ]),
+             pw.Row(mainAxisAlignment: pw.MainAxisAlignment.spaceBetween, children: [
+              pw.Text("Total Profit:", style: pw.TextStyle(font: font)),
+              pw.Text("Rs. ${profit.toStringAsFixed(2)}", style: pw.TextStyle(font: boldFont, color: PdfColors.green)),
+            ]),
+            
+            pw.SizedBox(height: 20),
+            
+            // Consumption Table
+            pw.Text("Consumption & Inventory Report", style: pw.TextStyle(fontSize: 18, fontWeight: pw.FontWeight.bold, font: boldFont)),
+            pw.SizedBox(height: 5),
+            pw.Table.fromTextArray(
+              context: context,
+              headerStyle: pw.TextStyle(fontWeight: pw.FontWeight.bold, font: boldFont),
+              cellStyle: pw.TextStyle(font: font),
+              headerDecoration: const pw.BoxDecoration(color: PdfColors.grey300),
+              data: <List<String>>[
+                <String>['Inventory Item', 'Consumed Qty', 'Current Stock'],
+                ...consumptionReport.entries.map((e) {
+                  final unit = inventoryUnitMap[e.key] ?? '';
+                  return [
+                    "${e.key} ($unit)",
+                    e.value.toStringAsFixed(2),
+                    (currentInventoryStock[e.key] ?? 0).toStringAsFixed(2)
+                  ];
+                }).toList()
+              ],
+            ),
+          ];
+        },
+      ),
+    );
+
+    // Open print preview which allows saving as PDF
+    await Printing.layoutPdf(
+      onLayout: (PdfPageFormat format) async => doc.save(),
+    );
+  }
+
+  Future<void> _generateItemWisePdf() async {
+    final doc = pw.Document();
+    
+    final font = pw.Font.helvetica();
+    final boldFont = pw.Font.helveticaBold();
+
+    final sortedEntries = itemPriceMap.entries.toList()
+      ..sort((a, b) => b.value.compareTo(a.value));
+
+    doc.addPage(
+      pw.MultiPage(
+        pageFormat: PdfPageFormat.a4,
+        build: (pw.Context context) {
+          List<pw.Widget> content = [];
+
+          content.add(pw.Header(
+            level: 0,
+            child: pw.Text('Item-Wise Sales & Consumption Report', style: pw.TextStyle(fontSize: 24, fontWeight: pw.FontWeight.bold, font: boldFont)),
+          ));
+          content.add(pw.Text("Date: ${DateFormat('dd MMM yyyy').format(fromDate!)} - ${DateFormat('dd MMM yyyy').format(toDate!)}", style: pw.TextStyle(font: font)));
+          content.add(pw.Divider());
+          content.add(pw.SizedBox(height: 20));
+
+          for (var entry in sortedEntries) {
+            final itemName = entry.key;
+            final totalAmount = entry.value;
+            final count = itemQtyMap[itemName] ?? 0;
+            final consumption = menuItemConsumptionMap[itemName];
+
+            // Main item row
+            content.add(
+              pw.Container(
+                padding: const pw.EdgeInsets.symmetric(vertical: 4),
+                decoration: const pw.BoxDecoration(
+                  border: pw.Border(bottom: pw.BorderSide(color: PdfColors.grey300))
+                ),
+                child: pw.Row(
+                  mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+                  children: [
+                    pw.Expanded(
+                      flex: 4,
+                      child: pw.Text('$itemName (Qty: $count)', style: pw.TextStyle(fontWeight: pw.FontWeight.bold, font: boldFont)),
+                    ),
+                    pw.Expanded(
+                      flex: 2,
+                      child: pw.Text('₹${totalAmount.toStringAsFixed(2)}', style: pw.TextStyle(fontWeight: pw.FontWeight.bold, font: boldFont), textAlign: pw.TextAlign.right),
+                    ),
+                  ]
+                )
+              )
+            );
+
+            // Consumption details if they exist
+            if (consumption != null && consumption.isNotEmpty) {
+              content.add(pw.Container(
+                padding: const pw.EdgeInsets.only(left: 15, top: 5, bottom: 8),
+                child: pw.Column(
+                  crossAxisAlignment: pw.CrossAxisAlignment.start,
+                  children: [
+                    pw.Text('Ingredients Consumed:', style: pw.TextStyle(font: font, color: PdfColors.grey800, fontSize: 10, fontStyle: pw.FontStyle.italic)),
+                    pw.SizedBox(height: 2),
+                    ...consumption.entries.map((cEntry) {
+                      final unit = inventoryUnitMap[cEntry.key] ?? '';
+                      return pw.Padding(
+                        padding: const pw.EdgeInsets.only(left: 10, top: 2),
+                        child: pw.Row(
+                          mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+                          children: [
+                            pw.Text("- ${cEntry.key} ($unit)", style: pw.TextStyle(font: font, color: PdfColors.grey700, fontSize: 10)),
+                            pw.Text('${cEntry.value.toStringAsFixed(2)} used', style: pw.TextStyle(font: font, color: PdfColors.grey700, fontSize: 10)),
+                          ]
+                        )
+                      );
+                    }).toList(),
+                  ]
+                )
+              ));
+            } else {
+               content.add(pw.SizedBox(height: 8));
+            }
+          }
+
+          return content;
+        },
+      ),
+    );
+
+    // Open print preview which allows saving as PDF
+    await Printing.layoutPdf(
+      onLayout: (PdfPageFormat format) async => doc.save(),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -783,10 +1023,12 @@ class _SalesReportPageState extends State<SalesReportPage> {
                   _buildDateFilterSection(),
                   _buildSectionTitle("Sales Summary"),
                   _buildSummaryCard(),
+                  _buildConsumptionSummaryCard(), // Added Consumption Card
                   if (orderTypeTotalMap.isNotEmpty) _buildOrderTypeSummaryCard(),
                   _buildSectionTitle("Expenses Summary"),
                   _buildExpensesList(),
                   if (citemPriceMap.isNotEmpty) _buildportionWiseSummaryCard(),
+                  if (categoryPriceMap.isNotEmpty) _buildCategoryWiseSummaryCard(),
                   if (adjustStock.isNotEmpty) _buildadjustStockSummaryCard(),
                   if (itemPriceMap.isNotEmpty) _builditemWiseSummaryCard(),
                   if (_showMoreOptions && unavailabelstock.isNotEmpty)
@@ -806,6 +1048,156 @@ class _SalesReportPageState extends State<SalesReportPage> {
                 ],
               ),
             ),
+    );
+  }
+
+  Widget _buildCategoryWiseSummaryCard() {
+    if (categoryPriceMap.isEmpty) return const SizedBox.shrink();
+
+    final sortedEntries = categoryPriceMap.entries.toList()
+      ..sort((a, b) => b.value.compareTo(a.value));
+
+    return Card(
+      margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      elevation: 2,
+      child: Padding(
+        padding: const EdgeInsets.all(12.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                const Text(
+                  'Sales by Category',
+                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                ),
+                IconButton(
+                  icon: const Icon(Icons.print),
+                  onPressed: () => BillPrinter().printCategoryWiseSalesReport(
+                    context: context,
+                    fromDate: fromDate!,
+                    toDate: toDate!,
+                    categoryPriceMap: categoryPriceMap,
+                    categoryQtyMap: categoryQtyMap,
+                  ),
+                  tooltip: 'Print Report',
+                ),
+              ],
+            ),
+            const Divider(),
+            ...sortedEntries.map((entry) {
+              final categoryName = entry.key;
+              final totalAmount = entry.value;
+              final count = categoryQtyMap[categoryName] ?? 0;
+
+              return Padding(
+                padding: const EdgeInsets.symmetric(vertical: 4.0),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Flexible(
+                      child: Text(
+                        '$categoryName (QTY: $count)',
+                        style: const TextStyle(fontSize: 15),
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                    Text(
+                      '₹${totalAmount.toStringAsFixed(2)}',
+                      style: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold),
+                    ),
+                  ],
+                ),
+              );
+            }).toList(),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildConsumptionSummaryCard() {
+    if (consumptionReport.isEmpty) return const SizedBox.shrink();
+
+    final sortedEntries = consumptionReport.entries.toList()
+      ..sort((a, b) => b.value.compareTo(a.value));
+
+    return Card(
+      margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      elevation: 2,
+      child: Padding(
+        padding: const EdgeInsets.all(12.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                const Text(
+                  'Consumption Report',
+                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                ),
+                IconButton(
+                  icon: const Icon(Icons.picture_as_pdf, color: Colors.red),
+                  onPressed: _generatePdf,
+                  tooltip: 'Download PDF',
+                ),
+              ],
+            ),
+            const Divider(),
+            const Padding(
+              padding: EdgeInsets.symmetric(vertical: 4.0),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Expanded(flex: 2, child: Text('Item', style: TextStyle(fontWeight: FontWeight.bold))),
+                  Expanded(child: Text('Consumed', textAlign: TextAlign.center, style: TextStyle(fontWeight: FontWeight.bold))),
+                  Expanded(child: Text('Stock', textAlign: TextAlign.right, style: TextStyle(fontWeight: FontWeight.bold))),
+                ],
+              ),
+            ),
+            const Divider(),
+            ...sortedEntries.map((entry) {
+              final itemName = entry.key;
+              final consumed = entry.value;
+              final stock = currentInventoryStock[itemName] ?? 0;
+              final unit = inventoryUnitMap[itemName] ?? '';
+
+              return Padding(
+                padding: const EdgeInsets.symmetric(vertical: 4.0),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Expanded(
+                      flex: 2,
+                      child: Text(
+                        "$itemName ($unit)",
+                        style: const TextStyle(fontSize: 15),
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                    Expanded(
+                      child: Text(
+                        consumed.toStringAsFixed(2),
+                        textAlign: TextAlign.center,
+                        style: const TextStyle(fontSize: 15, color: Colors.red),
+                      ),
+                    ),
+                    Expanded(
+                      child: Text(
+                        stock.toStringAsFixed(2),
+                        textAlign: TextAlign.right,
+                        style: const TextStyle(fontSize: 15, color: Colors.green),
+                      ),
+                    ),
+                  ],
+                ),
+              );
+            }).toList(),
+          ],
+        ),
+      ),
     );
   }
 
@@ -892,16 +1284,25 @@ class _SalesReportPageState extends State<SalesReportPage> {
                   'Sales by Item-Wise',
                   style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                 ),
-                IconButton(
-                  icon: const Icon(Icons.print),
-                  onPressed: () => BillPrinter().printItemWiseSalesReport(
-                    context: context,
-                    fromDate: fromDate!,
-                    toDate: toDate!,
-                    itemPriceMap: itemPriceMap,
-                    itemQtyMap: itemQtyMap,
-                  ),
-                  tooltip: 'Print Report',
+                Row(
+                  children: [
+                    IconButton(
+                      icon: const Icon(Icons.print),
+                      onPressed: () => BillPrinter().printItemWiseSalesReport(
+                        context: context,
+                        fromDate: fromDate!,
+                        toDate: toDate!,
+                        itemPriceMap: itemPriceMap,
+                        itemQtyMap: itemQtyMap,
+                      ),
+                      tooltip: 'Print Report',
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.picture_as_pdf, color: Colors.red),
+                      onPressed: _generateItemWisePdf,
+                      tooltip: 'Export to PDF',
+                    ),
+                  ],
                 ),
               ],
             ),
@@ -910,24 +1311,64 @@ class _SalesReportPageState extends State<SalesReportPage> {
               final itemName = entry.key;
               final totalAmount = entry.value;
               final count = itemQtyMap[itemName] ?? 0;
+              final consumption = menuItemConsumptionMap[itemName];
+              print_log("menuItemConsumptionMap[itemName] $consumption");
 
-              return Padding(
-                padding: const EdgeInsets.symmetric(vertical: 4.0),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Flexible(
-                      child: Text(
-                        '$itemName (QTY: $count)',
-                        style: const TextStyle(fontSize: 15),
-                        overflow: TextOverflow.ellipsis,
+              if (consumption == null || consumption.isEmpty) {
+                return Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 8.0, horizontal: 4.0),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Flexible(
+                        child: Text(
+                          '$itemName (QTY: $count)',
+                          style: const TextStyle(fontSize: 15),
+                          overflow: TextOverflow.ellipsis,
+                        ),
                       ),
-                    ),
-                    Text(
-                      '₹${totalAmount.toStringAsFixed(2)}',
-                      style: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold),
-                    ),
-                  ],
+                      Text(
+                        '₹${totalAmount.toStringAsFixed(2)}',
+                        style: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold),
+                      ),
+                    ],
+                  ),
+                );
+              }
+
+              return Theme(
+                data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
+                child: ExpansionTile(
+                  tilePadding: EdgeInsets.zero,
+                  title: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Flexible(
+                        child: Text(
+                          '$itemName (QTY: $count)',
+                          style: const TextStyle(fontSize: 15, color: Colors.black),
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                      Text(
+                        '₹${totalAmount.toStringAsFixed(2)}',
+                        style: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: Colors.black),
+                      ),
+                    ],
+                  ),
+                  children: consumption.entries.map((cEntry) {
+                    final unit = inventoryUnitMap[cEntry.key] ?? '';
+                    return Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 2.0),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Text("${cEntry.key} ($unit)", style: TextStyle(fontSize: 13, color: Colors.grey[700])),
+                          Text('${cEntry.value.toStringAsFixed(2)}', style: TextStyle(fontSize: 13, color: Colors.grey[700])),
+                        ],
+                      ),
+                    );
+                  }).toList(),
                 ),
               );
             }).toList(),

@@ -4,6 +4,7 @@ import '../objectbox.g.dart';
 import 'package:objectbox/objectbox.dart';
 import 'add_item_page.dart';
 import 'package:test1/l10n/app_localizations.dart';
+import 'package:test1/inventory/ItemConsumptionPage.dart';
 
 class ItemLedgerPage extends StatefulWidget {
   final MenuItem item;
@@ -81,6 +82,23 @@ class _ItemLedgerPageState extends State<ItemLedgerPage> {
         ),
         backgroundColor: Colors.purple.shade700,
         actions: [
+          IconButton(
+            icon: const Icon(Icons.inventory_2_outlined, color: Colors.white),
+            tooltip: 'Manage Item Consumption',
+            onPressed: () async {
+              await Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => ItemConsumptionPage(
+                    store: widget.store, 
+                    menuItem: item, // Passing the specific sandwich/item
+                  ),
+                ),
+              );
+              // Optional: Refresh your UI if consumption changes affect this screen
+              setState(() {}); 
+            },
+          ),
           IconButton(
             icon: const Icon(Icons.edit, color: Colors.white),
             onPressed: () async {

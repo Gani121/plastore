@@ -61,6 +61,9 @@ class AppConstants {
 
 }
 
+List<String> units = ["Nos","mg","g","kg","ton","ml","Ltr","quart","gallon","peg","unit","pack","box","btl","pkt","bag","carton","crate","tin","can","jar","pouch","sachet","bundle","dozen","gross"];
+// List<String> units = ['Nos', 'Grams', 'Kg', 'Ltr', 'Slices'];
+
 
 void addToPrefs(String key, String value) async {
   final prefs = await SharedPreferences.getInstance();

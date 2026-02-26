@@ -32,6 +32,8 @@ import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
 import 'database_Module/tableCart.dart';
 import './printer_service.dart';
+import 'package:test1/database_Module/cunsuption.dart'; // Adjust path
+import 'package:test1/inventory/sync_service.dart';
 
   enum PrintQuality {
     light,
@@ -2397,9 +2399,55 @@ Future<void> printBillWithLogo(thermal.BlueThermalPrinter bluetooth) async {
         menuItemBox.put(menuItem);
         
         print_log("Stock Update for $name: Old: $oldQty, New: $newQty, Diff: $diff, Final Stock: ${menuItem.adjustStock}");
+        processSale(menuItem, diff, context);
       }
     }
   }
+
+void processSale(MenuItem soldItem, int quantityDifference, BuildContext context) {
+  // 1. Get the store and boxes
+  final store = Provider.of<ObjectBoxService>(context, listen: false).store;
+  final consumptionBox = store.box<ItemConsumption>();
+  final inventoryBox = store.box<InventoryItem>();
+
+  // 2. Find all ingredients/plates this menu item consumes
+  final query = consumptionBox
+      .query(ItemConsumption_.menuItem.equals(soldItem.id))
+      .build();
+  final consumptions = query.find();
+
+  // If quantityDifference is 0, no need to process
+  if (quantityDifference == 0) {
+    query.close();
+    return;
+  }
+
+  for (var c in consumptions) {
+    final invItem = c.inventoryItem.target;
+    if (invItem != null) {
+      // 3. Calculate the total adjustment for the inventory
+      // If diff is positive (e.g., +2), we deduct more from stock
+      // If diff is negative (e.g., -1), we add stock back (subtracting a negative)
+      double stockAdjustment = c.quantityUsed * quantityDifference;
+      
+      // 4. Update the stock quantity
+      // We SUBTRACT the adjustment from the stockQuantity
+      invItem.stockQuantity -= stockAdjustment;
+      
+      // 5. Save the updated Inventory Item
+      inventoryBox.put(invItem);
+
+      SyncService().syncSale(invItem.name, stockAdjustment);
+      
+      print_log('Inventory Update for ${invItem.name}: '
+            'Diff: $quantityDifference, '
+            'Total Adjusted: $stockAdjustment, '
+            'Remaining: ${invItem.stockQuantity}');
+    }
+  }
+  query.close();
+}
+
 
   Future<bool> isDeviceConnected() async {
     final connectivityResult = await (Connectivity().checkConnectivity());
@@ -4310,6 +4358,77 @@ Future<void> printBillWithLogo(thermal.BlueThermalPrinter bluetooth) async {
       );
     }
   }
+
+  Future<void> printCategoryWiseSalesReport({
+    required BuildContext context,
+    required DateTime fromDate,
+    required DateTime toDate,
+    required Map<String, double> categoryPriceMap,
+    required Map<String, int> categoryQtyMap,
+  }) async {
+    try {
+      store = Provider.of<ObjectBoxService>(context, listen: false).store;
+      bytes = [];
+      final prefs = await SharedPreferences.getInstance();
+
+      String address = prefs.getString('saved_printer_address') ?? "";
+      await _connectToPrinter(address);
+
+      if (_generator == null) {
+        throw Exception("Printer not initialized");
+      }
+
+      String businessName = prefs.getString('businessName') ?? 'Hotel Test';
+      final String dateTime = DateFormat('dd-MMM-yyyy hh:mm a').format(DateTime.now());
+
+      bytes += _generator!.text(
+        businessName,
+        styles: PosStyles(align: PosAlign.center, bold: true, fontType: PosFontType.fontB, height: PosTextSize.size2, width: PosTextSize.size2),
+      );
+      bytes += _generator!.text('Category-Wise Sales Report', styles: PosStyles(align: PosAlign.center, bold: true));
+      bytes += _generator!.text('Generated: $dateTime', styles: PosStyles(align: PosAlign.center));
+      bytes += _generator!.hr();
+
+      bytes += _generator!.text(
+        "Date Range: ${DateFormat('dd MMM yyyy').format(fromDate)} to ${DateFormat('dd MMM yyyy').format(toDate)}",
+        styles: PosStyles(align: PosAlign.center),
+      );
+      bytes += _generator!.hr();
+
+      bytes += _generator!.row([
+        PosColumn(text: 'Category', width: 6, styles: PosStyles(bold: true)),
+        PosColumn(text: 'Qty', width: 2, styles: PosStyles(align: PosAlign.center, bold: true)),
+        PosColumn(text: 'Total', width: 4, styles: PosStyles(align: PosAlign.right, bold: true)),
+      ]);
+      bytes += _generator!.hr();
+
+      final sortedEntries = categoryPriceMap.entries.toList()
+        ..sort((a, b) => b.value.compareTo(a.value));
+
+      for (var entry in sortedEntries) {
+        final categoryName = entry.key;
+        final totalAmount = entry.value;
+        final qty = categoryQtyMap[categoryName] ?? 0;
+
+        bytes += _generator!.row([
+          PosColumn(text: categoryName, width: 6),
+          PosColumn(text: qty.toString(), width: 2, styles: PosStyles(align: PosAlign.center)),
+          PosColumn(text: 'Rs. ${totalAmount.toStringAsFixed(2)}', width: 4, styles: PosStyles(align: PosAlign.right)),
+        ]);
+      }
+
+      bytes += _generator!.hr();
+      bytes += _generator!.feed(3);
+      await _sendToPrinter(context: context);
+      await _disconnect();
+    } catch (e) {
+      print_log_red("❌ Error while printing category-wise sales report: $e");
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text("Error printing report: $e")),
+      );
+    }
+  }
+
 
   Future<void> printStockReport({
     required BuildContext context,
