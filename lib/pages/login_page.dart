@@ -567,19 +567,19 @@ class _LoginPageState extends State<LoginPage> {
 
   void saveMenuItemsReliably(List<MenuItem> menuItems,Box<MenuItem> menuItemBox) {
     // ❌ Remove all old items first
-     if (menuItemBox != null) {
+    if (menuItemBox != null) {
       menuItemBox.removeAll();
-
-      // ✅ Insert fresh items
-      for (int i = 0; i < menuItems.length; i++) {
-        final item = menuItems[i];
-        // //debugPrint('💾 Saved item: ${item}');
-        menuItemBox.put(item);
-      }
-    }else{
-      //debugPrint("found menuItemBox is null in setting");
+      }else{
+      print_log("found menuItemBox is null in setting");
     }
-    // print("✅ Saved ${menuItems.length} fresh menu items");
+
+    // ✅ Insert fresh items
+    for (int i = 0; i < menuItems.length; i++) {
+      final item = menuItems[i];
+      menuItemBox.put(item);
+    }
+    screen_massage(context, "Menu Updated Successfully");
+
   }
 
 
@@ -611,37 +611,23 @@ class _LoginPageState extends State<LoginPage> {
         }
         if (response.statusCode == 200) {
           final jsonData = jsonDecode(response.body);
-          print_log("jsonData server response $jsonData");
-
           final dataList = jsonData['data'];
+
           print_log("server response $dataList");
           if (dataList is List) {
             List<MenuItem> menuItems = dataList.map((item) => MenuItem.fromJson(item)).toList();
             saveMenuItemsReliably(menuItems,menuItemBox);
-
-            // final username = prefs.getString('username') ?? "";
-            //   final role = prefs.getString('role') ?? "";
-            //   var hotelName='';
-            //   if(role=="captain"){
-            //     hotelName = getHotelIdentifier(username);
-            //     // hotelName = username.split("_").sublist(0, username.split("_").length - 1).join("_");
-            //     //debugPrint("hotelName $hotelName");
-            //   }else{
-            //     hotelName = username;
-            //     //debugPrint("hotelName $hotelName");
-            //   }
-             await downloadHotelZip(hotelName);
+            await downloadHotelZip(hotelName);
             
             print_log("✅ Menu loaded from server: ${menuItems.length} items");
           } else {
-            print_log("❌ 'data' is not a list");
+            screen_massage(context, "❌Error $jsonData");
           }
         } else {
-          //debugPrint('HTTP Error: ${response.statusCode}: ${response.reasonPhrase}');
+          screen_massage(context, 'HTTP Error: ${response.statusCode}: ${response.reasonPhrase}');
         }
       } catch (error) {
-          screen_massage(context, "Device Not Connected ${error}");
-        //debugPrint("❌ Error in ApiCallPage: $error");
+          screen_massage(context, "❌ Device Not Connected ${error}");
       }
     }
  }

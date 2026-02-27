@@ -135,21 +135,21 @@ class SettingsPage extends StatelessWidget {
     }
   }
 
-  void saveMenuItemsReliably(List<MenuItem> menuItems) {
+  void saveMenuItemsReliably(List<MenuItem> menuItems,BuildContext context) {
     // ❌ Remove all old items first
-     if (menuItemBox != null) {
+    if (menuItemBox != null) {
       menuItemBox.removeAll();
-
-      // ✅ Insert fresh items
-      for (int i = 0; i < menuItems.length; i++) {
-        final item = menuItems[i];
-        // //debugPrint('💾 Saved item: ${item}');
-        menuItemBox.put(item);
-      }
-    }else{
-      //debugPrint("found menuItemBox is null in setting");
+      }else{
+      print_log("found menuItemBox is null in setting");
     }
-    // print("✅ Saved ${menuItems.length} fresh menu items");
+
+    // ✅ Insert fresh items
+    for (int i = 0; i < menuItems.length; i++) {
+      final item = menuItems[i];
+      menuItemBox.put(item);
+    }
+    screen_massage(context, "Menu Updated Successfully");
+  
   }
 
 
@@ -205,33 +205,29 @@ class SettingsPage extends StatelessWidget {
 
       try {
         http.Response? response = await apiCalls("m",hotelName, {});
+
         if (response == null) {
           return;
         }
         if (response.statusCode == 200) {
           final jsonData = jsonDecode(response.body);
-          print_log("jsonData server response $jsonData");
-
           final dataList = jsonData['data'];
+
           print_log("server response $dataList");
           if (dataList is List) {
             List<MenuItem> menuItems = dataList.map((item) => MenuItem.fromJson(item)).toList();
-            saveMenuItemsReliably(menuItems);
-
+            saveMenuItemsReliably(menuItems,context);
             downloadHotelZip(hotelName);
             
             print_log("✅ Menu loaded from server: ${menuItems.length} items");
           } else {
-            print_log("❌ 'data' is not a list");
+            screen_massage(context, "$jsonData");
           }
         } else {
-          //debugPrint('HTTP Error: ${response.statusCode}: ${response.reasonPhrase}');
+          screen_massage(context, 'HTTP Error: ${response.statusCode}: ${response.reasonPhrase}');
         }
       } catch (error) {
-
           screen_massage(context, "Device Not Connected ${error}");
-        
-        //debugPrint("❌ Error in ApiCallPage: $error");
       }
     }
   }
