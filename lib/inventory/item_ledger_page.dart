@@ -5,6 +5,8 @@ import 'package:objectbox/objectbox.dart';
 import 'add_item_page.dart';
 import 'package:test1/l10n/app_localizations.dart';
 import 'package:test1/inventory/ItemConsumptionPage.dart';
+import '../utilities.dart';
+import 'package:http/http.dart' as http;
 
 class ItemLedgerPage extends StatefulWidget {
   final MenuItem item;
@@ -156,16 +158,23 @@ class _ItemLedgerPageState extends State<ItemLedgerPage> {
 
               if (confirmed == true) {
                 final box = widget.store.box<MenuItem>();
-                final query = box
-                    .query(MenuItem_.name.equals(item.name))
-                    .build();
+                final query = box.query(MenuItem_.name.equals(item.name)).build();
                 final itemsToDelete = query.find();
 
                 for (var target in itemsToDelete) {
                   box.remove(target.id);
                 }
-
+                
                 query.close();
+
+                final payload = {
+                  "action": "delete_item",
+                  "item": item.name,
+                };
+                http.Response? response = await apiCalls("delete_item", "", payload);
+                if (response == null) {
+                  return;
+                }
                 Navigator.pop(context);
                 ScaffoldMessenger.of(context).showSnackBar(
                   SnackBar(content: Text(AppLocalizations.of(context)!.deleteItemSuccess)),

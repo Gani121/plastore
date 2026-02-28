@@ -1048,8 +1048,6 @@ class _LoginPageState extends State<LoginPage> {
       }
     }
     }catch(e){
-      //debugPrint("🔴 RAW RESPONSE: $e");
-      // ❌ Subscription expired
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text("exception login $e"),
         duration: Duration(minutes :1),),

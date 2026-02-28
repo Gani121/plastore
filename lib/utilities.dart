@@ -276,104 +276,185 @@ Future<http.Response?> apiCalls(
   ) async {
     print_log("apiCalls in utility $apiCalls hotelName $hotelName payload $payload");
     
+    final prefs = await SharedPreferences.getInstance();
+    final apicall = await prefs.getString("adminPanel") ?? "no";
+    bool demo = prefs.getBool('demo') ?? false;   
+
+    if (apicall.toLowerCase().contains("no") || demo) {
+      print_log("❌ in settel transection adminPanel not yes so Not send transection to the sever $apicall");
+      switch(apiCalls){
+        case "get_t":
+          final response = await http.get(
+            Uri.parse("https://api2.nextorbitals.in/api/save_transaction2.php?login_user=${hotelName}&start=$start&end=$end"),
+            headers: {"Content-Type": "application/json"},
+          ).timeout(Duration(seconds: 900));
+          return response;
+        case "m":
+          final response = await http.get(
+            Uri.parse("https://api2.nextorbitals.in/api/get_menu.php?hotel_name=$hotelName&menutype=ac",),
+            headers: {'Content-Type': 'application/json'},
+            ).timeout(Duration(seconds:900));
+          return response;
+        case "a":
+          final response = await http.post(
+            Uri.parse('https://api2.nextorbitals.in/api/add_item.php'),
+            headers: {'Content-Type': 'application/json'},
+            body: jsonEncode(payload),
+          ).timeout(Duration(seconds: 900));
+          return response;
+        case "delete_item":
+          final response = await http.delete(
+            Uri.parse('https://api2.nextorbitals.in/api/add_item.php?hotel_name=${AppConstants.username}&delete_type=single&submenu=${payload['item']}'),
+            headers: {'Content-Type': 'application/json'},
+            body: jsonEncode(payload),
+          ).timeout(Duration(seconds: 900));
+          return response;
+        default:
+          return null;
+      }
+    }
+    else {
     switch(apiCalls){
       case "get_t":
         final response = await http.get(
           Uri.parse("https://api2.nextorbitals.in/api/save_transaction2.php?login_user=${hotelName}&start=$start&end=$end"),
           headers: {"Content-Type": "application/json"},
-        ).timeout(const Duration(seconds: 900));
+        ).timeout(Duration(seconds: 900));
         return response;
       case "t":
         final response = await http.post(
           Uri.parse("https://api2.nextorbitals.in/api/save_transaction2.php"),
           headers: {"Content-Type": "application/json"},
           body: jsonEncode(payload),
-        ).timeout(const Duration(seconds: 900));
+        ).timeout(Duration(seconds: 900));
         return response;
       case "m":
         final response = await http.get(
           Uri.parse("https://api2.nextorbitals.in/api/get_menu.php?hotel_name=$hotelName&menutype=ac",),
           headers: {'Content-Type': 'application/json'},
-          ).timeout(const Duration(seconds:900));
+          ).timeout(Duration(seconds:900));
         return response;
       case "a":
         final response = await http.post(
           Uri.parse('https://api2.nextorbitals.in/api/add_item.php'),
           headers: {'Content-Type': 'application/json'},
           body: jsonEncode(payload),
-        ).timeout(const Duration(seconds: 900));
+        ).timeout(Duration(seconds: 900));
+        return response;
+      case "delete_item":
+        final response = await http.delete(
+          Uri.parse('https://api2.nextorbitals.in/api/add_item.php?hotel_name=${AppConstants.username}&delete_type=single&submenu=${payload['item']}'),
+          headers: {'Content-Type': 'application/json'},
+          body: jsonEncode(payload),
+        ).timeout(Duration(seconds: 900));
         return response;
       case "l":
         final response = await http.post(
           Uri.parse("https://api2.nextorbitals.in/api/login.php"),
           headers: {"Content-Type": "application/json"},
           body: jsonEncode(payload),
-        ).timeout(const Duration(seconds: 900));
+        ).timeout(Duration(seconds: 900));
         return response;
       case "i":
         final apiUrl = Uri.parse("https://api2.nextorbitals.in/api/menu_filename.php?hotel_name=${hotelName}",);
-        http.Response response = await http.get(apiUrl).timeout(const Duration(seconds: 900));
+        http.Response response = await http.get(apiUrl).timeout(Duration(seconds: 900));
         return response;
       case "s":
         final response = await http.post(
               Uri.parse('https://api2.nextorbitals.in/api/sent_fcm1.php'),
               headers: {'Content-Type': 'application/json'},
               body: json.encode(payload),
-            ).timeout(const Duration(seconds: 900));
+            ).timeout(Duration(seconds: 900));
         return response;
       case "st":
         final String apiUrl = 'https://api2.nextorbitals.in/api/save_token.php?hotel=$hotelName&token=$token';
-        final response = await http.get(Uri.parse(apiUrl)).timeout(const Duration(seconds: 900));
+        final response = await http.get(Uri.parse(apiUrl)).timeout(Duration(seconds: 900));
         return response;
       case "ex_save":
         final response = await http.post(
           Uri.parse("https://api2.nextorbitals.in/api/save_expenses.php"),
           headers: {"Content-Type": "application/json"},
           body: jsonEncode(payload),
-        ).timeout(const Duration(seconds: 900));
+        ).timeout(Duration(seconds: 900));
         return response;
       case "ex_get":
         final response = await http.get(
           Uri.parse("https://api2.nextorbitals.in/api/save_expenses.php?login_user=$hotelName"),
           headers: {"Content-Type": "application/json"},
-        ).timeout(const Duration(seconds: 900));
+        ).timeout(Duration(seconds: 900));
         return response;
       case "ex_delete":
         final response = await http.delete(
           Uri.parse("https://api2.nextorbitals.in/api/save_expenses.php?login_user=$hotelName&id=$id"),
           headers: {"Content-Type": "application/json"},
           body: jsonEncode(payload),
-        ).timeout(const Duration(seconds: 900));
+        ).timeout(Duration(seconds: 900));
         return response;
         case "ud_save":
         final response = await http.post(
           Uri.parse("https://api2.nextorbitals.in/api/save_udhari.php"),
           headers: {"Content-Type": "application/json"},
           body: jsonEncode(payload),
-        ).timeout(const Duration(seconds: 900));
+        ).timeout(Duration(seconds: 900));
         return response;
       case "ud_get":
         final response = await http.get(
           Uri.parse("https://api2.nextorbitals.in/api/save_udhari.php?login_user=$hotelName"),
           headers: {"Content-Type": "application/json"},
-        ).timeout(const Duration(seconds: 900));
+        ).timeout(Duration(seconds: 900));
         return response;
       case "ud_delete":
         final response = await http.delete(
           Uri.parse("https://api2.nextorbitals.in/api/save_udhari.php?login_user=$hotelName&id=$id"),
           headers: {"Content-Type": "application/json"},
           body: jsonEncode(payload),
-        ).timeout(const Duration(seconds: 900));
+        ).timeout(Duration(seconds: 900));
         return response;
       case "get_billno":
         final response = await http.get(
           Uri.parse("https://api2.nextorbitals.in/api/get_billno.php?login_user=${hotelName}"),
           headers: {"Content-Type": "application/json"},
-        ).timeout(const Duration(seconds: 900));
+        ).timeout(Duration(seconds: 900));
+        return response;
+      case "get_plate":
+        final response = await http.get(
+          Uri.parse("https://api2.nextorbitals.in/api/inventory_api.php?login=${AppConstants.username}"),
+          headers: {"Content-Type": "application/json"},
+        ).timeout(Duration(seconds: 900));
+        return response;
+      case "set_plate":
+        final response = await http.post(
+              Uri.parse("https://api2.nextorbitals.in/api/inventory_api.php?login=${AppConstants.username}"),
+              headers: {'Content-Type': 'application/json'},
+              body: json.encode(payload),
+            ).timeout(Duration(seconds: 900));
+        return response;
+      case "add_plate":
+        final response = await http.post(
+              Uri.parse("https://api2.nextorbitals.in/api/inventory_api.php?login=${AppConstants.username}"),
+              headers: {'Content-Type': 'application/json'},
+              body: json.encode(payload),
+            ).timeout(Duration(seconds: 900));
+        return response;
+      case "save_recipe":
+        final response = await http.post(
+              Uri.parse("https://api2.nextorbitals.in/api/inventory_api.php?login=${AppConstants.username}"),
+              headers: {'Content-Type': 'application/json'},
+              body: json.encode(payload),
+            ).timeout(Duration(seconds: 900));
+        return response;
+      case "delete_inventory":
+        final response = await http.post(
+              Uri.parse("https://api2.nextorbitals.in/api/inventory_api.php?login=${AppConstants.username}"),
+              headers: {'Content-Type': 'application/json'},
+              body: json.encode(payload),
+            ).timeout(Duration(seconds: 900));
         return response;
       default:
         return null;
     }
+
+  }
 }
 
 
