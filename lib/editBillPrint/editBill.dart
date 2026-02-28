@@ -29,6 +29,8 @@ import 'package:permission_handler/permission_handler.dart';
 import 'package:http/http.dart' as http;
 import 'package:appinio_social_share/appinio_social_share.dart'as share;
 import 'package:whatsapp_share_plus/whatsapp_share_plus.dart' as whatsapp;
+import '../editBillPrint/pdf_bill_service.dart';
+import 'package:printing/printing.dart';
 
 class DetailPage extends StatefulWidget {
   final List<Map<String, dynamic>>? cart1;
@@ -895,7 +897,7 @@ class _DetailPageState extends State<DetailPage> {
 
 
   /// Launches WhatsApp with a pre-filled message.
-  Future<void> _shareOnWhatsApp(CartProvider cartProvider) async {
+  Future<void> _shareOnWhatsApp(CartProvider cartProvider,BuildContext context) async {
     final total = cartProvider.total;
     final wcart = cartProvider.cart;
     final tableno = (widget.table ?? {"kot":0})['kot'];
@@ -906,7 +908,36 @@ class _DetailPageState extends State<DetailPage> {
     String _myUpiId = prefs.getString('upi') ?? '';
 
     // 1. Generate Image
-    Uint8List? imageBytes = await printer.generateReceiptImageToShare(cart1: wcart, total: total, billNo: billNo, transactionData: transaction, tableno: tableno);
+    // Uint8List? imageBytes = await printer.generateReceiptImageToShare(cart1: wcart, total: total, billNo: billNo, transactionData: transaction, tableno: tableno);
+    Uint8List? pdfBytes =await printer.generateReceiptPdfToShare( cart1: wcart, total: total, billNo: billNo, transactionData: transaction, tableno: tableno, context: context);
+
+    // 1. Convert PDF bytes to Images (Rasterize)
+    // This returns a stream of images, one per page.
+    Uint8List? imageBytespdf;
+    if(pdfBytes!= null) {
+      final images = Printing.raster(pdfBytes, pages: [0], dpi: 200);
+      await for (final page in images) {
+        // 2. Take the first page (or loop if multiple pages)
+        imageBytespdf = await page.toPng();
+        break; // Only need the first page for a receipt image
+      }
+    }
+
+    // final aa = PdfBillService();
+    // aa.generateAndSaveBill( billNo:12,
+    //  businessName : businessName,
+    //  businessAddress:businessAddress,
+    //  contactPhone:contactPhone,
+    // cartItems :wcart,
+    // subtotal : 100,
+    //  discount: 0,
+    //  serviceCharge: 0,
+    //  total: double.tryParse(total.toString()) ?? 0.0 ,
+    //  customerName:"",
+    //  customerMobile:"",
+    //  orderType:"",
+     
+    // );
     
     // 2. Get the bill details string
     String billDetails = await _createBillString(cartProvider);  
@@ -939,12 +970,12 @@ class _DetailPageState extends State<DetailPage> {
         mobileNumber = '91${mobileNumber.substring(1)}';
     }
 
-    if (imageBytes != null) {
+    if (imageBytespdf != null) {
       try {
         final directory = await getExternalStorageDirectory();
         final path = '${directory!.path}/receipt_$billNo.png';
         final file = File(path);
-        await file.writeAsBytes(imageBytes);
+        await file.writeAsBytes(imageBytespdf);
         try{
           bool isBusinessInstalled = await whatsapp.WhatsappSharePlus.isWhatsappBusinessInstalled();
           // print("Response: $response");
@@ -1241,9 +1272,9 @@ DateTime getBusinessDate({int cutoffHour = 4}) {
                                         ),
                                         TextButton(
                                           onPressed: () {
-                                            _shareOnWhatsApp(cartProvider);
+                                            _shareOnWhatsApp(cartProvider,context);
                                           },
-                                          child: const Text("Image"),
+                                          child: const Text("PDF BILL"),
                                         ),
                                       ],
                                     );
@@ -2519,10 +2550,11 @@ Have a nice day!
                                 // ✅ 1. Disable the button when printing
                                 onPressed: _isPrinting ? null : () async {
                                   // ✅ 2. Start the loading indicator
+                                  
                                   setState(() {
                                     _isPrinting = true;
                                   });
-
+                                  final prefs = await SharedPreferences.getInstance(); 
                                   // final isnonzero = areAllQuantitiesZero(widget.cart);
                                   // print_log("qty check  ${isnonzero} > 0");
                                   // if(isnonzero){
@@ -2566,6 +2598,10 @@ Have a nice day!
                                           paymentMode = null; // User cancelled split payment
                                         }
                                       }
+                                    }
+                                    final _pdf = prefs.getBool('pdf') ?? false;
+                                    if(_pdf){
+                                      printer.generateReceiptPdfToShare( cart1: widget.cart, total: total.toInt(), billNo: 1, transactionData: transactiondata, tableno: tableno, context: context);
                                     }
 
                                     if(widget.cartProvider != null){

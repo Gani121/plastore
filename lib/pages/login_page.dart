@@ -627,7 +627,10 @@ class _LoginPageState extends State<LoginPage> {
           screen_massage(context, 'HTTP Error: ${response.statusCode}: ${response.reasonPhrase}');
         }
       } catch (error) {
+        if(mounted){
           screen_massage(context, "❌ Device Not Connected ${error}");
+        }
+        print_log_red("❌ Error in loadMenu: $error");
       }
     }
  }

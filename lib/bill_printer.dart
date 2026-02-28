@@ -34,6 +34,10 @@ import 'database_Module/tableCart.dart';
 import './printer_service.dart';
 import 'package:test1/database_Module/cunsuption.dart'; // Adjust path
 import 'package:test1/inventory/sync_service.dart';
+import 'package:pdf/pdf.dart';
+import 'package:pdf/widgets.dart' as pw;
+// import 'package:flutter/material.dart' show debugPrint;
+
 
   enum PrintQuality {
     light,
@@ -3661,6 +3665,416 @@ void processSale(MenuItem soldItem, int quantityDifference, BuildContext context
       return null;
     }
   }
+
+    /// Convert number to words (simplified version)
+  String _convertNumberToWords(int number) {
+    if (number == 0) return 'Zero';
+    
+    final units = ['', 'One', 'Two', 'Three', 'Four', 'Five', 'Six', 'Seven', 'Eight', 'Nine'];
+    final teens = ['Ten', 'Eleven', 'Twelve', 'Thirteen', 'Fourteen', 'Fifteen', 'Sixteen', 'Seventeen', 'Eighteen', 'Nineteen'];
+    final tens = ['', '', 'Twenty', 'Thirty', 'Forty', 'Fifty', 'Sixty', 'Seventy', 'Eighty', 'Ninety'];
+    
+    String convertLessThanThousand(int n) {
+      if (n < 10) return units[n];
+      if (n < 20) return teens[n - 10];
+      if (n < 100) {
+        return tens[n ~/ 10] + (n % 10 != 0 ? ' ' + units[n % 10] : '');
+      }
+      return units[n ~/ 100] + ' Hundred' + (n % 100 != 0 ? ' ' + convertLessThanThousand(n % 100) : '');
+    }
+    
+    if (number < 1000) return convertLessThanThousand(number);
+    
+    String result = '';
+    int thousands = number ~/ 1000;
+    int remainder = number % 1000;
+    
+    if (thousands > 0) {
+      result = convertLessThanThousand(thousands) + ' Thousand';
+    }
+    
+    if (remainder > 0) {
+      result += (result.isNotEmpty ? ' ' : '') + convertLessThanThousand(remainder);
+    }
+    
+    return result;
+  }
+
+String wrapText(String text, int length) {
+  List<String> words = text.split(' ');
+  String wrappedText = '';
+  String currentLine = '';
+
+  for (String word in words) {
+    if ((currentLine + word).length > length) {
+      wrappedText += currentLine.trim() + '\n';
+      currentLine = word + ' ';
+    } else {
+      currentLine += word + ' ';
+    }
+  }
+  return wrappedText + currentLine.trim();
+}
+
+// Make sure to import your project-specific files (ObjectBoxService, etc.)
+
+Future<Uint8List?> generateReceiptPdfToShare({
+  required List<Map<String, dynamic>> cart1,
+  required int total, // We will calculate the exact total with GST, but keep this for fallback
+  required int billNo,
+  required Map<String, dynamic>? transactionData,
+  required int tableno,
+  required BuildContext context,
+}) async {
+  try {
+    final store = Provider.of<ObjectBoxService>(context, listen: false).store;
+    final pdf = pw.Document();
+    final prefs = await SharedPreferences.getInstance();
+
+    // 1. Fetch Business Info
+    String businessName = prefs.getString('businessName') ?? 'Hotel Test';
+    String contactPhone = prefs.getString('contactPhone') ?? '';
+    String contactEmail = prefs.getString('contactEmail') ?? '';
+    String businessAddress = prefs.getString('businessAddress') ?? '';
+    String upiId = prefs.getString('upi') ?? '';
+    String whatsapptext = prefs.getString('whatsapptext') ?? 'Thank you for your business!';
+    final int new_billNo = (transactionData?['billNo'] == null) ? getNextBillNo(context) : transactionData?['billNo'];
+
+    final String dateTime = DateFormat('dd/MM/yy hh:mm a').format(DateTime.now());
+    List<Map<String, dynamic>> cart = cart1.map((item) => Map<String, dynamic>.from(item)).toList();
+
+    Map<String, Map<String, dynamic>> mapsitem = getmenyBycart(cart, store);
+    int totalQty = cart.fold(0, (sum, item) => sum + (item['qty'] as int? ?? 0));
+
+    // 2. Prepare Images
+    pw.MemoryImage? qrImageProvider;
+    pw.MemoryImage? logoImage;
+
+    final Uint8List? qrBytes = await generateQRImage(total: total);
+    if (qrBytes != null) {
+      qrImageProvider = pw.MemoryImage(qrBytes);
+    }
+
+    final imagePath = prefs.getString('imagePath');
+    if (imagePath != null && File(imagePath).existsSync()) {
+      final file = File(imagePath);
+      final imageBytes = await file.readAsBytes();
+      final img.Image? original = img.decodeImage(imageBytes);
+      if (original != null) {
+        final resized = img.copyResize(original, width: 600, maintainAspect: true);
+        logoImage = pw.MemoryImage(Uint8List.fromList(img.encodePng(resized)));
+      }
+    }
+
+    // --- HELPERS ---
+    double _toDouble(dynamic value) {
+      if (value == null) return 0.0;
+      if (value is num) return value.toDouble();
+      return double.tryParse(value.toString()) ?? 0.0;
+    }
+
+    String wrapText(String text, int length) {
+      if (text.isEmpty) return "";
+      List<String> words = text.split(' ');
+      String wrappedText = '';
+      String currentLine = '';
+      for (String word in words) {
+        if ((currentLine + word).length > length) {
+          wrappedText += currentLine.trim() + '\n';
+          currentLine = word + ' ';
+        } else {
+          currentLine += word + ' ';
+        }
+      }
+      return wrappedText + currentLine.trim();
+    }
+
+    // --- FINANCIAL CALCULATIONS ---
+    double subTotalCalc = 0.0;
+    double totalGstCalc = 0.0;
+
+    for (var item in cart) {
+      int qty = _toDouble(item['qty']).toInt();
+      double rate = _toDouble(item['sellPrice']);
+      var itemExtraData = mapsitem[item['name']];
+      double gstRate = _toDouble(itemExtraData?["gstRate"]);
+      
+      double itemBaseAmount = qty * rate;
+      double itemGstAmount = itemBaseAmount * (gstRate / 100);
+      
+      subTotalCalc += itemBaseAmount;
+      totalGstCalc += itemGstAmount;
+    }
+
+    double discountAmt = _toDouble(transactionData?['discount']);
+    double serviceChargeAmt = _toDouble(transactionData?['serviceCharge']);
+    double receivedAmt = _toDouble(transactionData?['recivedamount']);
+    double pendingAmt = _toDouble(transactionData?['pendingamount']);
+    
+    // Final Grand Total includes the base amount + tax + service charge - discount
+    double finalGrandTotal = subTotalCalc + totalGstCalc + serviceChargeAmt - discountAmt;
+    
+    // If pending wasn't properly passed, recalculate it
+    if (pendingAmt == 0 && receivedAmt > 0 && receivedAmt < finalGrandTotal) {
+      pendingAmt = finalGrandTotal - receivedAmt;
+    }
+
+    // 3. Build the PDF
+    pdf.addPage(
+      pw.MultiPage(
+        pageTheme: pw.PageTheme(
+          pageFormat: PdfPageFormat.a4,
+          margin: const pw.EdgeInsets.all(32),
+          buildBackground: (pw.Context context) {
+            return pw.FullPage(
+              ignoreMargins: true,
+              child: pw.Container(color: PdfColors.white),
+            );
+          },
+        ),
+        header: (pw.Context context) {
+          return pw.Column(
+            children: [
+              pw.Row(
+                mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+                children: [
+                  pw.Text("ORIGINAL FOR RECIPIENT", style: pw.TextStyle(fontSize: 12, color: PdfColors.grey400)),
+                  pw.Text('TAX INVOICE', style: pw.TextStyle(fontSize: 20, fontWeight: pw.FontWeight.bold)),
+                ],
+              ),
+              pw.Divider(thickness: 1),
+              pw.SizedBox(height: 10),
+            ],
+          );
+        },
+        footer: (pw.Context context) {
+          return pw.Column(
+            children: [
+              pw.Row(
+                mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+                children: [
+                  pw.Text("Customer Signature", style: const pw.TextStyle(fontSize: 14)),
+                  pw.Text("Authorized Signatory", style: const pw.TextStyle(fontSize: 14)),
+                ],
+              ),
+              pw.SizedBox(height: 20),
+              pw.Center(child: pw.Text("Thank You! Visit Again!", style: pw.TextStyle(fontWeight: pw.FontWeight.bold, fontSize: 14))),
+              pw.Divider(thickness: 1),
+              pw.Row(
+                mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+                children: [
+                  pw.Text("Page ${context.pageNumber} of ${context.pagesCount}", style: const pw.TextStyle(fontSize: 12)),
+                  pw.Text("ORBIPAY by Nextorbitals", style: pw.TextStyle(fontSize: 12, fontWeight: pw.FontWeight.bold, color: PdfColors.grey400)),
+                ],
+              ),
+            ],
+          );
+        },
+        build: (pw.Context context) {
+          return [
+              pw.Row(
+                mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+                children: [
+                  pw.Text("FROM", style: pw.TextStyle(fontSize: 12, fontWeight: pw.FontWeight.bold, color: PdfColors.grey400)), 
+                ],
+              ),
+              pw.SizedBox(height: 3),
+
+              // Business Info & Logo Row
+              pw.Row(
+                crossAxisAlignment: pw.CrossAxisAlignment.start,
+                children: [
+                  pw.Expanded(
+                    child: pw.Column(
+                      crossAxisAlignment: pw.CrossAxisAlignment.start,
+                      children: [
+                        pw.Text(businessName, style: pw.TextStyle(fontSize: 26, fontWeight: pw.FontWeight.bold, color: PdfColors.blue)),
+                        if (businessAddress.isNotEmpty) pw.Text(wrapText(businessAddress, 40), style: const pw.TextStyle(fontSize: 14), softWrap: true,),
+                        if (contactPhone.isNotEmpty) pw.Text("Ph: $contactPhone", style: const pw.TextStyle(fontSize: 14)),
+                        if (contactEmail.isNotEmpty) pw.Text(contactEmail, style: const pw.TextStyle(fontSize: 14)),
+                      ],
+                    ),
+                  ),
+                  if (logoImage != null)
+                    pw.Container(height: 100, width: 100, child: pw.Image(logoImage)),
+                ],
+              ),
+              pw.SizedBox(height: 10),
+              pw.Divider(thickness: 1),
+
+              // Customer & Bill Info Row
+              pw.Row(
+                mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+                children: [
+                  pw.Column(
+                    crossAxisAlignment: pw.CrossAxisAlignment.start,
+                    children: [
+                      pw.Text("Bill To: ${transactionData?['customerName'] ?? 'Customer'}", style: pw.TextStyle(fontWeight: pw.FontWeight.bold, fontSize: 14)),
+                      if (transactionData?['reserved'] != null) pw.Text("Address: ${transactionData?['reserved']}", softWrap: true, style: const pw.TextStyle(fontSize: 14)),
+                      pw.Text("Ph: ${transactionData?['mobileNo'] ?? '-'}", style: const pw.TextStyle(fontSize: 14)),
+                    ],
+                  ),
+                  pw.Column(
+                    crossAxisAlignment: pw.CrossAxisAlignment.end,
+                    children: [
+                      pw.Text("Bill No: $new_billNo", style: pw.TextStyle(fontWeight: pw.FontWeight.bold, fontSize: 14)),
+                      pw.Text("Date: $dateTime", style: const pw.TextStyle(fontSize: 14)),
+                    ],
+                  ),
+                ],
+              ),
+              pw.SizedBox(height: 15),
+
+              // Items Table with GST
+              pw.TableHelper.fromTextArray(
+                headers: ['#', 'ITEM NAME', 'QTY', 'MRP', 'RATE', 'GST %', 'TOTAL'],
+                headerStyle: pw.TextStyle(fontWeight: pw.FontWeight.bold, fontSize: 14),
+                cellStyle: const pw.TextStyle(fontSize: 13),
+                data: List<List<dynamic>>.generate(cart.length, (index) {
+                  var item = cart[index];
+                  
+                  int qty = _toDouble(item['qty']).toInt();
+                  double rate = _toDouble(item['sellPrice']);
+                  
+                  var itemExtraData = mapsitem[item['name']];
+                  double mrp = _toDouble(itemExtraData?["mrp"]);
+                  double gstRate = _toDouble(itemExtraData?["gstRate"]);
+                  
+                  if (mrp == 0) mrp = rate;
+
+                  // Calculate Item Total Including GST
+                  double itemBase = qty * rate;
+                  double itemGst = itemBase * (gstRate / 100);
+                  double itemFinalTotal = itemBase + itemGst;
+
+                  return [
+                    index + 1,
+                    item['name'] ?? 'Item',
+                    qty,
+                    mrp.toStringAsFixed(2),
+                    rate.toStringAsFixed(2),
+                    "${gstRate.toStringAsFixed(0)}%",
+                    itemFinalTotal.toStringAsFixed(2),
+                  ];
+                }),
+                headerDecoration: const pw.BoxDecoration(color: PdfColors.grey200),
+                columnWidths: {
+                  0: const pw.FixedColumnWidth(40),
+                  1: const pw.FlexColumnWidth(),
+                },
+                cellAlignment: pw.Alignment.centerRight,
+                cellAlignments: {
+                  0: pw.Alignment.centerLeft, 
+                  1: pw.Alignment.centerLeft
+                },
+              ),
+              
+              // Total Calculation Row
+              pw.Container(
+                padding: const pw.EdgeInsets.all(8),
+                decoration: const pw.BoxDecoration(border: pw.Border(bottom: pw.BorderSide(width: 1))),
+                child: pw.Row(
+                  children: [
+                    pw.Text("TOTAL", style: pw.TextStyle(fontWeight: pw.FontWeight.bold, fontSize: 14)),
+                    pw.Spacer(),
+                    pw.Text("Qty: $totalQty", style: pw.TextStyle(fontWeight: pw.FontWeight.bold, fontSize: 14)),
+                    pw.SizedBox(width: 50),
+                    pw.Text("Rs. ${finalGrandTotal.toStringAsFixed(2)}", style: pw.TextStyle(fontWeight: pw.FontWeight.bold, fontSize: 14)),
+                  ],
+                ),
+              ),
+              pw.SizedBox(height: 15),
+
+              // Payment and QR Section
+              pw.Row(
+                crossAxisAlignment: pw.CrossAxisAlignment.start,
+                children: [
+                  pw.Expanded(
+                    flex: 3,
+                    child: pw.Column(
+                      crossAxisAlignment: pw.CrossAxisAlignment.start,
+                      children: [
+                        pw.Text("BILL AMOUNT IN WORDS", style: pw.TextStyle(fontSize: 13, color: PdfColors.grey700)),
+                        pw.Text("${_convertNumberToWords(finalGrandTotal.round())} only", style: pw.TextStyle(fontWeight: pw.FontWeight.bold, fontSize: 14)),
+                        pw.SizedBox(height: 10),
+                        pw.Text("Acc Type: Saving", style: const pw.TextStyle(fontSize: 14)),
+                        pw.Text("UPI ID: $upiId", style: const pw.TextStyle(fontSize: 14)),
+                        pw.SizedBox(height: 10),
+                        pw.Text("TERMS AND CONDITION", style: pw.TextStyle(fontWeight: pw.FontWeight.bold, fontSize: 8)),
+                        pw.Text(whatsapptext, style: const pw.TextStyle(fontSize: 8)),
+                        if (qrImageProvider != null)
+                          pw.Padding(
+                            padding: const pw.EdgeInsets.only(top: 10),
+                            child: pw.Container(
+                              height: 130, 
+                              width: 130,
+                              decoration: pw.BoxDecoration(border: pw.Border.all(color: PdfColors.grey200)),
+                              child: pw.Image(qrImageProvider),
+                            ),
+                          ),
+                      ],
+                    ),
+                  ),
+                  // Financial Summary with GST Breakdown
+                  pw.Expanded(
+                    flex: 2,
+                    child: pw.Column(
+                      children: [
+                        _buildSummaryRowImproved("Taxable Amount", subTotalCalc.toStringAsFixed(2)),
+                        _buildSummaryRowImproved("Total GST", totalGstCalc.toStringAsFixed(2)),
+                        if (serviceChargeAmt > 0) _buildSummaryRowImproved("Service Charge", serviceChargeAmt.toStringAsFixed(2)),
+                        if (discountAmt > 0) _buildSummaryRowImproved("Discount", discountAmt.toStringAsFixed(2)),
+                        pw.Divider(thickness: 1),
+                        _buildSummaryRowImproved("GRAND TOTAL", "Rs. ${finalGrandTotal.toStringAsFixed(2)}", isBold: true),
+                        pw.SizedBox(height: 5),
+                        if (receivedAmt > 0) _buildSummaryRowImproved("Received", receivedAmt.toStringAsFixed(2)),
+                        if (pendingAmt > 0) _buildSummaryRowImproved("Pending", pendingAmt.toStringAsFixed(2)),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+              // pw.SizedBox(height: 20),
+          ];
+        },
+      ),
+    );
+
+    // 4. Save Logic
+    final String folderPath = '/storage/emulated/0/Orbipay';
+    final directory = Directory(folderPath);
+    if (!await directory.exists()) await directory.create(recursive: true);
+
+    final String filePath = "$folderPath/Orbipay_bill_$billNo.pdf";
+    final File file = File(filePath);
+    final Uint8List pdfsave = await pdf.save();
+    try{
+      await file.writeAsBytes(pdfsave);
+    } catch (e) {
+      print_log_red("Error generating PDF: $e");
+      return null;
+    }
+
+    return pdfsave;
+  } catch (e) {
+    print_log_red("Error generating PDF: $e");
+    return null;
+  }
+}
+
+// Ensure this helper is outside the main function, or just drop it at the bottom of your file
+pw.Widget _buildSummaryRowImproved(String title, String value, {bool isBold = false}) {
+  return pw.Padding(
+    padding: const pw.EdgeInsets.symmetric(vertical: 2),
+    child: pw.Row(
+      mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+      children: [
+        pw.Text(title, style: pw.TextStyle(fontWeight: isBold ? pw.FontWeight.bold : pw.FontWeight.normal, fontSize: 14)),
+        pw.Text(value, style: pw.TextStyle(fontWeight: isBold ? pw.FontWeight.bold : pw.FontWeight.normal, fontSize: 14)),
+      ],
+    ),
+  );
+}
 
 
   Future<Uint8List?> footerImage() async {

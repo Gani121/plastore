@@ -14,6 +14,7 @@ import 'package:flutter/services.dart';
 // import 'package:permission_handler/permission_handler.dart';
 import 'package:path/path.dart' as p;
 import 'package:http/http.dart' as http;
+import 'package:test1/database_Module/menu_item.dart';
 
 
 enum keys {
@@ -309,6 +310,13 @@ Future<http.Response?> apiCalls(
             body: jsonEncode(payload),
           ).timeout(Duration(seconds: 900));
           return response;
+        case "l":
+        final response = await http.post(
+          Uri.parse("https://api2.nextorbitals.in/api/login.php"),
+          headers: {"Content-Type": "application/json"},
+          body: jsonEncode(payload),
+        ).timeout(Duration(seconds: 900));
+        return response;
         default:
           return null;
       }
@@ -540,6 +548,35 @@ Future<DateTime> getBussinessDateStorage() async {
     final prefs = await SharedPreferences.getInstance();
     return prefs.getString(AppConstants.appPasswordKey) ?? "1234"; // 🔑 key for password
   }
+
+Map<String, Map<String, dynamic>> getmenyBycart(List<Map<String, dynamic>> cart1, Store store) {
+  final _menuItemBox = store.box<MenuItem>();
+  
+  // 1. Get all items from ObjectBox
+  final items = _menuItemBox.getAll();
+  
+  // 2. Create a lookup dictionary for fast matching
+  final menuLookup = {for (var item in items) item.name: item};
+  
+  // 3. Initialize the Map you want to return
+  Map<String, Map<String, dynamic>> matchedItems = {};
+
+  // 4. Loop through the cart and populate the map
+  for (var cartItem in cart1) {
+    String itemName = cartItem['name']; // Ensure this matches your cart's key
+    
+    if (menuLookup.containsKey(itemName)) {
+      MenuItem matchedMenu = menuLookup[itemName]!;
+      
+      // Map the cart item name (key) to the menu item's database details (value)
+      matchedItems[itemName] = matchedMenu.toMap();
+    } else {
+      print_log("Warning: $itemName from cart was not found in the database.");
+    }
+  }
+
+  return matchedItems;
+}
 
 
 

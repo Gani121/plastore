@@ -50,6 +50,7 @@ class _PrinterSetupPageState extends State<PrinterSetupPage> with WidgetsBinding
   bool _customerName = false;
   bool _otherPrnter = false;
   bool _isgst = false;
+  bool _pdf = false;
   double _fontSize = 1; // 1 = small, 2 = medium, 3 = large
   int _charsPerLine = 32; // default width
   int _logoWidth = 200; // default width
@@ -229,6 +230,7 @@ class _PrinterSetupPageState extends State<PrinterSetupPage> with WidgetsBinding
       _customerName = prefs.getBool('customerName') ?? false;
       _otherPrnter = prefs.getBool('otherprinter') ?? false;
       _isgst = prefs.getBool('isgst') ?? false;
+      _pdf = prefs.getBool('pdf') ?? false;
       _logoWidth =  prefs.getInt('logoWidth')?? 200;
       _chunkSize =  prefs.getInt('chunkSize')?? 200;
       _logoheight =  prefs.getInt('logoheight')?? 200;
@@ -256,6 +258,7 @@ class _PrinterSetupPageState extends State<PrinterSetupPage> with WidgetsBinding
     await prefs.setBool('customerName', _customerName);
     await prefs.setBool('otherprinter', _otherPrnter);
     await prefs.setBool('isgst', _isgst);
+    await prefs.setBool('pdf', _pdf);
     await prefs.setInt('logoWidth', _logoWidth);
     await prefs.setInt('logoheight', _logoheight);
     await prefs.setString('paperSize', _paperSize);
@@ -290,6 +293,7 @@ class _PrinterSetupPageState extends State<PrinterSetupPage> with WidgetsBinding
     await prefs.setBool('customerName', _customerName);
     await prefs.setBool('otherprinter', _otherPrnter);
     await prefs.setBool('isgst', _isgst);
+    await prefs.setBool('pdf', _pdf);
     await prefs.setString('footerText', _footerController.text);
     await prefs.setString('whatsapptext', _whatsapptextController.text);
     await prefs.setInt('logoWidth', _logoWidth);
@@ -986,6 +990,17 @@ Future<void> _connectKOTPrinter() async {
               onChanged: (val) {
                 setState(() {
                   _isgst = val;
+                });
+                _autoSaveSettings(); // Auto-save when changed
+              },
+            ),
+            //customer name on print
+            SwitchListTile(
+              title: Text("Download Bill"),
+              value: _pdf,
+              onChanged: (val) {
+                setState(() {
+                  _pdf = val;
                 });
                 _autoSaveSettings(); // Auto-save when changed
               },
