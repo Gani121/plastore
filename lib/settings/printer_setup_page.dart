@@ -10,6 +10,9 @@ import 'package:test1/utilities.dart';
 import 'package:path_provider/path_provider.dart';
 import 'dart:io';
 import 'dart:convert';
+import 'dart:typed_data';
+import 'package:usb_serial/usb_serial.dart';
+import 'package:esc_pos_utils_plus/esc_pos_utils_plus.dart';
 
 class PrinterSetupPage extends StatefulWidget {
   const PrinterSetupPage({super.key});
@@ -67,6 +70,10 @@ class _PrinterSetupPageState extends State<PrinterSetupPage> with WidgetsBinding
 
   thermal.BlueThermalPrinter printer = thermal.BlueThermalPrinter.instance;
 
+  List<UsbDevice> _usbDevices = [];
+  UsbPort? _usbPort;
+  bool _isUsbScanning = false;
+
   @override
   void initState() {
     super.initState();
@@ -83,6 +90,80 @@ class _PrinterSetupPageState extends State<PrinterSetupPage> with WidgetsBinding
     _footerController.dispose();
     _whatsapptextController.dispose();
     super.dispose();
+  }
+
+  Future<void> _scanUsbPrinters() async {
+    setState(() => _isUsbScanning = true);
+
+    try {
+      _usbDevices = await UsbSerial.listDevices();
+    } catch (e) {
+      print("USB Scan Error: $e");
+    }
+    setState(() => _usbDevices = _usbDevices);
+    setState(() => _isUsbScanning = false);
+  }
+
+  Future<void> _connectAndPrintUsb(UsbDevice device) async {
+    try {
+      _usbPort = await device.create();
+
+      if (_usbPort == null) {
+        throw "Unable to create USB port";
+      }
+
+      bool openResult = await _usbPort!.open();
+      if (!openResult) {
+        throw "Failed to open USB port";
+      }
+
+      await _usbPort!.setPortParameters(
+        9600, // Try 115200 if not working
+        UsbPort.DATABITS_8,
+        UsbPort.STOPBITS_1,
+        UsbPort.PARITY_NONE,
+      );
+
+      await _usbPort!.setDTR(true);
+      await _usbPort!.setRTS(true);
+
+      final profile = await CapabilityProfile.load();
+      final generator = Generator(PaperSize.mm80, profile);
+
+      List<int> bytes = [];
+
+      bytes += generator.text(
+        "USB PRINTER TEST",
+        styles: const PosStyles(
+          bold: true,
+          align: PosAlign.center,
+          height: PosTextSize.size2,
+          width: PosTextSize.size2,
+        ),
+      );
+
+      bytes += generator.hr();
+
+      bytes += generator.text("Printer: ${device.productName}");
+      bytes += generator.text("VID: ${device.vid}");
+      bytes += generator.text("PID: ${device.pid}");
+
+      bytes += generator.feed(2);
+      bytes += generator.cut();
+
+      await _usbPort!.write(Uint8List.fromList(bytes));
+
+      await _usbPort!.close();
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text("🖨 USB Test print sent")),
+      );
+    } catch (e) {
+      print("USB Print Error: $e");
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text("❌ USB Error: $e")),
+      );
+    }
   }
 
 
@@ -597,7 +678,7 @@ Future<void> _connectKOTPrinter() async {
             Row(
               children: [
                 Text(
-                  "📡 Paired Printers",
+                  "1. Paired Printers",
                   style: TextStyle(fontWeight: FontWeight.bold),
                 ),
                 Spacer(),
@@ -620,7 +701,7 @@ Future<void> _connectKOTPrinter() async {
               ElevatedButton.icon(
                 onPressed: openBluetoothSettings,
                 icon: Icon(Icons.bluetooth_searching),
-                label: Text("Scan / Pair New Devices"),
+                label: Text("1.1 Scan / Pair New Devices"),
               )
             else
               ElevatedButton.icon(
@@ -640,7 +721,10 @@ Future<void> _connectKOTPrinter() async {
 
             // 🛠️ MODIFIED: Printer List
             if (_isBluetoothOn)
-              ..._devices.map((device) {
+
+              ..._devices.asMap().entries.map((entry) {
+                int index = entry.key;
+                var device = entry.value;
                 // Check selection status for both types
                 final isSelected = _selectedDevice?.address == device.address;
                 final isKOTSelected = _selectedKOTDevice?.address == device.address;
@@ -659,45 +743,44 @@ Future<void> _connectKOTPrinter() async {
                 return Card(
                   color: cardColor,
                   child: ListTile(
-                    // Determine leading icon
-                    leading: isKOTSelected
-                        ? Icon(Icons.kitchen, color: Colors.red)
-                        : (isSelected
-                            ? Icon(Icons.check_circle, color: Colors.green)
-                            : Icon(Icons.print_outlined)),
-                    title: Text(device.name ?? "Unknown"),
+                    leading: CircleAvatar(
+                      backgroundColor: Colors.blue,
+                      child: Text(
+                        "${index + 1}",   // 🔥 Printer Number Here
+                        style: const TextStyle(color: Colors.white),
+                      ),
+                    ),
+
+                    title: Text(
+                      "${device.name ?? "Unknown"}",
+                      style: const TextStyle(fontWeight: FontWeight.bold),
+                    ),
+
                     subtitle: Text(device.address ?? "Unknown Address"),
-                    
-                    // ✨ NEW: Trailing buttons
+
                     trailing: Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        // Bill Printer Button
                         ElevatedButton(
-                          onPressed: () {
-                            _saveSelectedDevice(device);
-                          },
+                          onPressed: () => _saveSelectedDevice(device),
                           style: ElevatedButton.styleFrom(
                             backgroundColor:
-                                isSelected ? Colors.green : Colors.grey[300],
+                                isSelected ? Colors.green : Colors.green[100],
                             foregroundColor:
                                 isSelected ? Colors.white : Colors.black,
                           ),
-                          child: Text("Bill"),
+                          child: const Text("Bill"),
                         ),
-                        SizedBox(width: 8),
-                        // KOT Printer Button
+                        const SizedBox(width: 8),
                         ElevatedButton(
-                          onPressed: () {
-                            _saveSelectedKOTDevice(device);
-                          },
+                          onPressed: () => _saveSelectedKOTDevice(device),
                           style: ElevatedButton.styleFrom(
                             backgroundColor:
-                                isKOTSelected ? Colors.red : Colors.grey[300],
+                                isKOTSelected ? Colors.red : Colors.red[100],
                             foregroundColor:
                                 isKOTSelected ? Colors.white : Colors.black,
                           ),
-                          child: Text("KOT"),
+                          child: const Text("KOT"),
                         ),
                       ],
                     ),
@@ -715,7 +798,51 @@ Future<void> _connectKOTPrinter() async {
 
             SizedBox(height: 20),
             Divider(),
-            Text("⚙️ Printer Settings", style: TextStyle(fontSize: 16)),
+            Text("2. 🔌USB Printers", style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+
+            SizedBox(height: 10),
+
+            ElevatedButton.icon(
+              onPressed: _scanUsbPrinters,
+              icon: Icon(Icons.usb),
+              label: Text("Scan USB Printers"),
+            ),
+
+            SizedBox(height: 10),
+
+            if (_isUsbScanning)
+              Center(child: CircularProgressIndicator())
+            else if (_usbDevices.isEmpty)
+              Card(
+                child: ListTile(
+                  leading: Icon(Icons.usb_off),
+                  title: Text("No USB printers found"),
+                ),
+              )
+            else
+              ..._usbDevices.map((device) {
+                return Card(
+                  child: ListTile(
+                    leading: Icon(Icons.print),
+                    title: Text(device.productName ?? "Unknown USB Printer"),
+                    subtitle: Text("VID: ${device.vid}  PID: ${device.pid}"),
+                    trailing: ElevatedButton(
+                      child: Text("Test"),
+                      onPressed: () => _connectAndPrintUsb(device),
+                    ),
+                  ),
+                );
+              }).toList(),
+
+
+
+
+
+            
+            SizedBox(height: 20),
+            Divider(),
+            Text("3. ⚙️Printer Settings", style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+            // Text(, style: TextStyle(fontSize: 16)),
 
             // UUID Selection Card
             Card(
@@ -727,7 +854,7 @@ Future<void> _connectKOTPrinter() async {
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        Text("2. Printer UUID", style: TextStyle(fontSize: 16)),
+                        Text("3.1. Printer UUID", style: TextStyle(fontSize: 16)),
                         if (_isScanningUUIDs)
                           SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2))
                         else
@@ -772,7 +899,7 @@ Future<void> _connectKOTPrinter() async {
                   // The "name" or label
                   Expanded(
                     child: Text(
-                      "2.1 Chunk Size",
+                      "3.2 Chunk Size",
                       style: TextStyle(fontSize: 16.0), // Optional: style to match title
                     ),
                   ),
@@ -821,7 +948,7 @@ Future<void> _connectKOTPrinter() async {
             // ... (ListTile for "Font Size")
             Card(
               child: ListTile(
-                title: Text("Print QR Code"),
+                title: Text("3.3 Print QR Code"),
                 subtitle: Text(
                   _printQR
                       ? "ON - QR codes will be printed"
@@ -855,7 +982,7 @@ Future<void> _connectKOTPrinter() async {
              // Print LOGO Toggle with ON/OFF labels
             Card(
               child: ListTile(
-                title: Text("Print LOGO"),
+                title: Text("3.4 Print LOGO"),
                 subtitle: Text(
                   _printlogo
                       ? "ON - LOGO will be printed"
@@ -889,7 +1016,7 @@ Future<void> _connectKOTPrinter() async {
             // Print QR Toggle with ON/OFF labels
             Card(
               child: ListTile(
-                title: Text("Print Business Name"),
+                title: Text("3.5 Print Business Name"),
                 subtitle: Text(
                   _printName
                       ? "ON - Business Name will be printed"
@@ -922,7 +1049,7 @@ Future<void> _connectKOTPrinter() async {
             ),
 
             SwitchListTile(
-              title: Text("print logo in QR"),
+              title: Text("3.6 print logo in QR"),
               value: _printQRlogo,
               onChanged: (val) {
                 setState(() {
@@ -933,7 +1060,7 @@ Future<void> _connectKOTPrinter() async {
             ),
 
             SwitchListTile(
-              title: Text("Mini Printer"),
+              title: Text("3.7 Mini Printer"),
               value: miniPrinter,
               onChanged: (val) {
                 setState(() {
@@ -943,7 +1070,7 @@ Future<void> _connectKOTPrinter() async {
               },
             ),
             SwitchListTile(
-              title: Text("KOT Mini Printer"),
+              title: Text("3.8 KOT Mini Printer"),
               value: miniPrinterKOT,
               onChanged: (val) {
                 setState(() {
@@ -953,7 +1080,7 @@ Future<void> _connectKOTPrinter() async {
               },
             ),
             SwitchListTile(
-              title: Text("Marathi Bill"),
+              title: Text("3.9 Marathi Bill"),
               value: marathi,
               onChanged: (val) {
                 setState(() {
@@ -964,7 +1091,7 @@ Future<void> _connectKOTPrinter() async {
             ),
             //customer name on print
             SwitchListTile(
-              title: Text("customer name on print"),
+              title: Text("3.10 customer name on print"),
               value: _customerName,
               onChanged: (val) {
                 setState(() {
@@ -974,7 +1101,7 @@ Future<void> _connectKOTPrinter() async {
               },
             ),
             SwitchListTile(
-              title: Text("Other Printer"),
+              title: Text("3.11 Other Printer"),
               value: _otherPrnter,
               onChanged: (val) {
                 setState(() {
@@ -985,7 +1112,7 @@ Future<void> _connectKOTPrinter() async {
             ),
             //customer name on print
             SwitchListTile(
-              title: Text("gst print"),
+              title: Text("3.12 gst print"),
               value: _isgst,
               onChanged: (val) {
                 setState(() {
@@ -996,7 +1123,7 @@ Future<void> _connectKOTPrinter() async {
             ),
             //customer name on print
             SwitchListTile(
-              title: Text("Download Bill"),
+              title: Text("3.13 Download Bill"),
               value: _pdf,
               onChanged: (val) {
                 setState(() {
@@ -1015,7 +1142,7 @@ Future<void> _connectKOTPrinter() async {
                   // The "name" or label
                   Expanded(
                     child: Text(
-                      "QR Size",
+                      "3.14 QR Size",
                       style: TextStyle(fontSize: 16.0), // Optional: style to match title
                     ),
                   ),
@@ -1056,7 +1183,7 @@ Future<void> _connectKOTPrinter() async {
                   // The "name" or label
                   Expanded(
                     child: Text(
-                      "Paper Size in inch",
+                      "3.15 Paper Size in inch",
                       style: TextStyle(fontSize: 16.0), // Optional: style to match title
                     ),
                   ),
@@ -1117,7 +1244,7 @@ Future<void> _connectKOTPrinter() async {
                   // The "name" or label
                   Expanded(
                     child: Text(
-                      "Characters Per Line",
+                      "3.16 Characters Per Line",
                       style: TextStyle(fontSize: 16.0), // Optional: style to match title
                     ),
                   ),
@@ -1158,7 +1285,7 @@ Future<void> _connectKOTPrinter() async {
                   // The "name" or label
                   Expanded(
                     child: Text(
-                      "LOGO Width",
+                      "3.18 LOGO Width",
                       style: TextStyle(fontSize: 16.0), // Optional: style to match title
                     ),
                   ),
@@ -1198,7 +1325,7 @@ Future<void> _connectKOTPrinter() async {
                   // The "name" or label
                   Expanded(
                     child: Text(
-                      "LOGO Height",
+                      "3.19 LOGO Height",
                       style: TextStyle(fontSize: 16.0), // Optional: style to match title
                     ),
                   ),
@@ -1236,7 +1363,7 @@ Future<void> _connectKOTPrinter() async {
                 children: [
                   Expanded(
                     child: Text(
-                      "whatsapp text",
+                      "3.20 whatsapp text",
                       style: TextStyle(fontSize: 16.0),
                     ),
                   ),
@@ -1269,7 +1396,7 @@ Future<void> _connectKOTPrinter() async {
                 children: [
                   const Expanded(
                     child: Text(
-                      "Footer",
+                      "3.21 Footer",
                       style: TextStyle(fontSize: 16.0),
                     ),
                   ),
@@ -1297,7 +1424,7 @@ Future<void> _connectKOTPrinter() async {
             ),
             
             ListTile(
-              title: Text("Font Size"),
+              title: Text("3.22 Font Size"),
               subtitle: Slider(
                 value: _fontSize,
                 min: 1,

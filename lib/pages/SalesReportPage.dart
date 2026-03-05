@@ -23,29 +23,6 @@ import 'package:pdf/widgets.dart' as pw;
 import 'package:printing/printing.dart';
 import '../database_Module/cunsuption.dart';
 
-// Add Expense model if not already defined elsewhere
-class Expense {
-  final String title;
-  final String category;
-  final double amount;
-  final DateTime date;
-
-  Expense({
-    required this.title,
-    required this.category,
-    required this.amount,
-    required this.date,
-  });
-
-  factory Expense.fromMap(Map<String, dynamic> map) {
-    return Expense(
-      title: map['title'] ?? '',
-      category: map['category'] ?? 'Other',
-      amount: (map['amount'] is int ? (map['amount'] as int).toDouble() : map['amount']) ?? 0.0,
-      date: map['date'] is String ? DateTime.parse(map['date']) : DateTime.now(),
-    );
-  }
-}
 
 class SalesReportPage extends StatefulWidget {
   const SalesReportPage({super.key});
@@ -67,6 +44,9 @@ class _SalesReportPageState extends State<SalesReportPage> {
   double todayExpenses = 0;
   double expensesToday = 0.0;
   double expensesDateRange = 0.0;
+  double sLastMonth = 0.0;
+  double rangetotal = 0.0;
+  double totalTransections = 0.0;
   // Map<DateTime, double> daywiseExpensesMap = {};
   List<String> expensesList = [];
   Map<String, int> itemQtyMap = {};
@@ -91,6 +71,7 @@ class _SalesReportPageState extends State<SalesReportPage> {
   Map<String, double> currentInventoryStock = {};
   Map<String, Map<String, double>> menuItemConsumptionMap = {};
   Map<String, String> inventoryUnitMap = {};
+  List<expences> _allExpenses = [];
 
   @override
   void initState() {
@@ -173,12 +154,11 @@ class _SalesReportPageState extends State<SalesReportPage> {
         final purchasePriceValue = purchasePriceDouble.round();
         if (purchasePriceValue > 0) {
           _purchesprice["${tx['name']}"] = purchasePriceDouble;
-          // print_log("purchase _purchesprice $_purchesprice");
           // print_log("massage $purchasePrice ${purchasePrice.runtimeType}");
           // print_log("massage $purchasePriceValue ${purchasePriceValue.runtimeType}");
          }
       }
-      
+      print_log("purchase _purchespriceMap $_purchesprice");
       if (mounted) {
         setState(() {
           purchesprice = _purchesprice;
@@ -227,9 +207,23 @@ class _SalesReportPageState extends State<SalesReportPage> {
       // Create a map of item names to categories for quick lookup
       final menuItemBox = store.box<MenuItem>();
       final allMenuItems = menuItemBox.getAll();
-      final Map<String, String> itemCategoryMap = {
-        for (var item in allMenuItems) item.name: item.category
-      };
+      final now = DateTime.now();
+
+      // --- 1. DEFINE FIXED TIME RANGES ---
+      final startOfToday = DateTime(now.year, now.month, now.day);
+      final startOfLastMonth = DateTime(now.month == 1 ? now.year - 1 : now.year, now.month == 1 ? 12 : now.month - 1, 1);
+      final endOfLastMonth = DateTime(now.year, now.month, 1).subtract(const Duration(seconds: 1));
+      // Monday to Sunday Logic:
+      // weekday 1 = Monday, 7 = Sunday. 
+      // This finds the Monday of the current week.
+      final startOfWeek = startOfToday.subtract(Duration(days: now.weekday - 1));
+      final startOfMonth = DateTime(now.year, now.month, 1);
+
+      // --- 2. DEFINE SELECTED RANGE ---
+      DateTime from = fromDate != null ? DateTime(fromDate!.year, fromDate!.month, fromDate!.day) : startOfToday;
+      DateTime to = toDate != null ? DateTime(toDate!.year, toDate!.month, toDate!.day, 23, 59, 59) : DateTime.now();
+
+      final Map<String, String> itemCategoryMap = {for (var item in allMenuItems) item.name: item.category};
       giveamount = await getDatafromPrefs("You_will_give");
       takeamount = await getDatafromPrefs("You_will_get");
       
@@ -239,23 +233,8 @@ class _SalesReportPageState extends State<SalesReportPage> {
       final box = store.box<Transaction>();
       final transactions = box.getAll();
 
-      DateTime now = DateTime.now();
-      DateTime today;
-      if (fromDate == toDate) {
-        if (fromDate != null) {
-          today = DateTime(fromDate!.year, fromDate!.month, fromDate!.day);
-        } else {
-          today = DateTime(now.year, now.month, now.day);
-        }
-      } else {
-        today = DateTime(now.year, now.month, now.day);
-      }
-
-      DateTime startOfWeek = now.subtract(Duration(days: now.weekday - 1));
-      DateTime startOfMonth = DateTime(now.year, now.month, 1);
-
-      double tTotal = 0, wTotal = 0, mTotal = 0, _profit = 0;
-      double cTotal = 0, crTotal = 0, uTotal = 0, oTotal = 0;
+      double tTotal = 0, wTotal = 0, mTotal = 0, _profit = 0, _sLastMonth = 0, _rangetotal = 0, _totalTransections = 0;
+      double cash = 0, card = 0, upi = 0, pending = 0;
       Map<String, int> qtyMap = {};
       Map<String, double> priceMap = {};
       Map<String, int> cqtyMap = {};
@@ -264,6 +243,7 @@ class _SalesReportPageState extends State<SalesReportPage> {
       Map<String, double> tempOrderTypeTotal = {};
       Map<String, double> tempCategoryPriceMap = {};
       Map<String, int> tempCategoryQtyMap = {};
+
 
       // --- Consumption Logic Setup ---
       final consumptionBox = store.box<ItemConsumption>();
@@ -294,12 +274,7 @@ class _SalesReportPageState extends State<SalesReportPage> {
       Map<String, Map<String, double>> _menuItemConsumptionMap = {};
       // -------------------------------
 
-      DateTime from = fromDate != null
-          ? DateTime(fromDate!.year, fromDate!.month, fromDate!.day)
-          : DateTime(2000);
-      DateTime to = toDate != null
-          ? DateTime(toDate!.year, toDate!.month, toDate!.day, 23, 59, 59)
-          : DateTime.now();
+
 
       // Load expenses data
       double expensesTodayTotal = 0.0;
@@ -311,35 +286,74 @@ class _SalesReportPageState extends State<SalesReportPage> {
         // final todayNormalized = AppConstants.businessDate!;
         final expensesBox = store.box<expences>();
         final expensesJson = expensesBox.getAll();
-        // final daywiseData = await ExpensesService.getDaywiseExpenses(expensesJson);
+        _allExpenses = expensesJson;
 
-        // expensesTodayTotal = daywiseData[todayNormalized] ?? 0.0;
-        // print_log("expense expensesListData $expensesListData $expensesDateRangeTotal $todayNormalized");
+
         Map<String, dynamic> expenceMap = await ExpensesService.getDateRangeTotal(from, to, expensesJson);
         expensesDateRangeTotal = expenceMap['total'] ?? 0.0;
         expensesTodayTotal = expensesDateRangeTotal;
         expensesListData = List<String>.from(jsonDecode(expenceMap['expenses'] ?? '[]'));
         print_log("expense expensesListData $expensesListData expensesDateRangeTotal $expensesDateRangeTotal expensesTodayTotal $expensesTodayTotal");
-        // daywiseExpenses = daywiseData;
       } catch (e) {
         print_log_red('Error loading expenses data: $e');
       }
 
       // Process transactions
       for (var tx in transactions) {
-        if (tx.time.isBefore(from) || tx.time.isAfter(to)) continue;
 
         final transactionTotal = tx.total;
-        double transactionProfit = 0.0;
-
-        if (tx.time.isAfter(from) && tx.time.isBefore(to)) {
-          tTotal += transactionTotal;
-        }
-        
+         // Calculate FIXED Stats (Always based on current time)
+        if (tx.time.isAfter(startOfToday)) tTotal += transactionTotal;
         if (tx.time.isAfter(startOfWeek)) wTotal += transactionTotal;
         if (tx.time.isAfter(startOfMonth)) mTotal += transactionTotal;
+        if (tx.time.isAfter(startOfLastMonth) && tx.time.isBefore(endOfLastMonth)) _sLastMonth += transactionTotal;
+        // print_log("total rangetotal month $_sLastMonth transactionTotal month $transactionTotal");
 
-        // Parse cart data
+
+        if (tx.time.isBefore(from) || tx.time.isAfter(to)) continue;
+        // @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+
+
+        _totalTransections += 1;
+        // Calculate Range/FILTERED Stats dates(Payment Mode, Range Total, Profit)
+        if (tx.time.isAfter(from) && tx.time.isBefore(to)) {
+          _rangetotal += transactionTotal;
+          
+          
+          // Payment Mode Breakdown (Only for selected range)
+          switch (tx.payment_mode.toUpperCase()) {
+            case "CASH":
+              cash += transactionTotal;
+              break;
+            case "CARD":
+              card += transactionTotal;
+              break;
+            case "UPI":
+              upi += transactionTotal;
+              break;
+            case "OTHER":
+              cash += tx.cashamount?.toDouble() ?? 0.0;
+              upi += tx.upiamount?.toDouble() ?? 0.0;
+              break;
+            default:
+              pending += transactionTotal;
+              break;
+          }
+        }
+
+        // Aggregate by orderType
+        final orderType = tx.orderType?.isNotEmpty == true ? tx.orderType! : 'Other';
+        tempOrderTypeCount[orderType] = (tempOrderTypeCount[orderType] ?? 0) + 1;
+        tempOrderTypeTotal[orderType] = (tempOrderTypeTotal[orderType] ?? 0) + transactionTotal;
+
+
+
+
+
+
+
+
+        // Parse cart data*************************************
         List<dynamic> cartItems = [];
         try {
           if (tx.cartData != null && tx.cartData.isNotEmpty) {
@@ -356,14 +370,9 @@ class _SalesReportPageState extends State<SalesReportPage> {
             final sellPrice = (item['sellPrice'] is int ? (item['sellPrice'] as int).toDouble() : double.tryParse(item['sellPrice']?.toString() ?? '') ?? 0.0);
             
             final qty = int.tryParse(item['qty']?.toString() ?? '') ?? 0;
-            
-            // Get purchase price from the map we loaded earlier
-            print_log("purchasePriceMap $purchasePriceMap");
             final purchasePrice = purchasePriceMap[itemName] ?? 0;
-            print_log("purchasePrice  $sellPrice - ${purchasePrice.toDouble()} * $qty");
-            // Calculate profit for this item: (sellPrice - purchasePrice) * quantity
             final itemProfit = (sellPrice - purchasePrice.toDouble()) * qty;
-            transactionProfit += itemProfit;
+            _profit += itemProfit;
             
             // Update item-wise statistics
             qtyMap[itemName] = (qtyMap[itemName] ?? 0) + qty;
@@ -403,54 +412,37 @@ class _SalesReportPageState extends State<SalesReportPage> {
             // -----------------------------
 
           } catch (e) {
-            print_log('Error processing cart item: $e');
+            print_log_red('Error processing cart item: $e');
           }
         }
         
-        _profit += transactionProfit;
 
-        // Process payment modes
-        switch (tx.payment_mode.toUpperCase()) {
-          case "CASH":
-            cTotal += transactionTotal;
-            break;
-          case "CARD":
-            crTotal += transactionTotal;
-            break;
-          case "UPI":
-            uTotal += transactionTotal;
-            break;
-          case "OTHER":
-            cTotal += tx.cashamount?.toDouble() ?? 0.0;
-            uTotal += tx.upiamount?.toDouble() ?? 0.0;
-            break;
-          default:
-            oTotal += transactionTotal;
-            //debugPrint('Uncategorized payment mode: ${tx.payment_mode} - Amount: $transactionTotal');
-            break;
-        }
+        // _profit += transactionProfit;
 
-        // Aggregate by orderType
-        final orderType = tx.orderType?.isNotEmpty == true ? tx.orderType! : 'Other';
-        tempOrderTypeCount[orderType] = (tempOrderTypeCount[orderType] ?? 0) + 1;
-        tempOrderTypeTotal[orderType] = (tempOrderTypeTotal[orderType] ?? 0) + transactionTotal;
+
+
+
       }
 
       final prefs = await SharedPreferences.getInstance();
       final storedExpenses = prefs.getDouble('Todayexpenses') ?? 0.0;
 
-      
+      final reversedTransactions = transactions.reversed.toList();
 
       if (mounted) {
         setState(() {
           _transactions = transactions.reversed.toList();
+          _transactions = reversedTransactions;
           todayTotal = tTotal;
           weekTotal = wTotal;
           monthTotal = mTotal;
-          cashTotal = cTotal;
-          cardTotal = crTotal;
-          upiTotal = uTotal;
-          otherTotal = oTotal;
+          cashTotal = cash;
+          cardTotal = card;
+          upiTotal = upi;
+          otherTotal = pending;
+          print_log("UI rangetotal updated to: $_sLastMonth");
+          sLastMonth = _sLastMonth;
+          rangetotal = _rangetotal;
           profit = _profit;
           itemQtyMap = qtyMap;
           itemPriceMap = priceMap;
@@ -471,10 +463,11 @@ class _SalesReportPageState extends State<SalesReportPage> {
           currentInventoryStock = _currentInventoryStock;
           menuItemConsumptionMap = _menuItemConsumptionMap;
           inventoryUnitMap = _inventoryUnitMap;
+          totalTransections = _totalTransections;
           _isLoading = false;
         });
       }
-    } catch (e, st) {
+    } catch (e) {
       //debugPrint('Error in _loadTransactions: $e\n$st');
       if (mounted) {
         setState(() {
@@ -764,7 +757,7 @@ class _SalesReportPageState extends State<SalesReportPage> {
     reportBuffer.writeln("");
     reportBuffer.writeln("By Payment Mode:");
     reportBuffer.writeln("💵 Cash: ₹ ${cashTotal.toStringAsFixed(2)}");
-    reportBuffer.writeln("💳 Card: ₹ ${cardTotal.toStringAsFixed(2)}");
+    // reportBuffer.writeln("💳 Card: ₹ ${cardTotal.toStringAsFixed(2)}");
     reportBuffer.writeln("📱 UPI: ₹ ${upiTotal.toStringAsFixed(2)}");
     reportBuffer.writeln("📱 Not Settled: ₹ ${otherTotal.toStringAsFixed(2)}");
 
@@ -969,6 +962,170 @@ class _SalesReportPageState extends State<SalesReportPage> {
     );
   }
 
+
+double _getWeekExpenses() {
+  final now = DateTime.now();
+  final weekAgo = now.subtract(const Duration(days: 7));
+  
+  double total = 0.0;
+  for (var e in _allExpenses) {
+    try {
+      Map<String, dynamic> data = jsonDecode(e.expence);
+      DateTime expenseDate = DateTime.parse(data['date']);
+      
+      if (expenseDate.isAfter(weekAgo)) {
+        total += (data['amount'] ?? 0).toDouble();
+      }
+    } catch (err) { /* Skip invalid JSON */ }
+  }
+  return total;
+}
+
+double _getMonthExpenses(int month, int year) {
+  double total = 0.0;
+  for (var e in _allExpenses) {
+    try {
+      Map<String, dynamic> data = jsonDecode(e.expence);
+      DateTime expenseDate = DateTime.parse(data['date']);
+      
+      if (expenseDate.month == month && expenseDate.year == year) {
+        total += (data['amount'] ?? 0).toDouble();
+      }
+    } catch (err) { }
+  }
+  return total;
+}
+
+double _getYearTotal(int year) {
+  double total = 0.0;
+  for (var e in _allExpenses) {
+    try {
+      Map<String, dynamic> data = jsonDecode(e.expence);
+      DateTime expenseDate = DateTime.parse(data['date']);
+      
+      if (expenseDate.year == year) {
+        total += (data['amount'] ?? 0).toDouble();
+      }
+    } catch (err) { }
+  }
+  return total;
+}
+
+double _getTodayExpenses() {
+  final today = DateTime.now();
+  double total = 0.0;
+  
+  for (var e in _allExpenses) {
+    try {
+      Map<String, dynamic> data = jsonDecode(e.expence);
+      DateTime expenseDate = DateTime.parse(data['date']);
+      
+      if (expenseDate.day == today.day &&
+          expenseDate.month == today.month &&
+          expenseDate.year == today.year) {
+        total += (data['amount'] ?? 0).toDouble();
+      }
+    } catch (err) { }
+  }
+  return total;
+}
+
+  // Helper for the top Row display
+  Widget _buildMainStat(String label, double amount) {
+    return Column(
+      children: [
+        Text(label, style: TextStyle(fontSize: 14, color: Colors.grey.shade600)),
+        const SizedBox(height: 4),
+        Text(
+          '₹${amount.toStringAsFixed(0)}', // Rounded for cleaner look in Row
+          style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: Colors.blue),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildStatCard(String title, String value) {
+    return Column(
+      children: [
+        Text(
+          title,
+          style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
+        ),
+        const SizedBox(height: 4),
+        Text(
+          value,
+          style: const TextStyle(
+            fontSize: 16,
+            fontWeight: FontWeight.bold,
+            color: Colors.blue,
+          ),
+        ),
+      ],
+    );
+  }
+
+
+
+
+  Widget _buildHeader() {
+    final now = DateTime.now();
+    
+    List<String> months = [
+      'January', 'February', 'March', 'April', 'May', 'June',
+      'July', 'August', 'September', 'October', 'November', 'December'
+    ];
+    
+    String currentMonthName = months[now.month - 1];
+    int lastMonthIndex = now.month == 1 ? 12 : now.month - 1;
+    int lastMonthYear = now.month == 1 ? now.year - 1 : now.year;
+    String lastMonthName = months[lastMonthIndex - 1];
+
+    // Logic for Yearly Average Day
+    double yearTotal = _getYearTotal(now.year);
+    int dayOfYear = now.difference(DateTime(now.year, 1, 1)).inDays + 1;
+    double avgDailyExpense = yearTotal / dayOfYear;
+
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: Colors.blue.shade50,
+        borderRadius: BorderRadius.circular(12),
+      ),
+      margin: const EdgeInsets.all(16),
+      child: Column(
+        children: [
+          // Top Row: Current and Last Month side-by-side
+          Row(
+            children: [
+              Expanded(
+                child: _buildMainStat('This Month', _getMonthExpenses(now.month, now.year)),
+              ),
+              Container(width: 1, height: 40, color: Colors.blue.withOpacity(0.2)), // Divider
+              Expanded(
+                child: _buildMainStat('Last Month', _getMonthExpenses(lastMonthIndex, lastMonthYear)),
+              ),
+            ],
+          ),
+          const SizedBox(height: 20),
+          const Divider(),
+          const SizedBox(height: 10),
+          // Bottom Row: Today, Week, and Year Avg
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceAround,
+            children: [
+              _buildStatCard('Today', '₹${_getTodayExpenses().toStringAsFixed(2)}'),
+              _buildStatCard('This Week', '₹${_getWeekExpenses().toStringAsFixed(2)}'),
+              _buildStatCard('Year Avg/Day', '₹${avgDailyExpense.toStringAsFixed(2)}'),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+
+
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -990,29 +1147,6 @@ class _SalesReportPageState extends State<SalesReportPage> {
             onPressed: _shareReport,
             tooltip: 'Share Report',
           ),
-          // IconButton(
-          //   icon: const Icon(Icons.print),
-          //   onPressed: () {
-          //     BillPrinter().printSalesReportSummary(
-          //       context: context,
-          //       fromDate: fromDate,
-          //       toDate: toDate,
-          //       todayTotal: todayTotal,
-          //       weekTotal: weekTotal,
-          //       monthTotal: monthTotal,
-          //       cashTotal: cashTotal,
-          //       cardTotal: cardTotal,
-          //       upiTotal: upiTotal,
-          //       otherTotal: otherTotal,
-          //       giveamount: giveamount,
-          //       takeamount: takeamount,
-          //       expensesDateRange: expensesDateRange,
-          //       expensesToday: expensesToday,
-          //       isDateRangeSelected: isDateRangeSelected,
-          //     );
-          //   },
-          //   tooltip: 'Print Summary Report',
-          // ),
         ],
       ),
       body: _isLoading
@@ -1021,12 +1155,14 @@ class _SalesReportPageState extends State<SalesReportPage> {
               child: Column(
                 children: [
                   _buildDateFilterSection(),
-                  _buildSectionTitle("Sales Summary"),
+                  _buildSectionTitle("Sales Summary (T - $totalTransections)"),
                   _buildSummaryCard(),
+                  tital("Expence Summary (From 1 To 30)"),
+                  _buildHeader(),
                   _buildConsumptionSummaryCard(), // Added Consumption Card
                   if (orderTypeTotalMap.isNotEmpty) _buildOrderTypeSummaryCard(),
-                  _buildSectionTitle("Expenses Summary"),
-                  _buildExpensesList(),
+                  _buildExpenseSummaryCard(),
+                  _buildExpensecategryCard(),
                   if (citemPriceMap.isNotEmpty) _buildportionWiseSummaryCard(),
                   if (categoryPriceMap.isNotEmpty) _buildCategoryWiseSummaryCard(),
                   if (adjustStock.isNotEmpty) _buildadjustStockSummaryCard(),
@@ -1562,95 +1698,190 @@ class _SalesReportPageState extends State<SalesReportPage> {
     );
   }
 
-  Widget _buildExpensesList() {
-    if (expensesList.isEmpty) {
-      return Container(
-        padding: const EdgeInsets.all(16),
-        child: Text(
-          "No expenses found",
-          style: TextStyle(
-            fontSize: 16,
-            color: Colors.grey,
-          ),
-          textAlign: TextAlign.center,
-        ),
-      );
-    }
-
-    return ListView.builder(
-      shrinkWrap: true,
-      physics: const NeverScrollableScrollPhysics(),
-      itemCount: expensesList.length,
-      itemBuilder: (context, index) {
-        try {
-          final expenseMap = jsonDecode(expensesList[index]);
-          final expense = Expense.fromMap(expenseMap);
-          return _buildExpenseCard(expense);
-        } catch (e) {
-          //debugPrint("Error parsing expense: $e");
-          return Container();
-        }
-      },
-    );
-  }
-
-  Widget _buildExpenseCard(Expense expense) {
+  Widget _buildExpenseSummaryCard() {
+    // Sort expenses by date (most recent first)
+    List<String> sortedExpenses = expensesList;
+  print_log("$sortedExpenses");
     return Card(
-      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+      margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
       elevation: 2,
-      child: ListTile(
-        leading: Container(
-          width: 50,
-          height: 50,
-          decoration: BoxDecoration(
-            color: Colors.blue.shade100,
-            borderRadius: BorderRadius.circular(8),
-          ),
-          child: Icon(
-            _getCategoryIcon(expense.category),
-            color: Colors.blue.shade800,
-            size: 24,
-          ),
-        ),
-        title: Text(
-          expense.title,
-          style: const TextStyle(
-            fontSize: 16,
-            fontWeight: FontWeight.bold,
-          ),
-        ),
-        subtitle: Column(
+      child: Padding(
+        padding: const EdgeInsets.all(12.0),
+        child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const SizedBox(height: 4),
-            Text(
-              expense.category,
-              style: TextStyle(
-                fontSize: 14,
-                color: Colors.grey[600],
-              ),
+            // Header Section
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                const Text(
+                  'Expense List',
+                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                ),
+              ],
             ),
-            const SizedBox(height: 2),
-            Text(
-              formatDate(expense.date),
-              style: TextStyle(
-                fontSize: 12,
-                color: Colors.grey[500],
-              ),
-            ),
+            
+            const Divider(),
+
+            // The List of Expenses
+            if (sortedExpenses.isEmpty)
+              const Padding(
+                padding: EdgeInsets.all(20.0),
+                child: Center(child: Text("No expenses found for this range")),
+              )
+            else
+              ...sortedExpenses.map((expense) {
+                // Note: Since your data is stored as JSON in 'expence', 
+                // we decode it here to get the display values.
+                Map<String, dynamic> data = jsonDecode(expense);
+                
+                return Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 8.0, horizontal: 4.0),
+                  child: Row(
+                    children: [
+                      // Icon based on category
+                      // Container(
+                      //   padding: const EdgeInsets.all(8),
+                      //   decoration: BoxDecoration(
+                      //     color: Colors.blue.shade50,
+                      //     borderRadius: BorderRadius.circular(8),
+                      //   ),
+                      //   child: Icon(
+                      //     _getCategoryIcon(data['category'] ?? ''),
+                      //     size: 20,
+                      //     color: Colors.blue.shade800,
+                      //   ),
+                      // ),
+                      // const SizedBox(width: 12),
+                      
+                      // Title and Date
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              data['title'] ?? 'Unnamed',
+                              style: const TextStyle(
+                                fontSize: 15, 
+                                fontWeight: FontWeight.w500
+                              ),
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                            Text(
+                              "${data['category'] ?? 'Unknown'} - ${DateFormat('dd MMM yyyy').format(DateTime.parse(data['date']))}",
+                              style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+                            ),
+                          ],
+                        ),
+                      ),
+                      
+                      // Amount
+                      Text(
+                        '₹${(data['amount'] ?? 0).toDouble().toStringAsFixed(2)}',
+                        style: const TextStyle(
+                          fontSize: 15, 
+                          fontWeight: FontWeight.bold,
+                          color: Colors.red
+                        ),
+                      ),
+                    ],
+                  ),
+                );
+              }).toList(),
           ],
-        ),
-        trailing: Text(
-          "₹${expense.amount.toStringAsFixed(2)}",
-          style: TextStyle(
-            fontSize: 16,
-            fontWeight: FontWeight.bold,
-            color: Colors.red[700],
-          ),
         ),
       ),
     );
   }
+
+
+  Widget _buildExpensecategryCard() {
+    // 1. Group and Sum expenses by Category
+    Map<String, double> categoryTotals = {};
+    
+    for (var expenseStr in expensesList) {
+      try {
+        Map<String, dynamic> data = jsonDecode(expenseStr);
+        String category = data['category'] ?? 'Other';
+        double amount = (data['amount'] ?? 0).toDouble();
+        
+        categoryTotals[category] = (categoryTotals[category] ?? 0) + amount;
+      } catch (e) {
+        print_log("Error decoding expense: $e");
+      }
+    }
+
+    // 2. Sort categories by highest spending
+    final sortedCategories = categoryTotals.entries.toList()
+      ..sort((a, b) => b.value.compareTo(a.value));
+
+    return Card(
+      margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      elevation: 2,
+      child: Padding(
+        padding: const EdgeInsets.all(12.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Header
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                const Text(
+                  'Expense by Category',
+                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                ),
+                // Text(
+                //   'Total: ₹${expensesDateRange.toStringAsFixed(2)}',
+                //   style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.red),
+                // ),
+              ],
+            ),
+            const Divider(),
+
+            if (sortedCategories.isEmpty)
+              const Padding(
+                padding: EdgeInsets.all(20.0),
+                child: Center(child: Text("No expenses found for this range")),
+              )
+            else
+              ...sortedCategories.map((entry) {
+                return Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 8.0, horizontal: 4.0),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      // Category Name and Icon (Optional)
+                      Row(
+                        children: [
+                          Icon(Icons.pie_chart, size: 18, color: Colors.blue.shade700),
+                          const SizedBox(width: 8),
+                          Text(
+                            entry.key,
+                            style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w500),
+                          ),
+                        ],
+                      ),
+                      
+                      // Category Total
+                      Text(
+                        '₹${entry.value.toStringAsFixed(2)}',
+                        style: const TextStyle(
+                          fontSize: 15, 
+                          fontWeight: FontWeight.bold,
+                          color: Colors.red
+                        ),
+                      ),
+                    ],
+                  ),
+                );
+              }).toList(),
+          ],
+        ),
+      ),
+    );
+  }
+
 
   IconData _getCategoryIcon(String category) {
     switch (category.toLowerCase()) {
@@ -1736,183 +1967,166 @@ class _SalesReportPageState extends State<SalesReportPage> {
     );
   }
 
-  Widget _buildSummaryCard() {
-    final DateTime today = DateTime.now();
-    final bool isTodaySelected =
-        fromDate != null &&
-        toDate != null &&
-        fromDate!.day == today.day &&
-        fromDate!.month == today.month &&
-        fromDate!.year == today.year &&
-        toDate!.day == today.day &&
-        toDate!.month == today.month &&
-        toDate!.year == today.year;
+Widget _buildSummaryCard() {
+  final DateTime today = DateTime.now();
+  final bool isTodaySelected = fromDate != null &&
+      toDate != null &&
+      fromDate!.day == today.day && fromDate!.month == today.month && fromDate!.year == today.year &&
+      toDate!.day == today.day && toDate!.month == today.month && toDate!.year == today.year;
 
-    final bool isDateRangeSelected = fromDate != null && toDate != null && !isTodaySelected;
-    
-    final double displayExpenses = isDateRangeSelected ? expensesDateRange : expensesToday;
-    final String expensesLabel = isDateRangeSelected ? "Date Range Expenses" : "Today's Expenses";
+  final bool isDateRangeSelected = fromDate != null && toDate != null && !isTodaySelected;
+  final double displayExpenses = isDateRangeSelected ? expensesDateRange : expensesToday;
+  final String expensesLabel = isDateRangeSelected ? "Range Expenses" : "Today's Expenses";
+  final String totalSell = isDateRangeSelected ? "Range Total Sell" : "Today's Total Sell";
 
-    return Container(
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: Colors.green.shade50,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.green.shade200),
-      ),
-      margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          if (isDateRangeSelected)
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
+  
+  List<String> months = [
+    'January', 'February', 'March', 'April', 'May', 'June',
+    'July', 'August', 'September', 'October', 'November', 'December'
+  ];
+  
+  String currentMonthName = months[today.month - 1];
+  int lastMonthIndex = today.month == 1 ? 12 : today.month - 1;
+  String lastMonthName = months[lastMonthIndex - 1];
+
+  return Container(
+    margin: const EdgeInsets.all(16),
+    decoration: BoxDecoration(
+      color: Colors.white,
+      borderRadius: BorderRadius.circular(16),
+      boxShadow: [
+        BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 10, offset: const Offset(0, 4)),
+      ],
+    ),
+    child: Column(
+      children: [
+        // --- Header Section: Date Range Info ---
+        Container(
+          padding: const EdgeInsets.all(12),
+          decoration: BoxDecoration(
+            color: Colors.blue.shade600,
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
+          ),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                isDateRangeSelected ? "Custom Report" : "Daily Overview",
+                style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+              ),
+              if (isDateRangeSelected)
                 Text(
-                  "📅 Selected Date Range:",
-                  style: TextStyle(
-                    fontWeight: FontWeight.bold,
-                    fontSize: 14,
-                    color: Colors.blue.shade800,
-                  ),
+                  "${DateFormat('dd MMM').format(fromDate!)} - ${DateFormat('dd MMM').format(toDate!)}",
+                  style: const TextStyle(color: Colors.white70, fontSize: 12),
                 ),
-                Text(
-                  "${DateFormat('dd MMM yyyy').format(fromDate!)} → ${DateFormat('dd MMM yyyy').format(toDate!)}",
-                  style: TextStyle(fontSize: 14, color: Colors.blue.shade600),
+            ],
+          ),
+        ),
+
+        Padding(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // --- Main Sales Stats ---
+              _buildModernRow("Today's Sales", "₹${todayTotal.toStringAsFixed(2)}", Colors.black87, isBold: true),
+              _buildModernRow("This Week", "₹${weekTotal.toStringAsFixed(2)}", Colors.grey.shade700),
+              _buildModernRow("This Month", "₹${monthTotal.toStringAsFixed(2)}", Colors.grey.shade700),
+              _buildModernRow("Last Month", "₹${sLastMonth.toStringAsFixed(2)}", Colors.grey.shade700),
+              const Divider(height: 24),
+
+              // --- Payment Modes (Grid Style) ---
+              const Text("Payment Breakdown", style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.grey)),
+              const SizedBox(height: 8),
+              Wrap(
+                spacing: 10,
+                runSpacing: 10,
+                children: [
+                  _buildMiniChip("💵 Cash", cashTotal),
+                  // _buildMiniChip("💳 Card", cardTotal),
+                  _buildMiniChip("📱 UPI", upiTotal),
+                  _buildMiniChip("🕒 Pending", otherTotal),
+                ],
+              ),
+
+              const Divider(height: 24),
+              const Text("Udhari", style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.grey)),
+              const SizedBox(height: 8),
+              // --- Udhari Section ---
+              Row(
+                children: [
+                  Expanded(child: _buildUdhariBox("You'll Give", giveamount, Colors.red)),
+                  const SizedBox(width: 12),
+                  Expanded(child: _buildUdhariBox("You'll Get", takeamount, Colors.green)),
+                ],
+              ),
+
+              const SizedBox(height: 16),
+
+              // --- Bottom Line: Expenses & Profit ---
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: Colors.grey.shade50,
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: Colors.grey.shade200),
                 ),
-                const SizedBox(height: 8),
-              ],
-            ),
-          Text(
-            isDateRangeSelected
-                ? "Selected Range Sales: ₹ ${todayTotal.toStringAsFixed(2)}"
-                : "Today's Sales: ₹ ${todayTotal.toStringAsFixed(2)}",
-            style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-          ),
-          Text(
-            "This Week: ₹ ${weekTotal.toStringAsFixed(2)}",
-            style: const TextStyle(fontSize: 16),
-          ),
-          Text(
-            "This Month: ₹ ${monthTotal.toStringAsFixed(2)}",
-            style: const TextStyle(fontSize: 16),
-          ),
-          const Divider(),
-          const Text(
-            "By Payment Mode:",
-            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
-          ),
-          Text("💵 Cash: ₹ ${cashTotal.toStringAsFixed(2)}"),
-          Text("💳 Card: ₹ ${cardTotal.toStringAsFixed(2)}"),
-          Text("📱 UPI: ₹ ${upiTotal.toStringAsFixed(2)}"),
-          Text("📱 Not Settled: ₹ ${otherTotal.toStringAsFixed(2)}"),
-          const Divider(),
-          const Text(
-            "Udhari Get and Give:",
-            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
-          ),
-          Text("You_will_give: ₹ $giveamount"),
-          Text("You_will_get: ₹ $takeamount"),
-          const Divider(),
-          Container(
-            padding: const EdgeInsets.all(8),
-            decoration: BoxDecoration(
-              color: Colors.red.shade50,
-              borderRadius: BorderRadius.circular(8),
-              border: Border.all(color: Colors.red.shade200),
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  "💰 $expensesLabel: ₹ ${displayExpenses.toStringAsFixed(2)}",
-                  style: TextStyle(
-                    fontWeight: FontWeight.bold,
-                    fontSize: 16,
-                    color: Colors.red.shade800,
-                  ),
+                child: Column(
+                  children: [
+                    _buildModernRow(expensesLabel, "₹${displayExpenses.toStringAsFixed(2)}", Colors.red.shade700),
+                    _buildModernRow(totalSell, "₹${rangetotal.toStringAsFixed(2)}", Colors.black),
+                    const Divider(),
+                    _buildModernRow("NET PROFIT", "₹${(profit-displayExpenses).toStringAsFixed(2)}",profit >= 0 ? Colors.green.shade700 : Colors.red.shade700,isBold: true,fontSize: 18),
+                  ],
                 ),
-                if (isDateRangeSelected && expensesToday > 0)
-                  Padding(
-                    padding: const EdgeInsets.only(top: 4),
-                    child: Text(
-                      "(Today's expenses: ₹ ${expensesToday.toStringAsFixed(2)})",
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: Colors.grey.shade600,
-                        fontStyle: FontStyle.italic,
-                      ),
-                    ),
-                  ),
-              ],
-            ),
+              ),
+            ],
           ),
-          const SizedBox(height: 8),
-          Container(
-            padding: const EdgeInsets.all(8),
-            decoration: BoxDecoration(
-              color: Colors.blue.shade50,
-              borderRadius: BorderRadius.circular(8),
-              border: Border.all(color: Colors.blue.shade200),
-            ),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                const Text(
-                  "SALES:",
-                  style: TextStyle(
-                    fontWeight: FontWeight.bold,
-                    fontSize: 16,
-                    color: Colors.blue,
-                  ),
-                ),
-                Text(
-                  "₹ ${(todayTotal).toStringAsFixed(2)}",
-                  style: const TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.blue,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 8),
-          
-          // Net Profit (after expenses)
-          Container(
-            padding: const EdgeInsets.all(8),
-            decoration: BoxDecoration(
-              color: profit >= 0 ? Colors.green.shade50 : Colors.red.shade50,
-              borderRadius: BorderRadius.circular(8),
-              border: Border.all(color: profit >= 0 ? Colors.green.shade200 : Colors.red.shade200),
-            ),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text(
-                  "PROFIT:",
-                  style: TextStyle(
-                    fontWeight: FontWeight.bold,
-                    fontSize: 16,
-                    color: profit >= 0 ? Colors.green.shade800 : Colors.red.shade800,
-                  ),
-                ),
-                Text(
-                  "₹ ${profit.toStringAsFixed(2)}",
-                  style: TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                    color: profit >= 0 ? Colors.green.shade700 : Colors.red.shade700,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
+        ),
+      ],
+    ),
+  );
+}
+
+// --- Helper Widgets for a cleaner look ---
+
+Widget _buildModernRow(String label, String value, Color valueColor, {bool isBold = false, double fontSize = 15}) {
+  return Padding(
+    padding: const EdgeInsets.symmetric(vertical: 4),
+    child: Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        Text(label, style: TextStyle(fontSize: fontSize, color: Colors.grey.shade600)),
+        Text(value, style: TextStyle(fontSize: fontSize, fontWeight: isBold ? FontWeight.bold : FontWeight.normal, color: valueColor)),
+      ],
+    ),
+  );
+}
+
+Widget _buildMiniChip(String label, double amount) {
+  return Container(
+    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+    decoration: BoxDecoration(color: Colors.grey.shade100, borderRadius: BorderRadius.circular(8)),
+    child: Text("$label: ₹${amount.toStringAsFixed(0)}", style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w500)),
+  );
+}
+
+Widget _buildUdhariBox(String label, String amount, Color color) {
+  return Container(
+    padding: const EdgeInsets.all(8),
+    decoration: BoxDecoration(
+      color: color.withValues(alpha:0.05),
+      borderRadius: BorderRadius.circular(8),
+      border: Border.all(color: color.withValues(alpha: 0.2)),
+    ),
+    child: Column(
+      children: [
+        Text(label, style: TextStyle(fontSize: 11, color: color)),
+        Text("₹$amount", style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: color)),
+      ],
+    ),
+  );
+}
 
   bool get isDateRangeSelected {
     return fromDate != null &&
@@ -1959,4 +2173,20 @@ class _SalesReportPageState extends State<SalesReportPage> {
       ),
     );
   }
+  Widget tital(String title) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(12, 10, 12, 0),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Text(
+            title,
+            style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
+          ),
+        ],
+      ),
+    );
+  }
+
+
 }

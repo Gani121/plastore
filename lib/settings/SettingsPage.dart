@@ -53,7 +53,7 @@ class SettingsPage extends StatelessWidget {
   final Dio _dio = Dio();
 
 
-  Future<void> downloadHotelZip(String hotelName) async {
+  Future<void>  downloadHotelZip(String hotelName) async {
     try {
       // 1️⃣ Fetch filename from your API
       // (Assuming your apiCalls still uses the http package for now)
@@ -71,7 +71,7 @@ class SettingsPage extends StatelessWidget {
 
       final fileId = data['menu_filename']; 
       final downloadUrl = "https://drive.google.com/uc?export=download&id=$fileId";
-      //debugPrint("📥 Starting download for ID: $fileId");
+      print_log("📥 Starting download for ID: $fileId");
 
       // 2️⃣ Download the ZIP using Dio
       // We use ResponseType.bytes to get the data for ZipDecoder
@@ -79,14 +79,12 @@ class SettingsPage extends StatelessWidget {
         downloadUrl,
         options: Options(
           responseType: ResponseType.bytes,
-          headers: {
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)',
-          },
+          headers: {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)',},
           followRedirects: true,
         ),
         onReceiveProgress: (received, total) {
           if (total != -1) {
-            //debugPrint("Download Progress: ${(received / total * 100).toStringAsFixed(0)}%");
+            print_log("Download Progress: ${(received / total * 100).toStringAsFixed(0)}%");
           }
         },
       );
@@ -129,16 +127,16 @@ class SettingsPage extends StatelessWidget {
         }
       }
 
-      //debugPrint("✅ Extracted $fileCount images to ${extractDir.path}");
+      print_log("✅ Extracted $fileCount images to ${extractDir.path}");
     } catch (e) {
-      //debugPrint("❌ Error while downloading images: $e");
+      print_log_red("❌ Error while downloading images: $e");
     }
   }
 
   void saveMenuItemsReliably(List<MenuItem> menuItems,BuildContext context) {
     // ❌ Remove all old items first
     if (menuItemBox != null) {
-      menuItemBox.removeAll();
+      menuItemBox.removeAll();;
       }else{
       print_log("found menuItemBox is null in setting");
     }
@@ -227,7 +225,8 @@ class SettingsPage extends StatelessWidget {
           screen_massage(context, 'HTTP Error: ${response.statusCode}: ${response.reasonPhrase}');
         }
       } catch (error) {
-          screen_massage(context, "Device Not Connected ${error}");
+        print_log("Device Not Connected ${error}");
+        screen_massage(context, "Device Not Connected ${error}");
       }
     }
   }

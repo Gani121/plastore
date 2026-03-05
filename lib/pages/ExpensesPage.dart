@@ -335,12 +335,21 @@ class _ExpensesPageState extends State<ExpensesPage> {
         .fold(0.0, (sum, e) => sum + e.amount);
   }
 
-  double _getMonthExpenses() {
-    final monthAgo = DateTime.now().subtract(const Duration(days: 30));
+  double _getMonthExpenses(int month, int year) {
     return _expenses
-        .where((expense) => expense.date.isAfter(monthAgo))
-        .fold(0.0, (sum, e) => sum + e.amount);
+        .where((expense) => 
+            expense.date.month == month && 
+            expense.date.year == year)
+        .fold(0.0, (sum, item) => sum + item.amount);
   }
+
+  double _getYearTotal(int year) {
+  return _expenses
+      .where((e) => e.date.year == year)
+      .fold(0.0, (sum, item) => sum + item.amount);
+}
+
+
 
   // ---------- UI Builders ----------
   @override
@@ -366,51 +375,75 @@ class _ExpensesPageState extends State<ExpensesPage> {
     );
   }
 
-  Widget _buildHeader() {
-    return Container(
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color: Colors.blue.shade50,
-        borderRadius: BorderRadius.circular(12),
-      ),
-      margin: const EdgeInsets.all(16),
-      child: Column(
-        children: [
-          Text(
-            'Total Expenses',
-            style: TextStyle(fontSize: 18, color: Colors.grey.shade700),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            '₹${_totalExpenses.toStringAsFixed(2)}',
-            style: const TextStyle(
-              fontSize: 32,
-              fontWeight: FontWeight.bold,
-              color: Colors.blue,
+Widget _buildHeader() {
+  final now = DateTime.now();
+  
+  List<String> months = [
+    'January', 'February', 'March', 'April', 'May', 'June',
+    'July', 'August', 'September', 'October', 'November', 'December'
+  ];
+  
+  String currentMonthName = months[now.month - 1];
+  int lastMonthIndex = now.month == 1 ? 12 : now.month - 1;
+  int lastMonthYear = now.month == 1 ? now.year - 1 : now.year;
+  String lastMonthName = months[lastMonthIndex - 1];
+
+  // Logic for Yearly Average Day
+  double yearTotal = _getYearTotal(now.year);
+  int dayOfYear = now.difference(DateTime(now.year, 1, 1)).inDays + 1;
+  double avgDailyExpense = yearTotal / dayOfYear;
+
+  return Container(
+    padding: const EdgeInsets.all(20),
+    decoration: BoxDecoration(
+      color: Colors.blue.shade50,
+      borderRadius: BorderRadius.circular(12),
+    ),
+    margin: const EdgeInsets.all(16),
+    child: Column(
+      children: [
+        // Top Row: Current and Last Month side-by-side
+        Row(
+          children: [
+            Expanded(
+              child: _buildMainStat('$currentMonthName', _getMonthExpenses(now.month, now.year)),
             ),
-          ),
-          const SizedBox(height: 16),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceAround,
-            children: [
-              _buildStatCard(
-                'Today',
-                '₹${_getTodayExpenses().toStringAsFixed(2)}',
-              ),
-              _buildStatCard(
-                'This Week',
-                '₹${_getWeekExpenses().toStringAsFixed(2)}',
-              ),
-              _buildStatCard(
-                'This Month',
-                '₹${_getMonthExpenses().toStringAsFixed(2)}',
-              ),
-            ],
-          ),
-        ],
+            Container(width: 1, height: 40, color: Colors.blue.withOpacity(0.2)), // Divider
+            Expanded(
+              child: _buildMainStat('$lastMonthName', _getMonthExpenses(lastMonthIndex, lastMonthYear)),
+            ),
+          ],
+        ),
+        const SizedBox(height: 20),
+        const Divider(),
+        const SizedBox(height: 10),
+        // Bottom Row: Today, Week, and Year Avg
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceAround,
+          children: [
+            _buildStatCard('Today', '₹${_getTodayExpenses().toStringAsFixed(2)}'),
+            _buildStatCard('This Week', '₹${_getWeekExpenses().toStringAsFixed(2)}'),
+            _buildStatCard('Year Avg/Day', '₹${avgDailyExpense.toStringAsFixed(2)}'),
+          ],
+        ),
+      ],
+    ),
+  );
+}
+
+// Helper for the top Row display
+Widget _buildMainStat(String label, double amount) {
+  return Column(
+    children: [
+      Text(label, style: TextStyle(fontSize: 14, color: Colors.grey.shade600)),
+      const SizedBox(height: 4),
+      Text(
+        '₹${amount.toStringAsFixed(0)}', // Rounded for cleaner look in Row
+        style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: Colors.blue),
       ),
-    );
-  }
+    ],
+  );
+}
 
   Widget _buildStatCard(String title, String value) {
     return Column(

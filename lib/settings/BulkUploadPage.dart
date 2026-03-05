@@ -252,7 +252,7 @@ class _BulkUploadPageState extends State<BulkUploadPage> {
                 ),
               ),
             ElevatedButton.icon(
-              onPressed: () => databaseManager.handleRestore(context),
+              onPressed: () => databaseManager.handleCloudRestore(context),
               // icon: Icon(Icons.upload_file),
               label: Text("2. Upload File .mdb"),
             ),

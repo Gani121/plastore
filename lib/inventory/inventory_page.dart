@@ -34,6 +34,7 @@ class _InventoryPageState extends State<InventoryPage> {
   final ItemScrollController _itemScrollController = ItemScrollController();
   final ItemPositionsListener _itemPositionsListener = ItemPositionsListener.create();
   bool _isSearching = false;
+  bool _showCategories = false;
 
   // For the alphabetical scrollbar
   final Map<String, int> _alphabetIndexMap = {};
@@ -69,6 +70,18 @@ class _InventoryPageState extends State<InventoryPage> {
       totalItems = items.length;
       _filterItems(); // This will also update the alphabet index
     });
+  }
+
+  Map<String, List<MenuItem>> _getGroupedItems() {
+    Map<String, List<MenuItem>> grouped = {};
+    for (var item in _filteredItems) {
+      String cat = item.category ?? "Uncategorized";
+      if (!grouped.containsKey(cat)) {
+        grouped[cat] = [];
+      }
+      grouped[cat]!.add(item);
+    }
+    return grouped;
   }
 
   void _filterItems() {
@@ -287,6 +300,221 @@ class _InventoryPageState extends State<InventoryPage> {
     }
   }
 
+  Widget _buildItemCard(MenuItem item) {
+    final themeProvider = Provider.of<ThemeProvider>(context, listen: false);
+    final store = Provider.of<ObjectBoxService>(context, listen: false).store;
+
+    // Image path logic
+    String safeName = item.name;
+    String fileName = "$safeName.jpeg";
+    String imagePath =
+        "/storage/emulated/0/Android/data/${AppConstants.test_version}/files/pictures/menu_images/$fileName";
+    
+    if (!File(imagePath).existsSync()) {
+      fileName = "$safeName.jpg";
+      imagePath =
+          "/storage/emulated/0/Android/data/${AppConstants.test_version}/files/pictures/menu_images/$fileName";
+    }
+
+    return GestureDetector(
+      onTap: () {
+        if (_isSearching) {
+          setState(() {
+            _searchController.clear();
+            _isSearching = false;
+          });
+        }
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => ItemLedgerPage(item: item, store: store),
+          ),
+        ).then((_) => _loadItems());
+      },
+      child: Card(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        margin: const EdgeInsets.only(bottom: 12),
+        elevation: 3,
+        child: Padding(
+          padding: const EdgeInsets.all(12),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Image Section
+              File(imagePath).existsSync()
+                  ? Image.file(File(imagePath),
+                      width: 60, height: 60, fit: BoxFit.fill)
+                  : Container(
+                      width: 60,
+                      height: 60,
+                      color: Colors.grey.shade200,
+                      child: const Icon(Icons.image, color: Colors.grey),
+                    ),
+              const SizedBox(width: 12),
+              
+              // Item Details Section
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(item.name,
+                        style: const TextStyle(
+                            fontSize: 16, fontWeight: FontWeight.bold)),
+                    Text(
+                        "${AppLocalizations.of(context)!.barcode}: ${item.barCode ?? 'N/A'}",
+                        style: const TextStyle(fontSize: 12)),
+                    Text("₹ ${item.f_price}",
+                        style: const TextStyle(fontSize: 14)),
+                    Text(
+                        "${AppLocalizations.of(context)!.currentStock}: ${item.adjustStock}",
+                        style: const TextStyle(fontSize: 16)),
+                    const SizedBox(height: 6),
+                    ElevatedButton(
+                      onPressed: () async {
+                        await _showAdjustStockDialog(context, item);
+                      },
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.blue.shade600,
+                        minimumSize: const Size(100, 20),
+                        padding: const EdgeInsets.symmetric(horizontal: 12),
+                      ),
+                      child: Text(AppLocalizations.of(context)!.adjustStock, 
+                            style: const TextStyle(color: Colors.white)),
+                    ),
+                  ],
+                ),
+              ),
+              const Icon(Icons.check, color: Colors.green),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+Widget _buildCategoryView() {
+  final groupedItems = _getGroupedItems();
+  final categories = groupedItems.keys.toList()..sort();
+
+  return ListView.builder(
+    padding: const EdgeInsets.all(12),
+    itemCount: categories.length,
+    itemBuilder: (context, index) {
+      String category = categories[index];
+      List<MenuItem> itemsInCategory = groupedItems[category]!;
+
+      return ExpansionTile(
+        title: Text("$category (${itemsInCategory.length})", 
+            style: TextStyle(fontWeight: FontWeight.bold, color: Colors.purple.shade700)),
+        children: itemsInCategory.map((item) => _buildItemCard(item)).toList(),
+      );
+    },
+  );
+}
+
+Widget _buildItemView() {
+  final themeProvider = Provider.of<ThemeProvider>(context, listen: false);
+
+  if (_filteredItems.isEmpty) {
+    return Center(
+      child: Text(
+        _isSearching
+            ? AppLocalizations.of(context)!.noItemMatch
+            : AppLocalizations.of(context)!.noItemFound,
+      ),
+    );
+  }
+
+  return ScrollablePositionedList.builder(
+    itemScrollController: _itemScrollController,
+    itemPositionsListener: _itemPositionsListener,
+    itemCount: _filteredItems.length,
+    // Add padding to the right to avoid overlapping with the scrollbar
+    padding: const EdgeInsets.fromLTRB(12, 12, 30, 12),
+    itemBuilder: (context, index) {
+      final item = _filteredItems[index];
+      
+      // Determine if a header should be shown for a new letter
+      final bool showHeader = item.name.isNotEmpty &&
+          (index == 0 ||
+              (_filteredItems[index - 1].name.isEmpty ||
+                  item.name[0].toUpperCase() !=
+                      _filteredItems[index - 1].name[0].toUpperCase()));
+
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          if (showHeader)
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: 8.0),
+              child: Text(
+                item.name[0].toUpperCase(),
+                style: TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.bold,
+                    color: themeProvider.primaryColor),
+              ),
+            ),
+          _buildItemCard(item), // Uses the reusable card method we created
+        ],
+      );
+    },
+  );
+}
+
+Widget _buildAlphabetScrollbar() {
+  final themeProvider = Provider.of<ThemeProvider>(context, listen: false);
+
+  if (_alphabets.isEmpty || _isSearching) {
+    return const SizedBox.shrink();
+  }
+
+  return Positioned(
+    right: 0,
+    top: 0,
+    bottom: 0,
+    child: Container(
+      width: 28,
+      alignment: Alignment.center,
+      child: SingleChildScrollView(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: _alphabets.map((alphabet) {
+            final bool isActive = _currentAlphabet == alphabet;
+            return GestureDetector(
+              onTap: () => _scrollToIndex(alphabet),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(vertical: 2.0),
+                child: Text(
+                  alphabet,
+                  style: TextStyle(
+                    color: isActive ? Colors.white : themeProvider.primaryColor,
+                    fontWeight: FontWeight.bold,
+                    backgroundColor: isActive
+                        ? themeProvider.primaryColor
+                        : Colors.transparent,
+                    fontSize: 12,
+                  ),
+                ),
+              ),
+            );
+          }).toList(),
+        ),
+      ),
+    ),
+  );
+}
+
+
+
+
+
+
+
+
+
+
+
   @override
   Widget build(BuildContext context) {
     final store = Provider.of<ObjectBoxService>(context, listen: false).store;
@@ -341,21 +569,24 @@ class _InventoryPageState extends State<InventoryPage> {
                   color: Colors.white,
                   child: Row(
                     children: [
-                      Expanded(
-                        child: TextButton(
-                          onPressed: () {},
-                          child: Text(
-                            "${AppLocalizations.of(context)!.inventoryHeader} (${_items.length})",
-                            style: const TextStyle(color: Colors.purple,fontSize: 12),
+                      // Update the ITEMS button
+                          TextButton(
+                            onPressed: () => setState(() => _showCategories = false),
+                            child: Text(
+                              "${AppLocalizations.of(context)!.inventoryHeader} (${_items.length})",
+                              style: TextStyle(
+                                color: !_showCategories ? Colors.purple : Colors.grey, // Highlight if active
+                                fontSize: 12,
+                              ),
+                            ),
                           ),
-                        ),
-                      ),
-                        Expanded(
-                          child: TextButton(
-                            onPressed: () {},
-                            child: const Text(
-                              "CATEGORIES",
-                              style: TextStyle(color: Colors.grey,fontSize: 12),
+                          TextButton(
+                          onPressed: () => setState(() => _showCategories = true),
+                          child: Text(
+                            "CATEGORIES",
+                            style: TextStyle(
+                              color: _showCategories ? Colors.purple : Colors.grey, // Highlight if active
+                              fontSize: 12,
                             ),
                           ),
                         ),
@@ -391,167 +622,18 @@ class _InventoryPageState extends State<InventoryPage> {
       body: Stack(
         children: [
           _filteredItems.isEmpty
-              ? Center(
-                  child: Text(
-                    _isSearching
-                        ? AppLocalizations.of(context)!.noItemMatch
-                        : AppLocalizations.of(context)!.noItemFound,
-                  ),
-                ) // Use ScrollablePositionedList for precise scrolling
-              : ScrollablePositionedList.builder(
-                  itemScrollController: _itemScrollController,
-                  itemPositionsListener: _itemPositionsListener,
-                  itemCount: _filteredItems.length,
-                  // Add padding to the right to avoid overlapping with the scrollbar
-                  padding: const EdgeInsets.fromLTRB(12, 12, 30, 12),
-                  itemBuilder: (context, index) {
-                    final item = _filteredItems[index];
-                    // Determine if a header should be shown for a new letter
-                    final bool showHeader = item.name.isNotEmpty && (index == 0 ||
-                        // Also check if the previous item's name is not empty before comparing
-                        (_filteredItems[index - 1].name.isEmpty ||
-                            item.name[0].toUpperCase() !=
-                                _filteredItems[index - 1].name[0].toUpperCase()));
-
-                    String safeName = item.name;
-                    String fileName = "$safeName.jpeg";
-                    String imagePath =
-                        "/storage/emulated/0/Android/data/${AppConstants.test_version}/files/pictures/menu_images/$fileName";
-                    if (!File(imagePath).existsSync()) {
-                      fileName = "$safeName.jpg";
-                      imagePath =
-                          "/storage/emulated/0/Android/data/${AppConstants.test_version}/files/pictures/menu_images/$fileName";
-                    }
-
-                    return Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        if (showHeader)
-                          Padding(
-                            padding: const EdgeInsets.symmetric(vertical: 8.0),
-                            child: Text(
-                              item.name[0].toUpperCase(),
-                              style: TextStyle(
-                                  fontSize: 20,
-                                  fontWeight: FontWeight.bold,
-                                  color: themeProvider.primaryColor),
-                            ),
-                          ),
-                        GestureDetector(
-                          onTap: () {
-                            if (_isSearching) {
-                              setState(() {
-                                _searchController.clear();
-                              });
-                            }
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (context) =>
-                                    ItemLedgerPage(item: item, store: store),
-                              ),
-                            ).then((_) => _loadItems());
-                          },
-                          child: Card(
-                            shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(12)),
-                            margin: const EdgeInsets.only(bottom: 12),
-                            elevation: 3,
-                            child: Padding(
-                              padding: const EdgeInsets.all(12),
-                              child: Row(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  File(imagePath).existsSync()
-                                      ? Image.file(File(imagePath),
-                                          width: 60, height: 60, fit: BoxFit.fill)
-                                      : Container(
-                                          width: 60,
-                                          height: 60,
-                                          color: Colors.grey.shade200,
-                                          child: const Icon(Icons.image,
-                                              color: Colors.grey),
-                                        ),
-                                  const SizedBox(width: 12),
-                                  Expanded(
-                                    child: Column(
-                                      crossAxisAlignment: CrossAxisAlignment.start,
-                                      children: [
-                                        Text(item.name,
-                                            style: const TextStyle(
-                                                fontSize: 16,
-                                                fontWeight: FontWeight.bold)),
-                                        Text(
-                                            "${AppLocalizations.of(context)!.barcode}: ${item.barCode ?? 'N/A'}",
-                                            style: const TextStyle(fontSize: 12)),
-                                        Text("₹ ${item.f_price}",
-                                            style: const TextStyle(fontSize: 14)),
-                                        Text(
-                                            "${AppLocalizations.of(context)!.currentStock}: ${item.adjustStock}",
-                                            style: const TextStyle(fontSize: 16)),
-                                        const SizedBox(height: 6),
-                                        ElevatedButton(
-                                          onPressed: () async {
-                                            await _showAdjustStockDialog(context, item);
-                                          },
-                                          style: ElevatedButton.styleFrom(
-                                            backgroundColor: Colors.blue.shade600,
-                                            minimumSize: const Size(100, 20),
-                                            padding: const EdgeInsets.symmetric(
-                                                horizontal: 12),
-                                          ),
-                                          child: Text(AppLocalizations.of(context)!
-                                              .adjustStock),
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                  const Icon(Icons.check, color: Colors.green),
-                                ],
-                              ),
-                            ),
-                          ),
-                        ),
-                      ],
-                    );
-                  },
-                ),
-          // Alphabetical Scrollbar
-          if (_alphabets.isNotEmpty && !_isSearching)
-            Positioned(
-              right: 0,
-              top: 0,
-              bottom: 0,
-              child: Container(
-                width: 28,
-                alignment: Alignment.center,
-                child: SingleChildScrollView(
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: _alphabets.map((alphabet) {
-                      final bool isActive = _currentAlphabet == alphabet;
-                      return GestureDetector(
-                        onTap: () => _scrollToIndex(alphabet),
-                        child: Padding(
-                          padding: const EdgeInsets.symmetric(vertical: 2.0),
-                          child: Text(
-                            alphabet,
-                            style: TextStyle(
-                              color: isActive ? Colors.white : themeProvider.primaryColor,
-                              fontWeight: FontWeight.bold,
-                              backgroundColor: isActive ? themeProvider.primaryColor : Colors.transparent,
-                              fontSize: 12,
-                            ),
-                          ),
-                        ),
-                      );
-                    }).toList(),
-                  ),
-                ),
-              ),
-            ),
+              ? Center(child: Text(AppLocalizations.of(context)!.noItemFound))
+              : _showCategories 
+                  ? _buildCategoryView() // New method below
+                  : _buildItemView(),    // Move your existing ScrollablePositionedList here
+          
+          // Alphabetical Scrollbar (Only show for Item View)
+          if (_alphabets.isNotEmpty && !_isSearching && !_showCategories)
+            _buildAlphabetScrollbar(),
         ],
       ),
+      
+      
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () async {
           await Navigator.push(

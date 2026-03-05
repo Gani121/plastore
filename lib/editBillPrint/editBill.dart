@@ -895,6 +895,43 @@ class _DetailPageState extends State<DetailPage> {
     return digitsOnly;
   }
 
+  /// Launches WhatsApp with a pre-filled message.
+  Future<void> _saveBill(CartProvider cartProvider,BuildContext context) async {
+    final total = cartProvider.total;
+    final wcart = cartProvider.cart;
+    final tableno = (widget.table ?? {"kot":0})['kot'];
+    // final prefs = await SharedPreferences.getInstance();
+    // String businessName = prefs.getString('businessName') ?? 'Hotel Test';
+    // String contactPhone = prefs.getString('contactPhone') ?? '';
+    // String businessAddress = prefs.getString('businessAddress') ?? '';
+    // String _myUpiId = prefs.getString('upi') ?? '';
+
+    // 1. Generate Image
+    // Uint8List? imageBytes = await printer.generateReceiptImageToShare(cart1: wcart, total: total, billNo: billNo, transactionData: transaction, tableno: tableno);
+    Uint8List? pdfBytes =await printer.generateReceiptPdfToShare( cart1: wcart, total: total, billNo: billNo, transactionData: transaction, tableno: tableno, context: context);
+
+    if(pdfBytes!=null){
+      // 4. Save Logic
+      final String folderPath = AppConstants.folderPath;
+      final directory = Directory(folderPath);
+      if (!await directory.exists()) await directory.create(recursive: true);
+      DateTime now = DateTime.now();
+
+      // Format it
+      String formattedDate = DateFormat('dd/MM/yyyy').format(now);
+
+      final String filePath = "$folderPath/Orbipay_bill_${billNo}_${formattedDate}.pdf";
+      final File file = File(filePath);
+      
+      try{
+        await file.writeAsBytes(pdfBytes);
+      } catch (e) {
+        print_log_red("Error generating PDF: $e");
+      }
+    }
+  }
+  
+
 
   /// Launches WhatsApp with a pre-filled message.
   Future<void> _shareOnWhatsApp(CartProvider cartProvider,BuildContext context) async {
@@ -922,22 +959,6 @@ class _DetailPageState extends State<DetailPage> {
         break; // Only need the first page for a receipt image
       }
     }
-
-    // final aa = PdfBillService();
-    // aa.generateAndSaveBill( billNo:12,
-    //  businessName : businessName,
-    //  businessAddress:businessAddress,
-    //  contactPhone:contactPhone,
-    // cartItems :wcart,
-    // subtotal : 100,
-    //  discount: 0,
-    //  serviceCharge: 0,
-    //  total: double.tryParse(total.toString()) ?? 0.0 ,
-    //  customerName:"",
-    //  customerMobile:"",
-    //  orderType:"",
-     
-    // );
     
     // 2. Get the bill details string
     String billDetails = await _createBillString(cartProvider);  
@@ -1266,6 +1287,12 @@ DateTime getBusinessDate({int cutoffHour = 4}) {
                                       actions: [
                                         TextButton(
                                           onPressed: () {
+                                            _saveBill(cartProvider,context);
+                                          },
+                                          child: const Text("Save PDF"),
+                                        ),
+                                        TextButton(
+                                          onPressed: () {
                                             _textshareOnWhatsApp(cartProvider);
                                           },
                                           child: const Text("Text"),
@@ -1274,7 +1301,7 @@ DateTime getBusinessDate({int cutoffHour = 4}) {
                                           onPressed: () {
                                             _shareOnWhatsApp(cartProvider,context);
                                           },
-                                          child: const Text("PDF BILL"),
+                                          child: const Text("PDF"),
                                         ),
                                       ],
                                     );
@@ -2209,11 +2236,14 @@ Have a nice day!
                 builder: (context, serviceCharge, _) {
                   
                   final total = ((widget.cartProvider?.total ?? 0) + serviceCharge - discount).clamp(0,double.infinity,);
+
+                  
                   transactiondata['udhari'] = !_isChecked;
                   print_log("Data Recived in the Bottom bar Other: $total $subtotal + $serviceCharge - $discount ${widget.subtotalNotifier.value} ${widget.serviceChargeNotifier.value} ${widget.discountNotifier.value}");
                   print_log("Data Recived in the Bottom bar cartProvider: ${widget.cartProvider?.cart}");
                   print_log("Data Recived in the Bottom bar transaction: ${widget.transaction}");
                   print_log("Data Recived in the Bottom bar Other2 ${_orderType}, ${_customermobile}, ${_cusomername} ${_customeradd} !widget.isRetail ${!widget.isRetail} !_isChecked ${!_isChecked}");
+                  final int new_billNo = transactiondata['billNo'] ?? 0;
 
                   if (_isChecked) {
                     transactiondata['recivedamount'] = total;
@@ -2601,7 +2631,26 @@ Have a nice day!
                                     }
                                     final _pdf = prefs.getBool('pdf') ?? false;
                                     if(_pdf){
-                                      printer.generateReceiptPdfToShare( cart1: widget.cart, total: total.toInt(), billNo: 1, transactionData: transactiondata, tableno: tableno, context: context);
+                                      final pdfBytes = await printer.generateReceiptPdfToShare( cart1: widget.cart, total: total.toInt(), billNo: 1, transactionData: transactiondata, tableno: tableno, context: context);
+                                      if(pdfBytes!=null){
+                                        // 4. Save Logic
+                                        final String folderPath = "${AppConstants.folderPath}/Bills";
+                                        final directory = Directory(folderPath);
+                                        if (!await directory.exists()) await directory.create(recursive: true);
+                                        DateTime now = DateTime.now();
+
+                                        // Format it
+                                        String formattedDate = DateFormat('dd/MM/yyyy').format(now);
+
+                                        final String filePath = "$folderPath/Orbipay_bill_${new_billNo}_${formattedDate}.pdf";
+                                        final File file = File(filePath);
+                                        
+                                        try{
+                                          await file.writeAsBytes(pdfBytes);
+                                        } catch (e) {
+                                          print_log_red("Error generating PDF: $e");
+                                        }
+                                      }
                                     }
 
                                     if(widget.cartProvider != null){

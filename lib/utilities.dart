@@ -36,6 +36,7 @@ class AppConstants {
   static String username = "";
   static String appPasswordKey = "app_password";
   static DateTime? businessDate;
+  static String folderPath = '/storage/emulated/0/Orbipay';
   
   AppConstants._();
 
