@@ -1,7 +1,6 @@
 import 'dart:async';
 import 'dart:typed_data';
 import 'dart:convert';
-import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:test1/utilities.dart';
 import 'package:test1/objectbox.g.dart';
@@ -17,19 +16,14 @@ import 'package:test1/MenuItemPage.dart' as gk;
 import 'package:url_launcher/url_launcher.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:test1/l10n/app_localizations.dart';
-import 'package:test1/udhari/AddCustomerPage.dart';
 import 'package:test1/database_Module/party_database.dart';
 import 'package:test1/database_Module/udharicustomer.dart';
 import 'package:test1/database_Module/tableCart.dart';
 import 'package:path_provider/path_provider.dart';
-import 'package:share_plus/share_plus.dart';
 import 'package:test1/bill_printer.dart';
-import 'package:telephony_sms/telephony_sms.dart';
-import 'package:permission_handler/permission_handler.dart';
-import 'package:http/http.dart' as http;
+// import 'package:telephony_sms/telephony_sms.dart';
 import 'package:appinio_social_share/appinio_social_share.dart'as share;
 import 'package:whatsapp_share_plus/whatsapp_share_plus.dart' as whatsapp;
-import '../editBillPrint/pdf_bill_service.dart';
 import 'package:printing/printing.dart';
 
 class DetailPage extends StatefulWidget {
@@ -75,10 +69,10 @@ class _DetailPageState extends State<DetailPage> {
   
 
   // A map to hold transaction data, similar to your original code
-  final Map<String, dynamic> _transaction = {'mobileNo': ''};
+  // final Map<String, dynamic> _transaction = {'mobileNo': ''};
 
   Timer? _debounceTimer;
-  final bool _isBoxReady = false;
+  // final bool _isBoxReady = false;
   String selectedStyle = "List Style Half Full";
   late Map<String, dynamic> transaction = {};
   List<Map<String, dynamic>> existingcart = [];
@@ -93,6 +87,7 @@ class _DetailPageState extends State<DetailPage> {
   void initState() {
     super.initState();
     loadSelectedStyle();
+    loadSetting();
     existingcart = (widget.cart1 ?? []).map((item) => Map<String, dynamic>.from(item)).toList();
 
     // //debugPrint("oldCartMap.containsKey(key) ${existingcart}");
@@ -212,22 +207,10 @@ class _DetailPageState extends State<DetailPage> {
   /// Fetches the current bill counter, increments it, saves it, and returns the new bill number.
   int getNextBillNo() {
     // 2. Find the existing counter object. There should only be one.
-    BillCounter counter;
+    // BillCounter counter;
     final existingCounters = billCounterBox.getAll();
-    //debugPrint("next bill number ${existingCounters}");
     int billNo = (existingCounters.isEmpty) ? 1 : existingCounters.first.lastBillNo;
-    // if (existingCounters.isEmpty) {
-    //   // 3a. If no counter exists (first time), create one starting at 1.
-    //   counter = BillCounter(lastBillNo: 1);
-    // } else {
-    //   // 3b. If a counter exists, get it and increment the number.
-     
-    //   counter.lastBillNo++;
-    // }
-    // 5. Return the latest bill number.
-    
-    // int billNo = (existingCounters.isEmpty) ? 1 : counter.lastBillNo;
-    //debugPrint("next bill number ${billNo}");
+    print_log("next bill number ${billNo}");
     return billNo;
   }
 
@@ -276,10 +259,20 @@ class _DetailPageState extends State<DetailPage> {
     final prefs = await SharedPreferences.getInstance();
     setState(() {
       selectedStyle = prefs.getString('selectedStyle') ?? "List Style Half Full";
-      isRetail = prefs.getString('industry') == "Retail" ?? false;
+      isRetail = prefs.getString('industry') == "Retail";
     });
 
-    print("selected style $selectedStyle");
+    // print_log("selected style $selectedStyle");
+  }
+
+  Future<void> loadSetting() async {
+    final prefs = await SharedPreferences.getInstance();
+    final savedValue = await prefs.getString("selectedOrderType");
+    setState(() {
+      ordertype = (widget.table != null && widget.table!['kot'] > 0) ? "Dine-In" : (savedValue ?? "Dine-In");
+    });
+
+    print_log("selected ordertype $ordertype ${widget.table != null && widget.table!['kot'] > 0}");
   }
 
   void _showNoteDialog(BuildContext context, Map<String, dynamic> item,CartProvider cartProvider) {
@@ -355,7 +348,7 @@ class _DetailPageState extends State<DetailPage> {
         //debugPrint("✅ Updated cart for table #$tableNo in ObjectBox.");
       } else {
         // 4b. If it doesn't exist, create a new one
-        final newTableCart = tableCart(tableNo: tableNo, tCart: stringCart);
+        final newTableCart = tableCart(syid:ganarateID(), tableNo: tableNo, tCart: stringCart);
         box.put(newTableCart);
         //debugPrint("✅ Created new cart for table #$tableNo in ObjectBox. stringCart $stringCart");
       }
@@ -795,27 +788,6 @@ class _DetailPageState extends State<DetailPage> {
     );
   }
 
-  Widget _buildDropdown(String label) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 12),
-      child: InputDecorator(
-        decoration: InputDecoration(
-          labelText: label,
-          border: const OutlineInputBorder(),
-        ),
-        child: DropdownButtonHideUnderline(
-          child: DropdownButton<String>(
-            isDense: true,
-            value: null,
-            hint: Text("Select $label"),
-            items: [],
-            onChanged: (value) {},
-          ),
-        ),
-      ),
-    );
-  }
-
 
 
 
@@ -827,11 +799,11 @@ class _DetailPageState extends State<DetailPage> {
     String businessName = prefs.getString('businessName') ?? 'Hotel Test';
     String whatsapptext = prefs.getString('whatsapptext') ?? 'Thank you for your business!';
     String contactPhone = prefs.getString('contactPhone') ?? '';
-    String businessAddress = prefs.getString('businessAddress') ?? '';
+    // String businessAddress = prefs.getString('businessAddress') ?? '';
     String _myUpiId = prefs.getString('upi') ?? '';
 
-    int totalAmount =  (cartProvider.total ?? 0);
-    final cartItems = (cartProvider.cart ?? []);
+    int totalAmount =  (cartProvider.total);
+    final cartItems = (cartProvider.cart);
       // Replace these with your actual UPI details.
     final String upiPaymentLink = 'upi://pay?pa=$_myUpiId&am=${totalAmount.toStringAsFixed(2)}&cu=INR';
 
@@ -938,11 +910,11 @@ class _DetailPageState extends State<DetailPage> {
     final total = cartProvider.total;
     final wcart = cartProvider.cart;
     final tableno = (widget.table ?? {"kot":0})['kot'];
-    final prefs = await SharedPreferences.getInstance();
-    String businessName = prefs.getString('businessName') ?? 'Hotel Test';
-    String contactPhone = prefs.getString('contactPhone') ?? '';
-    String businessAddress = prefs.getString('businessAddress') ?? '';
-    String _myUpiId = prefs.getString('upi') ?? '';
+    // final prefs = await SharedPreferences.getInstance();
+    // String businessName = prefs.getString('businessName') ?? 'Hotel Test';
+    // String contactPhone = prefs.getString('contactPhone') ?? '';
+    // String businessAddress = prefs.getString('businessAddress') ?? '';
+    // String _myUpiId = prefs.getString('upi') ?? '';
 
     // 1. Generate Image
     // Uint8List? imageBytes = await printer.generateReceiptImageToShare(cart1: wcart, total: total, billNo: billNo, transactionData: transaction, tableno: tableno);
@@ -961,7 +933,7 @@ class _DetailPageState extends State<DetailPage> {
     }
     
     // 2. Get the bill details string
-    String billDetails = await _createBillString(cartProvider);  
+    // String billDetails = await _createBillString(cartProvider);  
 
     String mobileNumber = _mobileNoController.text.trim();
 
@@ -1026,7 +998,7 @@ class _DetailPageState extends State<DetailPage> {
 
         return; // Exit if sharing initiated successfully
       } catch (e) {
-        //debugPrint("Error sharing image: $e");
+        print_log_red("Error sharing image: $e");
       }
     }
   }
@@ -1661,7 +1633,7 @@ class _BottomBar extends StatefulWidget {
 }
 
 class __BottomBarState extends State<_BottomBar> {
-  String? _orderType; // Add state variable for payment selection
+  String _orderType = "Dine-In"; // Add state variable for payment selection
   bool _isPrinting = false; 
   bool _isChecked = true;   
   String _customermobile= "";
@@ -1672,8 +1644,9 @@ class __BottomBarState extends State<_BottomBar> {
   BillPrinter printer = BillPrinter();
   TextEditingController _receivedAmountController = TextEditingController();
   late int recivedamount = 0;
-  final _telephonySMS = TelephonySMS();
+  // final _telephonySMS = TelephonySMS();
   int totalItems = 0;
+  late bool isprintenBillEnable = false;
   
   
   @override
@@ -1681,11 +1654,11 @@ class __BottomBarState extends State<_BottomBar> {
     super.initState();
     // Initialize _orderType here, only once.
     loadordertype();
-    _orderType = widget.ordertype ?? 'Dine-In';
+    _orderType = widget.ordertype;
     _customermobile = widget.mobileNo ?? "";
     _cusomername = widget.name ?? "";
     _customeradd = widget.adreess ?? "";
-    print_log("Controller text set to:- $_orderType  / ${widget.ordertype}");
+    print_log("orderType Controller text set to:- $_orderType  / ${widget.ordertype} _customermobile _cusomername _customeradd $_customermobile $_cusomername $_customeradd");
     if(mounted){
        _store = Provider.of<ObjectBoxService>(context, listen: false).store;
     }
@@ -1734,8 +1707,8 @@ class __BottomBarState extends State<_BottomBar> {
     List<String>? savedList = prefs.getStringList('order_type_list');
     print_log("order_type_list ${savedList}");
     setState(() {
-      deliveryTypes = savedList ?? ['Parcel', 'Swiggy', 'Zomato', 'Uber', 'Magicpin',];
-  
+      deliveryTypes = savedList ?? ['Parcel', 'Swiggy', 'Zomato', 'Uber', 'Magicpin', 'Dine-In'];
+      isprintenBillEnable = prefs.getBool('printenBillEnable') ?? false;
     });
 
   }
@@ -1967,6 +1940,7 @@ class __BottomBarState extends State<_BottomBar> {
       // Customer not found, create a new one
       //debugPrint("Udhari currentCustomer Creating new customer: $name");
       final newCustomer = udhariCustomer(
+        syid:ganarateID(),
         ucuniid : DateTime.now().millisecondsSinceEpoch.toString(),
         name: name.trim(),
         phone: phone.isNotEmpty ? phone.trim() : '',
@@ -1994,6 +1968,7 @@ class __BottomBarState extends State<_BottomBar> {
     String  description = descriptionController.trim();
 
     TransactionUdhari newTransaction = TransactionUdhari.create(
+      syid:ganarateID(),
       amount: amount,
       type: TransactionType.gave,
       date: DateTime.now(),
@@ -2107,11 +2082,9 @@ class __BottomBarState extends State<_BottomBar> {
       // String orderId = "ORD${DateTime.now().millisecondsSinceEpoch}";
 
       // Get table name
-      String tableName = widget.table != null
-          ? "${widget.table!['kot']}"
-          : "Takeaway";
+      String tableName = widget.table != null ? "${widget.table!['kot']}" : "Takeaway";
 
-      //debugPrint("sentfcm trigger through eitbill $tableName");
+      print_log("sentfcm trigger through eitbill $tableName");
 
       if (tableName == "Takeaway") {
         return;
@@ -2161,12 +2134,12 @@ class __BottomBarState extends State<_BottomBar> {
       final response = await apiCalls('s',hotelname,requestData);
 
       if (response!.statusCode == 200) {
-        //debugPrint("FCM notification sent successfully");
+        print_log("FCM notification sent successfully");
       } else {
-        //debugPrint("Failed to send FCM notification: ${response.statusCode}");
+        print_log_red("Failed to send FCM notification: ${response.statusCode}");
       }
     } catch (e) {
-      //debugPrint("Error sending FCM notification: $e");
+      print_log_red("Error sending FCM notification: $e");
     }
   }
 
@@ -2175,8 +2148,8 @@ class __BottomBarState extends State<_BottomBar> {
     // Example bill number - you can make this dynamic
     final prefs = await SharedPreferences.getInstance();
     String businessName = prefs.getString('businessName') ?? 'Hotel Test';
-    int totalAmount =  (cartProvider.total ?? 0);
-    final cartItems = (cartProvider.cart ?? []);
+    int totalAmount =  (cartProvider.total);
+    final cartItems = (cartProvider.cart);
     print_log( "item $cartItems");
     // Use a StringBuffer for efficient string building in a loop
     final itemsBuffer = StringBuffer();
@@ -2194,14 +2167,14 @@ class __BottomBarState extends State<_BottomBar> {
     String customerName = (widget.name != null && widget.name!.isNotEmpty) ? widget.name! : "Customer";
 
     return 
-    '''
-Hi $customerName,
-$businessName
-Total ${totalAmount.toStringAsFixed(0)}
-${itemsBuffer.toString().trim()}
-Have a nice day!
-''';
-  }
+      """
+      Hi $customerName,
+      $businessName
+      Total ${totalAmount.toStringAsFixed(0)}
+      ${itemsBuffer.toString().trim()}
+      Have a nice day!
+      """;
+    }
 
 
 
@@ -2275,7 +2248,7 @@ Have a nice day!
                                       showCheckmark: false,
                                       visualDensity: VisualDensity.compact,
                                       materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                                      selected: (_orderType ?? "").toLowerCase() == type.toLowerCase(),
+                                      selected: (_orderType).toLowerCase() == type.toLowerCase(),
                                       onSelected: (value) {
                                         if (value) {
                                           setState(() {
@@ -2284,7 +2257,7 @@ Have a nice day!
                                         }
                                         print_log("_orderType value is $_orderType ${_orderType == type}");
                                       },
-                                      selectedColor: Colors.blue.shade200,
+                                      selectedColor: Colors.blue.shade100,
                                     ),
                                   ),
                                 );
@@ -2631,7 +2604,7 @@ Have a nice day!
                                     }
                                     final _pdf = prefs.getBool('pdf') ?? false;
                                     if(_pdf){
-                                      final pdfBytes = await printer.generateReceiptPdfToShare( cart1: widget.cart, total: total.toInt(), billNo: 1, transactionData: transactiondata, tableno: tableno, context: context);
+                                      final pdfBytes = await printer.generateReceiptPdfToShare( cart1: widget.cart, total: total.toInt(), billNo: transactiondata['billNo'], transactionData: transactiondata, tableno: tableno, context: context);
                                       if(pdfBytes!=null){
                                         // 4. Save Logic
                                         final String folderPath = "${AppConstants.folderPath}/Bills";
@@ -2640,7 +2613,7 @@ Have a nice day!
                                         DateTime now = DateTime.now();
 
                                         // Format it
-                                        String formattedDate = DateFormat('dd/MM/yyyy').format(now);
+                                        String formattedDate = DateFormat('dd-MM-yyyy').format(now);
 
                                         final String filePath = "$folderPath/Orbipay_bill_${new_billNo}_${formattedDate}.pdf";
                                         final File file = File(filePath);
@@ -2681,7 +2654,7 @@ Have a nice day!
                                           context: context,
                                           cart1: widget.cart,
                                           total: total.toInt(),
-                                          mode: "settle1",
+                                          mode: (isprintenBillEnable) ? "settle1" : "onlysettle" ,
                                           payment_mode: (widget.mode == 'edit' && transactiondata.isNotEmpty) ? '${paymentMode}_${transactiondata['id']}' : paymentMode,
                                           transactionData : transactiondata,
                                         );
@@ -2717,7 +2690,7 @@ Have a nice day!
                                       ),
                                     )
                                   : Text(
-                                      (tableno > 0) ? "Settle" : "Print/Settle",
+                                      (tableno > 0) ? "Settle" : (isprintenBillEnable) ? "Print/Settle" :  "Save/Settle",
                                       style: const TextStyle(color: Colors.white),
                                     ),
                                   ),

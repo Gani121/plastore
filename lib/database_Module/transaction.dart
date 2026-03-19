@@ -5,6 +5,7 @@ import 'dart:convert'; // For jsonEncode/jsonDecode and utf8
 @Entity()
 class Transaction {
   int id = 0;
+  int syid;
   @Property(type: PropertyType.date)
   DateTime time;
   int? tableNo;
@@ -34,6 +35,7 @@ class Transaction {
   //flutter pub run build_runner build --delete-conflicting-outputs
   Transaction({
     required this.time,
+    required this.syid,
     this.tableNo,
     required this.total,
     required this.cartData,
@@ -60,7 +62,7 @@ class Transaction {
 
   @override
   String toString() {
-    return 'Transaction(id: $id, time: $time, tableNo: $tableNo, total: $total, status : $status, payment_mode: $payment_mode, synced: $synced, orderType: $orderType, mobileNo:$mobileNo, customerName: $customerName billNo :$billNo, discountPercent: $discountPercent discount: $discount  serviceCharge:$serviceCharge reserved :$reserved,reserved_field:$reserved_field,reserved_field1:$reserved_field1,reserved_field2:$reserved_field2,reserved_field3:$reserved_field3,reserved_field4:$reserved_field4,reserved_field5:$reserved_field5 cartData: $cartData, upiamount $upiamount cashamount $cashamount)';
+    return 'Transaction(id: $id,  syid $syid synced $synced time: $time, tableNo: $tableNo, total: $total, status : $status, payment_mode: $payment_mode, synced: $synced, orderType: $orderType, mobileNo:$mobileNo, customerName: $customerName billNo :$billNo, discountPercent: $discountPercent discount: $discount  serviceCharge:$serviceCharge reserved :$reserved,reserved_field:$reserved_field,reserved_field1:$reserved_field1,reserved_field2:$reserved_field2,reserved_field3:$reserved_field3,reserved_field4:$reserved_field4,reserved_field5:$reserved_field5 cartData: $cartData, upiamount $upiamount cashamount $cashamount)';
   }
 
   List<Map<String, dynamic>> get decodedCart => List<Map<String, dynamic>>.from(jsonDecode(cartData));
@@ -70,6 +72,7 @@ class Transaction {
   Map<String, dynamic> toMap() {
     return {
       'id': id,
+            'syid': syid, // Add category
       // Storing DateTime as an ISO 8601 string is a common practice
       'time': time.toIso8601String(),
       'tableNo': tableNo,
@@ -97,6 +100,7 @@ class Transaction {
     return Transaction(
       // id is handled by ObjectBox, but you might need it from other sources
       // id: map['id'] ?? 0,
+      syid: map['syid'] ?? 1,
       time: DateTime.parse(map['time']),
       tableNo: map['tableNo'],
       total: map['total'],

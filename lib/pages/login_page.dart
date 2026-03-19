@@ -8,18 +8,18 @@ import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:open_file/open_file.dart';
 import 'package:path_provider/path_provider.dart';
-import 'package:permission_handler/permission_handler.dart';
+// import 'package:permission_handler/permission_handler.dart';
 import 'package:dio/dio.dart';
 import 'package:archive/archive_io.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
-import 'Transctionreportpage.dart';
+// import 'Transctionreportpage.dart';
 import 'package:device_info_plus/device_info_plus.dart';
 import 'package:test1/table_selection/table_view.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:test1/settings/permissionUtils.dart';
 import 'package:firebase_core/firebase_core.dart';
 import './../firebase_options.dart';
-import 'package:firebase_messaging/firebase_messaging.dart';
+// import 'package:firebase_messaging/firebase_messaging.dart';
 import '../firebase/notification_service.dart';
 import 'package:provider/provider.dart';
 import '../database_Module/ObjectBoxService.dart';
@@ -62,10 +62,11 @@ class _LoginPageState extends State<LoginPage> {
     getmodeldata();
     
     WidgetsBinding.instance.addPostFrameCallback((_) async {
-      // await PermissionUtils.requestsmsPermissions();
+      auto_login();
     });
 
   }
+  
 
   Future<void> hasSmsPermission() async {
     if (!mounted) return;
@@ -74,7 +75,7 @@ class _LoginPageState extends State<LoginPage> {
     // Check if permissions are granted before proceeding
     final hasPermissions = await PermissionUtils.checkAllPermissions();
     if (!hasPermissions) {
-      screen_massage(context, "Please ganter permissions to continue");
+      // screen_massage(context, "Please ganter permissions to continue");
       await PermissionUtils.requestAllPermissions();
     }
   }
@@ -98,258 +99,230 @@ class _LoginPageState extends State<LoginPage> {
     final savedPassword = await secureStorage.read(key: 'password');
     final rememberStr = await secureStorage.read(key: 'remember_me');
     final remember = rememberStr == 'true';
-
+    print_log("auto_login1 $_rememberMe");
     if (remember && savedEmail != null && savedPassword != null) {
       setState(() {
         _emailController.text = savedEmail;
         _passwordController.text = savedPassword;
         _rememberMe = remember;
+        print_log("auto_login1 $_rememberMe");
       });
 
       // Future.delayed(const Duration(seconds: 1), _login);
     }
   }
 
-  // Check and request storage permissions
-  // Future<void> _checkAndRequestPermissions() async {
-  //   if (Platform.isAndroid) {
-  //     try {
-  //       // Check current permission status
-  //       var status = await Permission.storage.status;
-  //       if (!status.isGranted) {
-  //         // Request permission
-  //         status = await Permission.storage.request();
-  //       }
-  //       var status1 = await Permission.requestInstallPackages.status;
-  //       if (!status1.isGranted) {
-  //         status1 = await Permission.requestInstallPackages.request();
-  //       }
-  //       if (!status.isGranted || !status1.isGranted) {
-  //         ScaffoldMessenger.of(context).showSnackBar(
-  //           SnackBar(
-  //             content: Text(
-  //               "❌ permission of storage ${status.isGranted} and installer ${status1.isGranted}",
+
+
+  // Future<void> _downloadNewApp(String id) async {
+  //   double downloadProgress = 0.0;
+  //   StateSetter? dialogSetState;
+  //   int? bytes = 0;
+  //   int? totalB = 0;
+
+  //   final downloadsDir1 = await getDownloadsDirectory();
+  //   if (downloadsDir1 != null) {
+  //     await _deleteDirectory(downloadsDir1);
+  //   }
+
+  //   // Show the dialog immediately
+  //   showDialog(
+  //     context: context,
+  //     barrierDismissible: false, // User cannot dismiss the dialog
+  //     builder: (BuildContext context) {
+  //       return StatefulBuilder(
+  //         builder: (context, setState) {
+  //           dialogSetState = setState; // Store setState function for later use
+  //           return AlertDialog(
+  //             title: const Text("Downloading Update"),
+  //             content: Column(
+  //               mainAxisSize: MainAxisSize.min,
+  //               children: [
+  //                 LinearProgressIndicator(
+  //                   value: downloadProgress,
+  //                   backgroundColor: Colors.grey[300],
+  //                   valueColor: const AlwaysStoppedAnimation<Color>(
+  //                     Colors.blue,
+  //                   ),
+  //                 ),
+  //                 const SizedBox(height: 16),
+  //                 Text(
+  //                   "${((bytes ?? 0) / (1024 * 1024)).toStringAsFixed(1)} MB / ${((totalB ?? 0) / (1024 * 1024)).toStringAsFixed(1)} MB and ${(downloadProgress * 100).toStringAsFixed(0)}%",
+  //                 ),
+  //               ],
   //             ),
-  //           ),
-  //         );
-  //       }
-  //     } catch (e) {
-  //       ScaffoldMessenger.of(context).showSnackBar(
-  //         SnackBar(content: Text("❌ permission of storage and installer $e ")),
+  //           );
+  //         },
   //       );
+  //     },
+  //   );
+
+  //   try {
+  //     // ✅ 1. Check and request permissions
+  //     // _checkAndRequestPermissions();
+
+  //     // ✅ 2. Extract the actual ID from the string
+  //     final nameId = id.split(":");
+  //     final version = nameId.isNotEmpty? nameId[0].replaceAll('{', ''): nameId;
+  //     final fileId = nameId.length > 1 ? nameId[1].replaceAll('}', '') : nameId;
+
+  //     // ✅ 4. Get a reliable downloads directory path
+  //     final downloadsDir = await getDownloadsDirectory();
+
+  //     if (downloadsDir == null) {
+  //       throw Exception("❌ Could not get downloads directory");
+  //     }
+  //     // Orbipay_$version
+  //     final savePath = '${downloadsDir.path}/Orbipay_$version.zip';
+  //     // await _extractZip (savePath, downloadsDir);
+
+  //     // Download using Dio
+  //     final dio = Dio();
+  //     await dio.download(
+  //       _downloadUrl,
+  //       savePath,
+  //       onReceiveProgress: (receivedBytes, totalBytes) {
+  //         if (totalBytes != -1) {
+  //           setState(() {
+  //             // //debugPrint( 'receivedBytes $receivedBytes and totalBytes $totalBytes and ${downloadProgress*100}');
+  //             dialogSetState?.call(() {
+  //               downloadProgress = receivedBytes / totalBytes;
+  //             });
+  //             bytes = receivedBytes;
+  //             totalB = totalBytes;
+  //           });
+  //         }
+  //       },
+  //       deleteOnError: true,
+  //       options: Options(
+  //         receiveTimeout: Duration(minutes: 5),
+  //         sendTimeout: Duration(minutes: 5),
+  //       ),
+  //     );
+
+  //     //debugPrint("✅ File saved to: $savePath");
+
+  //     // Close the dialog and immediately start the installation
+  //     // if (mounted) Navigator.of(context).pop();
+  //     await _extractZip(savePath, downloadsDir);
+  //   } catch (e) {
+  //     //debugPrint("❌ Error during download/install: $e");
+  //     // if (mounted) Navigator.of(context).pop(); // Close dialog on error
+  //     if (mounted) {
+  //       ScaffoldMessenger.of(
+  //         context,
+  //       ).showSnackBar(SnackBar(content: Text("❌ Error: $e")));
   //     }
   //   }
   // }
 
-  Future<void> _downloadNewApp(String id) async {
-    double downloadProgress = 0.0;
-    StateSetter? dialogSetState;
-    int? bytes = 0;
-    int? totalB = 0;
-
-    final downloadsDir1 = await getDownloadsDirectory();
-    if (downloadsDir1 != null) {
-      await _deleteDirectory(downloadsDir1);
-    }
-
-    // Show the dialog immediately
-    showDialog(
-      context: context,
-      barrierDismissible: false, // User cannot dismiss the dialog
-      builder: (BuildContext context) {
-        return StatefulBuilder(
-          builder: (context, setState) {
-            dialogSetState = setState; // Store setState function for later use
-            return AlertDialog(
-              title: const Text("Downloading Update"),
-              content: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  LinearProgressIndicator(
-                    value: downloadProgress,
-                    backgroundColor: Colors.grey[300],
-                    valueColor: const AlwaysStoppedAnimation<Color>(
-                      Colors.blue,
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-                  Text(
-                    "${((bytes ?? 0) / (1024 * 1024)).toStringAsFixed(1)} MB / ${((totalB ?? 0) / (1024 * 1024)).toStringAsFixed(1)} MB and ${(downloadProgress * 100).toStringAsFixed(0)}%",
-                  ),
-                ],
-              ),
-            );
-          },
-        );
-      },
-    );
-
-    try {
-      // ✅ 1. Check and request permissions
-      // _checkAndRequestPermissions();
-
-      // ✅ 2. Extract the actual ID from the string
-      final nameId = id.split(":");
-      final version = nameId.isNotEmpty? nameId[0].replaceAll('{', ''): nameId;
-      final fileId = nameId.length > 1 ? nameId[1].replaceAll('}', '') : nameId;
-
-      // ✅ 4. Get a reliable downloads directory path
-      final downloadsDir = await getDownloadsDirectory();
-
-      if (downloadsDir == null) {
-        throw Exception("❌ Could not get downloads directory");
-      }
-      // Orbipay_$version
-      final savePath = '${downloadsDir.path}/Orbipay_$version.zip';
-      // await _extractZip (savePath, downloadsDir);
-
-      // Download using Dio
-      final dio = Dio();
-      await dio.download(
-        _downloadUrl,
-        savePath,
-        onReceiveProgress: (receivedBytes, totalBytes) {
-          if (totalBytes != -1) {
-            setState(() {
-              // //debugPrint( 'receivedBytes $receivedBytes and totalBytes $totalBytes and ${downloadProgress*100}');
-              dialogSetState?.call(() {
-                downloadProgress = receivedBytes / totalBytes;
-              });
-              bytes = receivedBytes;
-              totalB = totalBytes;
-            });
-          }
-        },
-        deleteOnError: true,
-        options: Options(
-          receiveTimeout: Duration(minutes: 5),
-          sendTimeout: Duration(minutes: 5),
-        ),
-      );
-
-      //debugPrint("✅ File saved to: $savePath");
-
-      // Close the dialog and immediately start the installation
-      // if (mounted) Navigator.of(context).pop();
-      await _extractZip(savePath, downloadsDir);
-    } catch (e) {
-      //debugPrint("❌ Error during download/install: $e");
-      // if (mounted) Navigator.of(context).pop(); // Close dialog on error
-      if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text("❌ Error: $e")));
-      }
-    }
-  }
-
   // Extract ZIP file
-  Future<void> _extractZip(String zipPath, Directory destinationDir) async {
-    try {
-      //debugPrint("zipPath $zipPath");
+  // Future<void> _extractZip(String zipPath, Directory destinationDir) async {
+  //   try {
+  //     //debugPrint("zipPath $zipPath");
 
-      // Use the archive package to extract
-      final inputStream = InputFileStream(zipPath);
-      final archive = ZipDecoder().decodeStream(inputStream);
-      extractArchiveToDisk(archive, destinationDir.path);
+  //     // Use the archive package to extract
+  //     final inputStream = InputFileStream(zipPath);
+  //     final archive = ZipDecoder().decodeStream(inputStream);
+  //     extractArchiveToDisk(archive, destinationDir.path);
 
-      //debugPrint("✅ ZIP extracted successfully to ${destinationDir.path}");
+  //     //debugPrint("✅ ZIP extracted successfully to ${destinationDir.path}");
 
-      // ⭐ FIX: Safely find the .apk file instead of assuming the first file
-      String apkPath = '${destinationDir.path}/app-release.apk';
-      final entities = destinationDir.listSync(recursive: true);
-      for (var i in [1, 2, 3]) {
-        for (var entity in entities) {
-          if (entity is File) {
-            var pp = entity.path;
-            //debugPrint("$i entity.path ${entity.path}");
-            if (pp.contains('apk') || pp.contains('APK')) {
-              apkPath = entity.path;
-              break;
-            }
-          }
-        }
-      }
+  //     // ⭐ FIX: Safely find the .apk file instead of assuming the first file
+  //     String apkPath = '${destinationDir.path}/app-release.apk';
+  //     final entities = destinationDir.listSync(recursive: true);
+  //     for (var i in [1, 2, 3]) {
+  //       for (var entity in entities) {
+  //         if (entity is File) {
+  //           var pp = entity.path;
+  //           //debugPrint("$i entity.path ${entity.path}");
+  //           if (pp.contains('apk') || pp.contains('APK')) {
+  //             apkPath = entity.path;
+  //             break;
+  //           }
+  //         }
+  //       }
+  //     }
 
-      await _installApp(apkPath, zipPath); // Pass zipPath for deletion
-        } catch (e) {
-      throw Exception('Failed to extract ZIP file: $e');
-    }
-  }
+  //     await _installApp(apkPath, zipPath); // Pass zipPath for deletion
+  //       } catch (e) {
+  //     throw Exception('Failed to extract ZIP file: $e');
+  //   }
+  // }
 
-  Future<void> _installApp(String apkPath, String zipPathToDelete) async {
-    //debugPrint("Installer opening for: $apkPath");
-    // var toDelete = false;
-    if (mounted) {
-      showDialog(
-        context: context,
-        barrierDismissible: false, // User must interact with the dialog
-        builder: (BuildContext context) {
-          return AlertDialog(
-            title: const Text("Ready to Install"),
-            content: SingleChildScrollView(
-              // Prevents overflow if path is long
-              child: Text(
-                "The update has been downloaded.\n\nThe latest version includes performance improvements, bug fixes, and new features. Tap ‘Install Now’ to complete the update.",
-              ),
-            ),
-            actions: <Widget>[
-              TextButton(
-                child: const Text("CLOSE"),
-                onPressed: () {
-                  Navigator.of(context).pop();
-                },
-              ),
-              ElevatedButton(
-                child: const Text("INSTALL NOW"),
-                onPressed: () {
-                  // Manually trigger the installer again
-                  OpenFile.open(apkPath);
-                  Navigator.of(context).pop();
-                },
-              ),
-            ],
-          );
-        },
-      );
-    }
-  }
+  // Future<void> _installApp(String apkPath, String zipPathToDelete) async {
+  //   //debugPrint("Installer opening for: $apkPath");
+  //   // var toDelete = false;
+  //   if (mounted) {
+  //     showDialog(
+  //       context: context,
+  //       barrierDismissible: false, // User must interact with the dialog
+  //       builder: (BuildContext context) {
+  //         return AlertDialog(
+  //           title: const Text("Ready to Install"),
+  //           content: SingleChildScrollView(
+  //             // Prevents overflow if path is long
+  //             child: Text(
+  //               "The update has been downloaded.\n\nThe latest version includes performance improvements, bug fixes, and new features. Tap ‘Install Now’ to complete the update.",
+  //             ),
+  //           ),
+  //           actions: <Widget>[
+  //             TextButton(
+  //               child: const Text("CLOSE"),
+  //               onPressed: () {
+  //                 Navigator.of(context).pop();
+  //               },
+  //             ),
+  //             ElevatedButton(
+  //               child: const Text("INSTALL NOW"),
+  //               onPressed: () {
+  //                 // Manually trigger the installer again
+  //                 OpenFile.open(apkPath);
+  //                 Navigator.of(context).pop();
+  //               },
+  //             ),
+  //           ],
+  //         );
+  //       },
+  //     );
+  //   }
+  // }
 
-  /// Deletes a directory and all its contents if it exists.
-  Future<void> _deleteDirectory(Directory directory) async {
-    //debugPrint("Attempting to delete directory: ${directory.path}");
-    try {
-      // 1. Check if the directory exists.
-      if (await directory.exists()) {
-        // 2. Delete the directory and all its contents.
-        await directory.delete(recursive: true);
-        if (mounted) {
-          //debugPrint('🗑️ Directory cleaned up successfully');
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('🗑️ Directory cleaned up successfully'),
-            ),
-          );
-        }
-      } else {
-        // 3. Show a message if it doesn't exist.
-        if (mounted) {
-          //debugPrint('Directory not found, nothing to delete.');
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Directory not found, nothing to delete.'),
-            ),
-          );
-        }
-      }
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to delete directory: $e')),
-        );
-      }
-    }
-  }
+  // /// Deletes a directory and all its contents if it exists.
+  // Future<void> _deleteDirectory(Directory directory) async {
+  //   //debugPrint("Attempting to delete directory: ${directory.path}");
+  //   try {
+  //     // 1. Check if the directory exists.
+  //     if (await directory.exists()) {
+  //       // 2. Delete the directory and all its contents.
+  //       await directory.delete(recursive: true);
+  //       if (mounted) {
+  //         //debugPrint('🗑️ Directory cleaned up successfully');
+  //         ScaffoldMessenger.of(context).showSnackBar(
+  //           const SnackBar(
+  //             content: Text('🗑️ Directory cleaned up successfully'),
+  //           ),
+  //         );
+  //       }
+  //     } else {
+  //       // 3. Show a message if it doesn't exist.
+  //       if (mounted) {
+  //         //debugPrint('Directory not found, nothing to delete.');
+  //         ScaffoldMessenger.of(context).showSnackBar(
+  //           const SnackBar(
+  //             content: Text('Directory not found, nothing to delete.'),
+  //           ),
+  //         );
+  //       }
+  //     }
+  //   } catch (e) {
+  //     if (mounted) {
+  //       ScaffoldMessenger.of(context).showSnackBar(
+  //         SnackBar(content: Text('Failed to delete directory: $e')),
+  //       );
+  //     }
+  //   }
+  // }
 
   Future<void> _showDownloadsFiles() async {
     try {
@@ -814,9 +787,18 @@ class _LoginPageState extends State<LoginPage> {
       }
     }
 
+  void auto_login() async{
+    final prefs = await SharedPreferences.getInstance();
+    final autoLogin = await prefs.getBool('autoLogin') ?? true;
+    if(autoLogin) {
+      _autoLogin();
+    }
+  }
+
 
   void _login() async {
     await hasSmsPermission();
+    print_log("auto_login1 $_rememberMe");
     try{
     final email = (_emailController.text.trim()).toLowerCase();
     final password = _passwordController.text.trim();
@@ -842,70 +824,42 @@ class _LoginPageState extends State<LoginPage> {
         if (response == null) {
           return;
         }
-        //debugPrint("server response ${response.statusCode} ${response.body} ");
         if (response.statusCode == 200) {
-          //debugPrint("Expiry remaining11 ");
           final data = jsonDecode(response.body);
           print_log("Login response $data ");
-          //debugPrint("server response $data");
-          //debugPrint("Expiry remaining13 ${data["success"] == true}");
+
+
           if (data["success"] == true) {
-            //debugPrint("Expiry remaining1 ");
+
             final expiresAtStr = data['expires_at'];
             final app_Version = data['app_version'];
             final expiry_date1 = data['expiry_date'];
             final adminPanel = data['adminPanel'];
-
-            // 2. Parse allowed_device (Fixing the key if you meant 'allowed_device' instead of 'allowed_hotel')
-            // If you actually meant to check 'allowed_hotel', keep it as is.
-            final allowedDeviceVal = int.tryParse(data['allowed_device']?.toString() ?? "0") ?? 0;
-
-            // 3. Parse device_count
-            final deviceCountVal = int.tryParse(data['device_count']?.toString() ?? "0") ?? 0;
-
-            // 4. Print
-            //debugPrint("--- DEBUGGING ---");
-            //debugPrint("Allowed: $allowedDeviceVal (${allowedDeviceVal.runtimeType})");
-            //debugPrint("Count: $deviceCountVal (${deviceCountVal.runtimeType})");
-            //debugPrint("-----------------");
-
-            final expiryDate = DateTime.parse(expiresAtStr);
-            await prefs.setString('expiresAtStr', expiresAtStr);
             final expiry_Date = DateTime.parse(expiry_date1);
+            final allowedDeviceVal = int.tryParse(data['allowed_device']?.toString() ?? "0") ?? 0;
+            final deviceCountVal = int.tryParse(data['device_count']?.toString() ?? "0") ?? 0;
+            final now = DateTime.now();
+            final role = data['role'];
+
+            await prefs.setString('expiresAtStr', expiresAtStr);
             await prefs.setString('expiry_date', expiry_date1);
             await prefs.setString('adminPanel', adminPanel);
-            // print_log("adminPanel ${await prefs.getString('adminPanel')}");
-            final extendedExpiry = expiryDate.add(Duration(days: 365));
-            final now = DateTime.now();
-            final difference = extendedExpiry.difference(now).inDays;
-            final role = data['role'];
-            //debugPrint("Expiry remaining3 ");
             await prefs.setString('role', role);
+            await prefs.setBool('autoLogin',true);
+            await secureStorage.write(key: 'expiry_Date', value: expiry_date1);
+            await secureStorage.write(key: 'expiresAtStr', value: expiresAtStr);
 
             // Create a date-only version of "today" by setting the time to midnight
             final today = DateTime(now.year, now.month, now.day);
-
-            // Create a date-only version of the expiry date
             final expiryDateOnly = DateTime(expiry_Date.year, expiry_Date.month, expiry_Date.day);
-
-            // This will be TRUE if the expiry date is any day before today.
             final bool isExpiryToday = expiryDateOnly.isBefore(today);
-            //debugPrint("Expiry remaining4 ");
-            //debugPrint("Expiry remaining $difference");
-            //debugPrint("Expiry remaining ${prefs.getString('expiry_date')}  isExpiryToday $isExpiryToday");
-            //debugPrint("Check to download ${(app_Version != app_version)}");
-            //debugPrint("Check to download $app_Version == $app_version");
-            // try{
-            //debugPrint("Check to allowed_device $deviceCountVal ${allowedDeviceVal <= deviceCountVal} == ${allowedDeviceVal}");
-            // }catch(e){
-            //   //debugPrint("🔴 RAW RESPONSE: $e");
-            //   //debugPrint("Expiry remaining1 $e");
-            // }
+
             if (isExpiryToday) {
               ScaffoldMessenger.of(context).showSnackBar(
                 SnackBar(content: Text("Your subscription has expired."),
                 duration: Duration(minutes :1),),
               );
+              _showExpiredSubscriptionDialog();
               return;
             }
              else if (allowedDeviceVal <= deviceCountVal) {
@@ -938,10 +892,6 @@ class _LoginPageState extends State<LoginPage> {
                 await secureStorage.delete(key: 'expiresAtStr');
                 await secureStorage.delete(key: 'expiry_Date');
               }
-
-
-
-
               
               if (role != 'captain') {
                 final businessDate = (AppConstants.businessDate).toString().split(" ")[0];
@@ -951,25 +901,15 @@ class _LoginPageState extends State<LoginPage> {
                 print_log("dates are $businessDate $previousDateString");
                 final hotelname = email;
                 http.Response? response = await apiCalls('get_t', hotelname, {}, start:previousDateString, end:businessDate);
-                // print_log("jsonData server response $response");
                 loadtransections(response,prefs);
               }
 
-
-
-
-
-
-
               loadMenu();
-
-              SyncService().fetchFromServer(_store);
 
               final captain = prefs.getBool('startcaptain') ?? false;
               print_log("Captain $captain");
               if(captain){
                 await _initializeFirebase().then((value)=> loadToken());
-                // loadToken();
               }
               if (role == 'captain') {
 
@@ -997,7 +937,6 @@ class _LoginPageState extends State<LoginPage> {
           }
         }
       } catch (e) {
-        //debugPrint("🔴 RAW RESPONSE: $e");
         
         final prefs = await SharedPreferences.getInstance();
         final expiresAtStr = prefs.getString('expiresAtStr');
@@ -1025,18 +964,19 @@ class _LoginPageState extends State<LoginPage> {
 
         print_log("Expiry remaining $expiryDate  isExpiryToday $isExpiryToday");
 
-        final expiryDate1 = DateTime.parse(expiresAtStr!);
-        final extendedExpiry = expiryDate1.add(Duration(days: 365));
-        final difference = extendedExpiry.difference(now).inDays;
+        // final expiryDate1 = DateTime.parse(expiresAtStr!);
+        // final extendedExpiry = expiryDate1.add(Duration(days: 365));
+        // final difference = extendedExpiry.difference(now).inDays;
         //debugPrint("Expiry remaining $difference");
         
-
         if (isExpiryToday) {
           // ❌ Subscription expired
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(content: Text("Your subscription has expired."),
             duration: Duration(minutes :1),),
           );
+          _showExpiredSubscriptionDialog();
+          return;
         } else {
           //debugPrint("Expiry remaining7");
           Navigator.pushReplacement(
@@ -1052,11 +992,113 @@ class _LoginPageState extends State<LoginPage> {
     }
     }catch(e){
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text("exception login $e"),
+        SnackBar(content: Text("error login $e"),
         duration: Duration(minutes :1),),
       );
     }
   }
+
+
+  Future<void> _autoLogin() async {
+    final savedEmail = await secureStorage.read(key: AppConstants.usernameKey);
+    final savedPassword = await secureStorage.read(key: 'password');
+    final rememberStr = await secureStorage.read(key: 'remember_me');
+    final remember = rememberStr == 'true';
+    final savedExpiryDate = await secureStorage.read(key: 'expiry_Date');
+    final prefs = await SharedPreferences.getInstance();
+    final email = await prefs.getString(AppConstants.usernameKey);
+    AppConstants.username = email ?? savedEmail ?? '';
+    if (remember && savedEmail != null && savedPassword != null) {
+      setState(() {
+        _emailController.text = savedEmail;
+        _passwordController.text = savedPassword;
+        _rememberMe = remember;
+      });
+
+      // Check if expiry date exists and is still valid
+      if (savedExpiryDate != null) {
+        try {
+          final expiryDate = DateTime.parse(savedExpiryDate);
+          final now = DateTime.now();
+          
+          // Create date-only versions for comparison
+          final today = DateTime(now.year, now.month, now.day);
+          final expiryDateOnly = DateTime(expiryDate.year, expiryDate.month, expiryDate.day);
+          
+          // Check if subscription is still valid (expiry date is today or in future)
+          final bool isExpiryValid = !expiryDateOnly.isBefore(today);
+          
+          if (isExpiryValid) {
+            print_log("✅ Auto-login: Valid expiry date found: $savedExpiryDate");
+            
+            // Load stored role
+            final role = prefs.getString('role') ?? '';
+            
+            // Load menu and transactions
+            // await _loadInitialData(prefs, savedEmail, role);
+            
+            // Navigate based on role
+            if (role == 'captain') {
+              await _initializeFirebase().then((value) => loadToken());
+              
+              if (mounted) {
+                Navigator.pushReplacement(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => const TableView(),
+                  ),
+                );
+              }
+            } else {
+              if (mounted) {
+                Navigator.pushReplacement(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => const DostiKitchenPage(),
+                  ),
+                );
+              }
+            }
+          } else {
+            print_log("⚠️ Auto-login: Subscription expired on: $savedExpiryDate");
+            _showExpiredSubscriptionDialog();
+          }
+        } catch (e) {
+          print_log_red("❌ Error parsing expiry date: $e");
+        }
+      } else {
+        print_log("⚠️ Auto-login: No expiry date found");
+      }
+    }
+  }
+
+
+
+  void _showExpiredSubscriptionDialog() {
+    if (!mounted) return;
+    
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: const Text("Subscription Expired"),
+          content: const Text(
+            "Your subscription has expired. Please renew your subscription."
+          ),
+          actions: [
+            TextButton(
+              onPressed: () {
+                Navigator.of(context).pop();
+              },
+              child: const Text("OK"),
+            ),
+          ],
+        );
+      },
+    );
+  }
+  
 
   @override
   Widget build(BuildContext context) {

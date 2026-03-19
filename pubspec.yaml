@@ -81,7 +81,7 @@ dependencies:
   appinio_social_share: ^0.3.2
   whatsapp_share_plus: ^1.0.2
   usb_serial: ^0.5.2
-  
+  badges: ^3.1.2
 
 
 

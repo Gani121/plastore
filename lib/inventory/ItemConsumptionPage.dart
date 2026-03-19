@@ -24,6 +24,7 @@ class _ItemConsumptionPageState extends State<ItemConsumptionPage> {
   
   int? selectedInventoryItemId;
   final TextEditingController _quantityController = TextEditingController();
+  final sync = SyncService();
 
   @override
   void initState() {
@@ -71,7 +72,7 @@ class _ItemConsumptionPageState extends State<ItemConsumptionPage> {
           ElevatedButton(
             onPressed: () {
               if (name.isNotEmpty) {
-                inventoryBox.put(InventoryItem(name: name, unit: unit));
+                inventoryBox.put(InventoryItem(syid:ganarateID(), name: name, unit: unit));
                 _refreshData();
                 Navigator.pop(context);
               }
@@ -92,18 +93,17 @@ void _saveConsumption() {
   final qty = double.tryParse(_quantityController.text) ?? 0.0;
   
   // 2. Fix the "Positional Arguments" error here:
-  final newItemUsage = ItemConsumption(quantityUsed: qty);
+  final newItemUsage = ItemConsumption(syid:ganarateID(), quantityUsed: qty);
   
   // 3. Link the relations
   newItemUsage.menuItem.target = widget.menuItem;
   newItemUsage.inventoryItem.targetId = selectedInventoryItemId!; 
 
   // 4. Save to ObjectBox
-  consumptionBox.put(newItemUsage);
-
+  int id = consumptionBox.put(newItemUsage);
 
   _refreshData();
-  SyncService().saveRecipeToServer(widget.menuItem.name, currentRecipe);
+  sync.saveRecipeToServer(id,widget.menuItem.name, currentRecipe, consumptionBox);
   
   // 5. Reset UI
   setState(() {
@@ -172,7 +172,7 @@ void _saveConsumption() {
                       icon: const Icon(Icons.delete_outline, color: Colors.red),
                       onPressed: () {
                         consumptionBox.remove(consumption.id);
-                        print("goinnto referesh items ${currentRecipe} ");
+                        print_log("goinnto referesh items ${currentRecipe} ");
                         _refreshData();
                       },
                     ),

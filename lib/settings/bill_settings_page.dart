@@ -48,9 +48,10 @@ const Map<String, String> switchPreferenceKeys = {
   "4.2 Send bill to owner on whatsapp": "4.2 Send bill to owner on whatsapp",
   "4.3 choose days for reminder Message":
       "4.3 choose days for reminder Message",
-  "4.5 Settle Button": "settle_button_enabled",
+  "4.5 Settel bill": "settle_button_enabled",
   "4.6 Transection Color": "transection_color",
   "4.7 Send SMS": "SmsEnabled",
+  "4.8 Print/Settel": "printenBillEnable",
 };
 
 class billSettingsPage extends StatefulWidget {
@@ -92,14 +93,20 @@ class _billSettingsPageState extends State<billSettingsPage> {
   Future<void> loadOrderTypes() async {
     final prefs = await SharedPreferences.getInstance();
     List<String>? savedList = prefs.getStringList('order_type_list');
-      setState(() {
-        order_type = savedList ?? ['Parcel', 'Swiggy', 'Zomato', 'Uber', 'Magicpin', 'Dunzo','Voosh','Blinkit', 'Dine-In', 'Takeaway'];
-        // Default select the first one if available
-        if (order_type.isNotEmpty) {
-          selectedOrderType = order_type.first;
-        }
-      });
+    final savedValue = await prefs.getString("selectedOrderType");
+    setState(() {
+      order_type = savedList ?? ['Parcel', 'Swiggy', 'Zomato', 'Uber', 'Magicpin', 'Dunzo','Voosh','Blinkit', 'Dine-In', 'Takeaway'];
+      // Default select the first one if available
+      if (order_type.isNotEmpty) {
+        selectedOrderType = savedValue;
+      }
+    });
 
+  }
+
+  Future<void> _saveOrderType(String value) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString("selectedOrderType", value);
   }
 
 
@@ -131,6 +138,7 @@ class _billSettingsPageState extends State<billSettingsPage> {
               } else {
                 setState(() {
                   selectedOrderType = newValue;
+                  _saveOrderType(newValue ?? "Dine-In");
                 });
               }
             },
@@ -476,9 +484,10 @@ class _billSettingsPageState extends State<billSettingsPage> {
           toggleTile("4.2 Send bill to owner on whatsapp", ""),
           toggleTile("4.3 choose days for reminder Message", ""),
           _buildDynamicDropdownTile("4.4 Order Type"),
-          toggleTile("4.5 Settle Button", "Enable or disable the Settle button functionality."),
+          toggleTile("4.5 Settel bill", "Enable To only save bill without printer."),
           toggleTile("4.6 Transection Color", "set yellow color for the online order transaction."),
           toggleTile("4.7 Send SMS", "Send SMS while save transection."),
+          toggleTile("4.8 Print/Settel", "Settel Bill Without Print."),
           // toggleTile("4.8 API call", "Send transection to server."),
 
           // buildSwitchTile(
@@ -671,7 +680,7 @@ class _billSettingsPageState extends State<billSettingsPage> {
         SwitchListTile(
           title: Text(title),
           value: switches[title] ?? false, // ✅ Safe null check
-          activeColor: const Color(0xFF3F35F4),
+          activeThumbColor : const Color(0xFF3F35F4),
           onChanged: (val) {
             setState(() {
               switches[title] = val;

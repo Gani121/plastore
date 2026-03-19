@@ -1,9 +1,6 @@
-import 'dart:convert';
-
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:path_provider/path_provider.dart';
 import 'package:blue_thermal_printer/blue_thermal_printer.dart';
 import 'NewOrderPage.dart';
 import 'settings/SettingsPage.dart';
@@ -35,13 +32,18 @@ import 'table_selection/table_view.dart';
 import 'package:test1/l10n/app_localizations.dart';
 import 'package:test1/cartprovier/locale_provider.dart';
 import '../utilities.dart';
+import 'package:badges/badges.dart' as badges; // Add this to pubspec.yaml
+import '../udhari/due_date_service.dart';
+import 'package:test1/purchase_order/purchase_order_page.dart';
+import 'package:test1/quotation/quotation_page.dart';
 
-import 'package:device_info_plus/device_info_plus.dart';
-import 'package:shared_preferences/shared_preferences.dart';
+// import 'package:test1/database_Module/udharicustomer.dart';
+// import 'package:device_info_plus/device_info_plus.dart';
+// import 'package:shared_preferences/shared_preferences.dart';
+// import 'package:firebase_core/firebase_core.dart';
+// import 'firebase_options.dart';
+// import 'package:firebase_messaging/firebase_messaging.dart';
 
-import 'package:firebase_core/firebase_core.dart';
-import 'firebase_options.dart';
-import 'package:firebase_messaging/firebase_messaging.dart';
 
 final printer = BillPrinter();
 String selectedStyle = "";
@@ -140,9 +142,7 @@ class MyApp extends StatelessWidget {
             );
           },
           
-          
-
-          home: const LoginPage(), 
+          home: LoginPage(), 
           debugShowCheckedModeBanner: false,
         );
       },
@@ -215,7 +215,7 @@ class _DostiKitchenPageState extends State<DostiKitchenPage> {
   DateTime _selectedDate = getBusinessDate(cutoffHour: 4);
   late Store store = Provider.of<ObjectBoxService>(context, listen: false).store;
   late Box<MenuItem> menuItemBox = store.box<MenuItem>();
-  late Box<Active_Table_view> _tablesList;
+  // late Box<Active_Table_view> _tablesList;
   final Map<String, String> _selectedPayments = {};
   final ValueNotifier<double> _totalExpensesNotifier = ValueNotifier<double>(0.0,);
   List<Active_Table_view> activeTables = [];
@@ -236,22 +236,34 @@ class _DostiKitchenPageState extends State<DostiKitchenPage> {
   final excludedOrderTypes = ['Parcel', 'Dine-In', 'Takeaway'];
   bool transectionColor = false;
   bool _isNewOrderProcessing = false;
-
+  late DueDateService? _dueDateService = DueDateService();
+  bool udhariOverdue = false;
 
   @override
   void initState() {
     super.initState();
     _loadTotalExpenses();
     _loadimagepath();
-    _tablesList = store.box<Active_Table_view>();
+    // _tablesList = store.box<Active_Table_view>();
     printer.onTransactionAdded = () {
       loadRecentTransactions(store);
     };
     loadRecentTransactions(store);
     loadSelectedStyle();
     // printer.syncPendingTransactions(context);
+     _checkDueToday();
   }
-
+  Future<void> _checkDueToday() async {
+    final objectbox = Provider.of<ObjectBoxService>(context, listen: false);
+    if(_dueDateService != null){
+      await _dueDateService!.checkDueToday(objectbox);
+      if(mounted){
+        setState(() {
+          udhariOverdue = _dueDateService!.hasDueToday;
+        });
+      }
+    }
+  }
 
   // ✅ NEW: This function handles the asynchronous saving
   Future<void> _initializeAndStoreBusinessDate() async {
@@ -349,12 +361,12 @@ class _DostiKitchenPageState extends State<DostiKitchenPage> {
     loadRecentTransactions(store);
   }
 
-  void _loadHoldStatus() async {
-    final prefs = await SharedPreferences.getInstance();
-    setState(() {
-      isHoldEnabled = prefs.getBool('isHoldEnabled') ?? false;
-    });
-  }
+  // void _loadHoldStatus() async {
+  //   final prefs = await SharedPreferences.getInstance();
+  //   setState(() {
+  //     isHoldEnabled = prefs.getBool('isHoldEnabled') ?? false;
+  //   });
+  // }
 
 
 
@@ -574,13 +586,13 @@ class _DostiKitchenPageState extends State<DostiKitchenPage> {
         payment_mode: "",
         transactionData : tx,
       );
-    } on PlatformException catch (e) {
-      // This block ONLY runs for platform-related errors (like Bluetooth)
-      //debugPrint("❌ Printer PlatformException: ${e.message}");
+    // } on PlatformException catch () {
+    //   // This block ONLY runs for platform-related errors (like Bluetooth)
+    //   //debugPrint("❌ Printer PlatformException: ${e.message}");
 
-      // Safety check before using context in an async function
-      if (!context.mounted) return;
-      screen_massage(context, '❌ Printer error. Please check if it is on and paired.');
+    //   // Safety check before using context in an async function
+    //   if (!context.mounted) return;
+    //   screen_massage(context, '❌ Printer error. Please check if it is on and paired.');
     } catch (e) {
       // This block catches all OTHER errors (like bad data, null values, etc.)
       //debugPrint("❌ An unexpected error occurred in _printTransaction: $e");
@@ -754,7 +766,7 @@ class _DostiKitchenPageState extends State<DostiKitchenPage> {
                 ListTile(
                   leading: Icon(Icons.dashboard),
                   title: Text(AppLocalizations.of(context)!.dashbord,),
-                  onTap: () {},
+                  onTap: () {Navigator.pop(context);},
                 ),
                 ListTile(
                   leading: Icon(Icons.inventory),
@@ -806,6 +818,34 @@ class _DostiKitchenPageState extends State<DostiKitchenPage> {
                   },
                 ),
                 ListTile(
+                  leading: Icon(Icons.shopping_cart, color: Colors.teal),
+                  title: Text("Purchase Orders"),
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => const PurchaseOrderPage(),
+                      ),
+                    );
+                  },
+                ),
+                ListTile(
+                  leading: Icon(Icons.description, color: Colors.purple),
+                  title: Text("Quotations"),
+                  onTap: () {
+                    if(hide_sales_report){
+                      screen_massage(context,AppLocalizations.of(context)!.access_denied);
+                      return;
+                    }
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => const QuotationPage(),
+                      ),
+                    );
+                  },
+                ),
+                ListTile(
                   leading: Icon(Icons.logout),
                   title: Text(AppLocalizations.of(context)!.logout),
                   onTap: () {
@@ -822,7 +862,15 @@ class _DostiKitchenPageState extends State<DostiKitchenPage> {
                           ),
 
                           TextButton(
-                            onPressed: () {
+                            onPressed: () async {
+                              try{
+                                // final -prefs = SharedPreferences.getInstance();
+                                prefs.setBool('autoLogin',false);
+                              // secureStorage.delete(key: 'remember_me');
+                                // secureStorage.write(key: 'remember_me',value: "false",);
+                              } catch (e){
+                                print_log_red("error not delete the key remember_me");
+                              }
                               Navigator.of(context).pop();
                               SystemNavigator.pop();
                             },
@@ -1216,7 +1264,9 @@ class _DostiKitchenPageState extends State<DostiKitchenPage> {
               MaterialPageRoute(
                 builder: (context) => const DashboardPage(),
               ), // Use the new page here
-            );
+            ).then((_) {
+              _checkDueToday();
+            });
           } else if (index == 2) {
             Navigator.push(
               context,
@@ -1238,7 +1288,20 @@ class _DostiKitchenPageState extends State<DostiKitchenPage> {
         },
         items:  [
           BottomNavigationBarItem(icon: Icon(Icons.inventory), label: AppLocalizations.of(context)!.party),
-          BottomNavigationBarItem(icon: Icon(Icons.balance), label: AppLocalizations.of(context)!.udhari),
+          // Udhari with badge
+              BottomNavigationBarItem(
+                icon: badges.Badge(
+                  showBadge: udhariOverdue,
+                  badgeContent: const Text(
+                    '!',
+                    style: TextStyle(color: Colors.white, fontSize: 10),
+                  ),
+                  // badgeColor: Colors.red,
+                  position: badges.BadgePosition.topEnd(top: -5, end: -5),
+                  child: const Icon(Icons.balance),
+                ),
+                label: 'Udhari', // Replace with your localization
+              ),
           BottomNavigationBarItem(
             icon: Icon(Icons.attach_money),
             label: AppLocalizations.of(context)!.expenses,
@@ -1329,7 +1392,7 @@ class _LiveTimeBarState extends State<LiveTimeBar> {
   Future<void> _initializeAndStoreBusinessDate() async {
     final businessDate = getBusinessDate(cutoffHour: 4);
     final prefs = await SharedPreferences.getInstance();
-    String? ddd = prefs.getString(AppConstants.businessDateKey);
+    // String? ddd = prefs.getString(AppConstants.businessDateKey);
     _date = businessDate.toIso8601String().toString().split("T")[0];
     // if(ddd != businessDate.toIso8601String()){
     //   ScaffoldMessenger.of(context).showSnackBar(
@@ -1365,7 +1428,7 @@ class _LiveTimeBarState extends State<LiveTimeBar> {
   Widget build(BuildContext context) {
     final themeProvider = Provider.of<ThemeProvider>(context);
     final statusText = _isOnline ? 'Online' : 'Offline';
-    final barColor = _isOnline ? themeProvider.primaryColor : Colors.grey.shade400;
+    // final barColor = _isOnline ? themeProvider.primaryColor : Colors.grey.shade400;
     final gradientColors = _isOnline 
         ? [themeProvider.primaryColor, themeProvider.primaryColor.withOpacity(0.8)]
         : [Colors.grey.shade400, Colors.grey.shade600];

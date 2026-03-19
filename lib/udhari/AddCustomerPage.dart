@@ -3,7 +3,7 @@ import 'package:provider/provider.dart';
 import 'package:flutter_contacts/flutter_contacts.dart'; // 1. Import the package
 import '../database_Module/udharicustomer.dart';
 import '../database_Module/ObjectBoxService.dart';
-
+import 'package:test1/utilities.dart';
 class AddCustomerPage extends StatefulWidget {
   const AddCustomerPage({super.key});
 
@@ -54,6 +54,7 @@ class _AddCustomerPageState extends State<AddCustomerPage> {
   void _saveCustomer() {
     if (_formKey.currentState!.validate()) {
       final newCustomer = udhariCustomer(
+        syid:ganarateID(), 
         ucuniid : DateTime.now().millisecondsSinceEpoch.toString(),
         name: _nameController.text,
         phone: _phoneController.text.isNotEmpty ? _phoneController.text : '',

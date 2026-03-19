@@ -7,6 +7,8 @@ import 'package:objectbox/objectbox.dart';
 class Parties {
   @Id()
   int id = 0;
+    int syid;
+  bool synced;
   @Property(type: PropertyType.date)
   DateTime createTime = DateTime.now();
   String customername; //
@@ -35,6 +37,8 @@ class Parties {
   String? reserved_field5;
 
   Parties({
+        required this.syid,
+    this.synced = false,
     required this.customername,
     this.suppliername,
     required this.mobilenumber,
@@ -86,6 +90,8 @@ class Parties {
 
   Map<String, dynamic> toJson() => {
       'id': id,
+            'syid': syid, // Add category
+      'synced': synced, // Add category
       'createTime': createTime,
       'customername': customername,
       'suppliername':suppliername,
@@ -111,6 +117,8 @@ class Parties {
   Map<String, dynamic> toMap() {
     return {
       'id': id,
+            'syid': syid, // Add category
+      'synced': synced, // Add category
       'createTime': createTime,
       'customername': customername,
       'suppliername':suppliername,

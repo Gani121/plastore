@@ -5,6 +5,8 @@ import 'package:test1/utilities.dart';
 import 'NewPartyPage.dart'; 
 import 'package:test1/NewOrderPage.dart'; 
 import 'package:test1/database_Module/party_database.dart'; 
+import 'package:test1/udhari/SupplierListPage.dart'; // Add this import
+import 'package:test1/udhari/AddSupplierPage.dart'; // Add this import
 import '../objectbox.g.dart';
 import 'package:objectbox/objectbox.dart';
 import '../database_Module/ObjectBoxService.dart'; 
@@ -17,11 +19,15 @@ class PartyListPage extends StatefulWidget {
   State<PartyListPage> createState() => _PartyListPageState();
 }
 
-class _PartyListPageState extends State<PartyListPage> {
+class _PartyListPageState extends State<PartyListPage> with SingleTickerProviderStateMixin {
   List<Parties> _allParties = [];
   List<Parties> _displayList = [];
   
   late Store store = Provider.of<ObjectBoxService>(context, listen: false).store;
+
+  // Tab Controller for Customer/Supplier tabs
+  late TabController _tabController = TabController(length: 2, vsync: this); // Declare as late but initialize in initState
+  int _selectedTabIndex = 0; // 0 = Customers, 1 = Suppliers
 
   // Filter State Variables
   bool _isSearching = false;
@@ -43,21 +49,33 @@ class _PartyListPageState extends State<PartyListPage> {
   @override
   void initState() {
     super.initState();
-    // 1. Load saved filters first, then load data
+    _tabController = TabController(length: 2, vsync: this);
+    _tabController.addListener(_handleTabSelection);
+    
+    // Load saved filter preferences
     _loadFilterPreferences().then((_) async {
       _loadPartiesFromObjectBox();
     });
   }
 
-  // --- PREFERENCES LOGIC (NEW) ---
+  void _handleTabSelection() {
+    if (_tabController.indexIsChanging) {
+      setState(() {
+        _selectedTabIndex = _tabController.index;
+        // Clear search when switching tabs
+        _searchController.clear();
+        _isSearching = false;
+      });
+    }
+  }
+  
+
+  // --- PREFERENCES LOGIC ---
 
   Future<void> _loadFilterPreferences() async {
     final prefs = await SharedPreferences.getInstance();
     setState(() {
-      // Load Main Filter (default to 'All' if not found)
       _selectedMainFilter = prefs.getString('party_main_filter') ?? 'All';
-      
-      // Load Sub Filter (can be null)
       _selectedSubFilter = prefs.getString('party_sub_filter');
     });
   }
@@ -75,22 +93,17 @@ class _PartyListPageState extends State<PartyListPage> {
 
   // --- DATA LOGIC ---
 
-  /// Checks all parties and resets their 'isCompleted' status if the
-  /// completion date is before 4 AM of the current "business day".
   Future<void> _resetCompletionStatusIfNeeded() async {
     final box = store.box<Parties>();
     final partiesToUpdate = <Parties>[];
     final allParties = box.getAll();
 
     final now = DateTime.now();
-    // A "business day" starts at 4 AM.
-    // If it's currently before 4 AM, the "day" belongs to yesterday.
     final today = now.hour < 4 ? now.subtract(const Duration(days: 1)) : now;
     final startOfBusinessDay = DateTime(today.year, today.month, today.day, 4);
 
     for (final party in allParties) {
       if (party.isCompleted && party.completionDate != null) {
-        // If the completion date is before the start of the current business day, reset it.
         if (party.completionDate!.isBefore(startOfBusinessDay)) {
           party.isCompleted = false;
           party.completionDate = null;
@@ -110,11 +123,11 @@ class _PartyListPageState extends State<PartyListPage> {
     party.isCompleted = !party.isCompleted;
     party.completionDate = party.isCompleted ? DateTime.now() : null;
     box.put(party);
-    _applyFilters(); // Re-apply filters to update the UI state
+    _applyFilters();
   }
 
   Future<void> _loadPartiesFromObjectBox() async {
-    await _resetCompletionStatusIfNeeded(); // Reset statuses before loading
+    await _resetCompletionStatusIfNeeded();
     final box = store.box<Parties>();
     final allData = box.getAll();
     setState(() {
@@ -129,8 +142,6 @@ class _PartyListPageState extends State<PartyListPage> {
       if (_selectedMainFilter == 'All') {
         tempParties = List.from(_allParties);
       } else if (_selectedSubFilter == null) {
-        // If main filter is selected but sub-filter is empty, show all or nothing?
-        // Usually showing all until sub-filter is picked is better UX
         tempParties = List.from(_allParties); 
       } else {
         tempParties = _allParties.where((party) {
@@ -174,98 +185,145 @@ class _PartyListPageState extends State<PartyListPage> {
 
   @override
   Widget build(BuildContext context) {
-    return DefaultTabController(
-      length: 2,
-      child: Scaffold(
-        appBar: AppBar(
-          backgroundColor: Color.fromARGB(255, 255, 255, 255),
-          title: _isSearching
-              ? TextField(
-                  controller: _searchController,
-                  autofocus: true,
-                  style:  TextStyle(color: Color.fromARGB(255, 0, 0, 0)),
-                  cursorColor:  Color.fromARGB(255, 0, 0, 0),
-                  decoration:  InputDecoration(
-                    hintText: 'Search Name or Mobile...',
-                    hintStyle: TextStyle(color: Color.fromARGB(179, 0, 0, 0)),
-                    border: InputBorder.none,
-                  ),
-                  onChanged: (val) => _applyFilters(),
-                )
-              : const Text('Party List', style: TextStyle(fontSize: 18)),
-          actions: [
-            IconButton(
-                icon: Icon(_isSearching ? Icons.close : Icons.search),
-                onPressed: () {
-                  setState(() {
-                    if (_isSearching) {
-                      _isSearching = false;
-                      _searchController.clear();
-                      _applyFilters();
-                    } else {
-                      _isSearching = true;
-                    }
-                  });
-                }),
-            if (!_isSearching)
-              IconButton(
-                  icon: Icon(Icons.refresh),
-                  onPressed: _loadPartiesFromObjectBox),
+    return Scaffold(
+      appBar: AppBar(
+        backgroundColor: Color.fromARGB(255, 255, 255, 255),
+        title: _isSearching
+            ? TextField(
+                controller: _searchController,
+                autofocus: true,
+                style: const TextStyle(color: Color.fromARGB(255, 0, 0, 0)),
+                cursorColor: const Color.fromARGB(255, 0, 0, 0),
+                decoration: const InputDecoration(
+                  hintText: 'Search Name or Mobile...',
+                  hintStyle: TextStyle(color: Color.fromARGB(179, 0, 0, 0)),
+                  border: InputBorder.none,
+                ),
+                onChanged: (val) => _applyFilters(),
+              )
+            : const Text('Customers & Suppliers', style: TextStyle(fontSize: 18)),
+        bottom: TabBar(
+          controller: _tabController,
+          indicatorColor: Colors.blue,
+          labelColor: Colors.blue,
+          unselectedLabelColor: Colors.grey,
+          tabs: const [
+            Tab(text: 'CUSTOMERS', icon: Icon(Icons.people)),
+            Tab(text: 'SUPPLIERS', icon: Icon(Icons.business)),
           ],
-          bottom: TabBar(
-            indicatorColor: Color.fromARGB(255, 0, 4, 255),
-            tabs: [
-              Tab(text: 'PARTIES (${_displayList.length})'),
-              Tab(text: 'CATEGORIES'),
+        ),
+        actions: [
+          IconButton(
+            icon: Icon(_isSearching ? Icons.close : Icons.search),
+            onPressed: () {
+              setState(() {
+                if (_isSearching) {
+                  _isSearching = false;
+                  _searchController.clear();
+                  _applyFilters();
+                } else {
+                  _isSearching = true;
+                }
+              });
+            },
+          ),
+          if (!_isSearching)
+            IconButton(
+              icon: const Icon(Icons.refresh),
+              onPressed: _selectedTabIndex == 0 
+                  ? _loadPartiesFromObjectBox 
+                  : null, // Refresh for suppliers handled separately
+            ),
+        ],
+      ),
+      body: IndexedStack(
+        index: _selectedTabIndex,
+        children: [
+          // Customers Tab Content
+          Column(
+            children: [
+              _buildFilterSection(),
+              Expanded(
+                child: _displayList.isEmpty 
+                  ? const Center(child: Text("No customers found matching filter."))
+                  : ListView.builder(
+                      itemCount: _displayList.length,
+                      itemBuilder: (context, index) {
+                        final party = _displayList[index];
+                        return _partyCard(
+                          title: party.customername,
+                          subtitle: '${party.mobilenumber}\nBilling Type: ${party.billingtype}\nAdress: ${party.adreess ?? 'N/A'}',
+                          billingType: party.billingtype ?? "",
+                          isCompleted: party.isCompleted,
+                          onEdit: () => _editParty(context, party, party.id),
+                          onDelete: () => _deleteParty(context, party.id),
+                        );
+                      },
+                    ),
+              ),
             ],
           ),
-        ),
-        body: Column(
-          children: [
-            _buildFilterSection(),
-            Expanded(
-              child: _displayList.isEmpty 
-              ? Center(child: Text("No parties found matching filter."))
-              : ListView.builder(
-                itemCount: _displayList.length,
-                itemBuilder: (context, index) {
-                  final party = _displayList[index];
-                  return _partyCard(
-                    title: party.customername,
-                    subtitle: '${party.mobilenumber}\nBilling Type: ${party.billingtype}\nAdress: ${party.adreess ?? 'N/A'}',
-                    billingType: party.billingtype ?? "",
-                    isCompleted: party.isCompleted,
-                    onEdit: () => _editParty(context, party, party.id),
-                    onDelete: () => _deleteParty(context, party.id),
-                  );
-                },
-              ),
-            ),
-          ],
-        ),
-        floatingActionButton: Padding(
-          padding: const EdgeInsets.only(bottom: 10),
-          child: ElevatedButton(
-            style: ElevatedButton.styleFrom(
-              shape: StadiumBorder(),
-              padding: EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-            ),
-            onPressed: () async {
-              await Navigator.push(
-                context,
-                MaterialPageRoute(builder: (context) => const AddPartyPage()),
-              );
-              _loadPartiesFromObjectBox(); 
-            },
-            child: Text('ADD CUSTOMER/PARTY'),
-          ),
-        ),
-        floatingActionButtonLocation: FloatingActionButtonLocation.centerFloat,
+          
+          // Suppliers Tab Content
+          const SupplierListPage(),
+        ],
       ),
+      floatingActionButton: _selectedTabIndex == 0
+          ? Padding(
+              padding: const EdgeInsets.only(bottom: 10),
+              child: ElevatedButton(
+                style: ElevatedButton.styleFrom(
+                  shape: const StadiumBorder(),
+                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                ),
+                onPressed: () async {
+                  await Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (context) => const AddPartyPage()),
+                  );
+                  _loadPartiesFromObjectBox(); 
+                },
+                child: const Text('ADD CUSTOMER'),
+              ),
+            )
+          : 
+          Padding(
+        padding: const EdgeInsets.only(bottom: 10),
+        child: ElevatedButton(
+          style: ElevatedButton.styleFrom(
+            shape: const StadiumBorder(),
+            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+            backgroundColor: Colors.orange,
+          ),
+          onPressed: () async {
+            final result = await Navigator.push(
+              context,
+              MaterialPageRoute(builder: (context) => const AddSupplierPage()),
+            );
+
+            print_log("new supplier created $result");
+              
+            if (result == true) {
+              print_log("new supplier created");
+
+              if (mounted) {
+                // Navigator.pop(context);
+                setState(() {});
+                
+              }
+            }
+          },
+          child: const Text('ADD SUPPLIER', style: TextStyle(color: Colors.white)),
+        ),
+      ), // Suppliers have their own FAB
+      floatingActionButtonLocation: FloatingActionButtonLocation.centerFloat,
     );
   }
 
   Widget _buildFilterSection() {
+    // Only show filter section for customers tab
+    if (_selectedTabIndex != 0) return const SizedBox.shrink();
+
     List<String> subOptions = [];
     if (_selectedMainFilter == 'Visiting Day') {
       subOptions = _fixedDays;
@@ -290,14 +348,14 @@ class _PartyListPageState extends State<PartyListPage> {
                   _selectedMainFilter = val!;
                   _selectedSubFilter = null; 
                   _applyFilters();
-                  _saveFilterPreferences(); // Save immediately
+                  _saveFilterPreferences();
                 });
               },
             ),
           ),
           
           if (_selectedMainFilter != 'All') ...[
-            SizedBox(width: 8),
+            const SizedBox(width: 8),
             Expanded(
               flex: 3,
               child: _buildStyledDropdown(
@@ -308,7 +366,7 @@ class _PartyListPageState extends State<PartyListPage> {
                   setState(() {
                     _selectedSubFilter = val;
                     _applyFilters();
-                    _saveFilterPreferences(); // Save immediately
+                    _saveFilterPreferences();
                   });
                 },
               ),
@@ -325,11 +383,10 @@ class _PartyListPageState extends State<PartyListPage> {
     required Function(String?) onChanged,
     String? hint,
   }) {
-    // Safety check: if saved value is not in current items (e.g. deleted category), reset to null
     String? effectiveValue = items.contains(value) ? value : null;
     
     return Container(
-      padding: EdgeInsets.symmetric(horizontal: 12, vertical: 0),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 0),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(6),
@@ -338,10 +395,10 @@ class _PartyListPageState extends State<PartyListPage> {
       child: DropdownButtonHideUnderline(
         child: DropdownButton<String>(
           value: effectiveValue, 
-          hint: hint != null ? Text(hint, style: TextStyle(fontSize: 13, color: Colors.grey)) : null,
+          hint: hint != null ? Text(hint, style: const TextStyle(fontSize: 13, color: Colors.grey)) : null,
           isExpanded: true,
           icon: Icon(Icons.arrow_drop_down, color: Colors.grey[700]),
-          style: TextStyle(color: Colors.grey[700], fontSize: 14),
+          style: const TextStyle(color: Colors.grey, fontSize: 14),
           items: items.map((opt) {
             return DropdownMenuItem(value: opt, child: Text(opt));
           }).toList(),
@@ -379,39 +436,53 @@ class _PartyListPageState extends State<PartyListPage> {
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Text(title, style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                  Text(title, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
                   Row(
                     children: [
                       if (onEdit != null)
-                        IconButton(icon: Icon(Icons.edit, size: 20), color: Colors.blue, onPressed: onEdit),
+                        IconButton(icon: const Icon(Icons.edit, size: 20), color: Colors.blue, onPressed: onEdit),
                       if (onDelete != null)
-                        IconButton(icon: Icon(Icons.delete, size: 20), color: Colors.red, onPressed: onDelete),
+                        IconButton(icon: const Icon(Icons.delete, size: 20), color: Colors.red, onPressed: onDelete),
                     ],
                   ),
                 ],
               ),
-              SizedBox(height: 6),
+              const SizedBox(height: 6),
               Text(subtitle, style: TextStyle(color: Colors.grey[700])),
-              SizedBox(height: 6),
+              const SizedBox(height: 6),
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   Row(
                     children: [
-                      IconButton(icon: Icon(Icons.call, size: 20), color: Colors.green, onPressed: () {}),
-                      SizedBox(width: 4),
-                      IconButton(icon: Icon(Icons.textsms_sharp, size: 20), color: Colors.green, onPressed: () {}),
+                      IconButton(
+                        icon: const Icon(Icons.call, size: 20), 
+                        color: Colors.green, 
+                        onPressed: () {
+                          // Add call functionality
+                        },
+                      ),
+                      const SizedBox(width: 4),
+                      IconButton(
+                        icon: const Icon(Icons.textsms_sharp, size: 20), 
+                        color: Colors.green, 
+                        onPressed: () {
+                          // Add SMS functionality
+                        },
+                      ),
                     ],
                   ),
                   Row(
                     children: [
-                      Text('₹ 0', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
-                      SizedBox(width: 6),
-                      // Interactive completion icon
+                      Text('₹ 0', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+                      const SizedBox(width: 6),
                       InkWell(
                         onTap: () => _togglePartyCompletion(_displayList[_displayList.indexWhere((p) => p.customername == title)]),
-                        child: Icon(isCompleted ? Icons.check_circle : Icons.radio_button_unchecked,
-                            color: isCompleted ? Colors.green : Colors.grey, size: 22),
+                        child: Icon(
+                          isCompleted ? Icons.check_circle : Icons.radio_button_unchecked,
+                          color: isCompleted ? Colors.green : Colors.grey, 
+                          size: 22,
+                        ),
                       ),
                     ],
                   ),
@@ -437,10 +508,10 @@ class _PartyListPageState extends State<PartyListPage> {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: Text('Delete Party'),
-        content: Text('Are you sure you want to delete this party?'),
+        title: const Text('Delete Party'),
+        content: const Text('Are you sure you want to delete this party?'),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(context), child: Text('Cancel')),
+          TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
           TextButton(
             onPressed: () async {
               Navigator.pop(context); 
@@ -450,11 +521,15 @@ class _PartyListPageState extends State<PartyListPage> {
                 if (success) {
                   _loadPartiesFromObjectBox();
                   if (!mounted) return;
-                  ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Party deleted successfully')));
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('Party deleted successfully')),
+                  );
                 }
               } catch (e) {
                 if (!mounted) return;
-                ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error deleting party: $e')));
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(content: Text('Error deleting party: $e')),
+                );
               }
             },
             child: const Text('Delete', style: TextStyle(color: Colors.red)),
@@ -462,5 +537,12 @@ class _PartyListPageState extends State<PartyListPage> {
         ],
       ),
     );
+  }
+
+  @override
+  void dispose() {
+    _tabController.dispose();
+    _searchController.dispose();
+    super.dispose();
   }
 }

@@ -63,9 +63,12 @@ class AppConstants {
 
 }
 
-List<String> units = ["Nos","mg","g","kg","ton","ml","Ltr","quart","gallon","peg","unit","pack","box","btl","pkt","bag","carton","crate","tin","can","jar","pouch","sachet","bundle","dozen","gross"];
-// List<String> units = ['Nos', 'Grams', 'Kg', 'Ltr', 'Slices'];
+List<String> units = ["Nos","g","ml","Ltr","quart","gallon","peg","unit","pack","box","btl","pkt","bag","carton","crate","tin","can","ton","jar","pouch","sachet","bundle","dozen","gross"];
+// List<String> units = ['Nos', 'Grams', "kg", 'Ltr', 'Slices',"mg",];
 
+int ganarateID(){
+  return DateTime.now().millisecondsSinceEpoch;
+}
 
 void addToPrefs(String key, String value) async {
   final prefs = await SharedPreferences.getInstance();
@@ -77,12 +80,25 @@ Future<String> getDatafromPrefs(String key,) async {
    return prefs.getString(key) ?? '';
 }
 
+///
+/// date in the format dd-mm-yyyy hh/mm/ss
+///
 String formatDate(DateTime date) {
   return "${date.day.toString().padLeft(2, '0')}-${date.month.toString().padLeft(2, '0')}-${date.year} ${date.hour.toString().padLeft(2, '0')}/${date.minute.toString().padLeft(2, '0')}/${date.second.toString().padLeft(2, '0')}";
 }
 
+///
+/// date in the format dd-mm-yyyy
+///
+String dateformat(DateTime date) {
+  return "${date.day.toString().padLeft(2, '0')}-${date.month.toString().padLeft(2, '0')}-${date.year}";
+}
+
+///
+/// date in the format dd MMM yyyy hh:mm AM/PM
+///
 String formatDateAM_PM(DateTime date) {
-  return DateFormat('dd MMM yyyy – hh:mm a').format(date);
+  return DateFormat('dd MMM yyyy hh:mm a').format(date);
 }
 
 void print_log(String massage){
@@ -96,7 +112,7 @@ void print_log_red(String massage){
 void screen_massage(BuildContext context,String massage){
   if(context.mounted){
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text("$massage.")),
+      SnackBar(content: Text("$massage."),),
     );
   }
 }
@@ -357,6 +373,13 @@ Future<http.Response?> apiCalls(
           body: jsonEncode(payload),
         ).timeout(Duration(seconds: 900));
         return response;
+      case "addStock": //"operation": "add", "operation": "reduce","items": [ {"id": 123,"quantity": 2},]
+        final response = await http.post(
+          Uri.parse('https://api2.nextorbitals.in/api/stock_update.php'),
+          headers: {'Content-Type': 'application/json'},
+          body: jsonEncode(payload),
+        ).timeout(Duration(seconds: 900));
+        return response;
       case "l":
         final response = await http.post(
           Uri.parse("https://api2.nextorbitals.in/api/login.php"),
@@ -468,7 +491,7 @@ Future<http.Response?> apiCalls(
 
 
 /// 
-/// businessDateKey - 'businessDate'
+/// businessDateKey - 'businessDate' dd/mm/yyy hh;mm;ss.sss
 /// 
 Future<DateTime> getBussinessDateStorage() async {
   final prefs = await SharedPreferences.getInstance();
@@ -482,6 +505,25 @@ Future<DateTime> getBussinessDateStorage() async {
         now.hour,
         now.minute,
         now.second,
+      );
+  print_log("BUsiness Date is $fullDateTime");
+  return fullDateTime;
+  
+}
+
+
+/// 
+/// businessDateKey - 'businessDate' ddmmyyy 00;00;00
+/// 
+Future<DateTime> getBussinessDateOnly() async {
+  final prefs = await SharedPreferences.getInstance();
+  final businessDateString = prefs.getString(AppConstants.businessDateKey) ?? DateTime.now().toString();
+  final now = DateTime.now();
+  final businessDatePart = DateTime.parse(businessDateString);
+  final fullDateTime = DateTime(
+        businessDatePart.year,
+        businessDatePart.month,
+        businessDatePart.day,
       );
   print_log("BUsiness Date is $fullDateTime");
   return fullDateTime;
@@ -578,6 +620,115 @@ Map<String, Map<String, dynamic>> getmenyBycart(List<Map<String, dynamic>> cart1
 
   return matchedItems;
 }
+
+
+
+/// POST /stock_update_api.php
+/// {
+///     "hotel_name": "your_hotel_table",
+///     "operation": "add",     //////// or "operation": "reduce",
+///     "items": [
+///         {
+///             "submenu": "Pizza",
+///             "quantity": 10
+///         },
+///         {
+///             "submenu": "Burger",
+///             "quantity": 5
+///         }
+///     ]
+/// }
+
+Future<void> sendStockToServer(MenuItem item, int addValue, {bool? isOverride}) async {
+  try {
+    print_log('✅ No stock change needed #$addValue# $item');
+    final prefs = await SharedPreferences.getInstance();
+    final String? hotelName = prefs.getString(AppConstants.usernameKey);
+    
+    if (hotelName == null || hotelName.isEmpty) {
+      throw Exception('Hotel name not found');
+    }
+
+    // Determine operation based on addValue
+    String operation;
+    int quantity;
+    
+    // if (isOverride) {
+    //   // For override, we need to calculate the difference
+    //   int currentStock = item.adjustStock ?? 0;
+    //   if (addValue > currentStock) {
+    //     operation = 'add';
+    //     quantity = addValue - currentStock;
+    //   } else if (addValue < currentStock) {
+    //     operation = 'reduce';
+    //     quantity = currentStock - addValue;
+    //   } else {
+    //     // No change
+    //     print_log('✅ No stock change needed');
+    //     return;
+    //   }
+    // } else {
+      // For normal add/reduce using +/- values
+      if (addValue > 0) {
+        operation = 'add';
+        quantity = addValue;
+      } else if (addValue < 0) {
+        operation = 'reduce';
+        quantity = addValue.abs(); // Convert to positive for reduce operation
+      } else {
+        // No change (addValue == 0)
+        print_log('✅ No stock change needed');
+        return;
+      }
+    // }
+
+    
+    final requestBody = {
+      'hotel_name': hotelName,
+      'operation': operation,
+      'items': [
+        {
+          'submenu': item.name, // Use submenu name as fallback
+          'quantity': quantity,
+        }
+      ]
+    };
+
+    print_log('📤 Sending stock update to server: $requestBody');
+
+    http.Response? response = await apiCalls("addStock", hotelName, requestBody);
+      if (response == null) {
+        return;
+      }
+
+    if (response.statusCode == 200 || response.statusCode == 207) {
+      final responseData = json.decode(response.body);
+      
+      if (responseData['success'] == true) {
+        print_log('✅ Stock updated successfully on server: ${responseData['message']}');
+        
+        // Update local item with server response data if needed
+        if (responseData['updated_items'] != null && responseData['updated_items'].isNotEmpty) {
+          final updatedItem = responseData['updated_items'][0];
+          // You can update any additional fields from server if needed
+        }
+      } else {
+        // Partial success or failure
+        print_log('⚠️ Server returned partial success: ${responseData['message']}');
+        if (responseData['failed_items'] != null && responseData['failed_items'].isNotEmpty) {
+          print_log_red('Failed items: ${responseData['failed_items']}');
+          // throw Exception();
+        }
+      }
+    } else {
+      print_log_red('Server error: ${response.statusCode} - ${response.body}');
+      // throw Exception();
+    }
+  } catch (e) {
+    print_log_red('❌ Error sending stock to server: $e');
+  }
+}
+  
 
 
 

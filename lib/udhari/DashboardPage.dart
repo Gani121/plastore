@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:test1/purchase/purchase_invoice_page.dart';
 import 'AddCustomerPage.dart';
 import 'CustomerTransactionsPage.dart';
 import '../database_Module/ObjectBoxService.dart';
@@ -7,6 +8,8 @@ import '../database_Module/udharicustomer.dart';
 import '../utilities.dart';
 import './UdhariSyncService.dart';
 import 'package:test1/objectbox.g.dart';
+import './UdhariSyncService.dart';
+import 'dart:async';
 
 class DashboardPage extends StatefulWidget {
   const DashboardPage({super.key});
@@ -18,25 +21,83 @@ class DashboardPage extends StatefulWidget {
 class _DashboardPageState extends State<DashboardPage> {
   // A stream that will emit a new list of customers whenever the data changes.
   late Stream<List<udhariCustomer>> _customerStream;
+  StreamSubscription<List<udhariCustomer>>? _customerSubscription;
+  late ObjectBoxService objectbox;
 
   @override
   void initState() {
     super.initState();
-    // Initialize the stream here.
-    // We get the ObjectBoxService instance once and set up the stream to watch for changes.
-    final objectbox = Provider.of<ObjectBoxService>(context, listen: false);
-    
-    // 1. Setup Stream
-    // .watch() creates a stream. We use .map() to transform the stream of 'Query' objects
-    // into a stream of 'List<udhariCustomer>', which is easier to use in StreamBuilder.
-    // triggerImmediately: true ensures the stream provides the current data right away.
-    _customerStream = objectbox.store.box<udhariCustomer>()
-        .query()
-        .watch(triggerImmediately: true)
-        .map((query) => query.find());
 
-    // 2. Trigger Cloud Sync on Load (Optional but recommended)
-    _syncWithCloud(objectbox);
+    objectbox = Provider.of<ObjectBoxService>(context, listen: false);
+
+    // 1. Setup Stream
+    final query = objectbox.store.box<udhariCustomer>().query();
+
+    _customerStream = objectbox.store
+      .box<udhariCustomer>()
+      .query()
+      .watch(triggerImmediately: true)
+      .map((q) => q.find())
+      .asBroadcastStream();
+
+    final _syncStream = query.watch(triggerImmediately: true).map((q) => q.find());
+
+    // 2. Listen to stream for syncing
+    _customerSubscription = _syncStream.listen((customers) async {
+      for (var customer in customers) {
+        if (!customer.synced) {
+          await UdhariSyncService.syncCustomer(customer,objectbox.store.box<udhariCustomer>(),);
+        }
+      }
+    });
+
+    // 3. Optional cloud sync
+    // _syncWithCloud(objectbox);
+  }
+
+  @override
+  void dispose() {
+    _customerSubscription?.cancel();
+    super.dispose();
+  }
+
+
+  // Helper method to check if customer has overdue or due-soon transactions
+  Map<String, dynamic> _checkDueStatus(udhariCustomer customer) {
+    bool hasOverdue = false;
+    bool hasDueTomorrow = false;
+    int? dueDays; // Will store days until due (negative for overdue)
+    String? dueMessage; // Custom message for due status
+    
+    DateTime now = DateTime.now();
+    DateTime today = DateTime(now.year, now.month, now.day);
+    DateTime tomorrow = today.add(const Duration(days: 1));
+    
+    // Check all transactions of this customer
+    for (var transaction in customer.transactions) {
+      if (transaction.dueDate != null) {
+        DateTime dueDate = DateTime( transaction.dueDate!.year, transaction.dueDate!.month,  transaction.dueDate!.day);
+        
+        if (dueDate.isAtSameMomentAs(today)) {
+          hasOverdue = true;
+          dueDays = 0;
+          dueMessage = 'Today';
+          break;
+        } else if (dueDate.isAtSameMomentAs(tomorrow)) {
+          dueDays = 1;
+          hasDueTomorrow = true;
+          dueMessage = "Tomorrow";
+          break;
+        }
+      }
+    }
+    
+    return {
+      'today': hasOverdue,
+      'Tomorrow': hasDueTomorrow,
+      'dueDays': dueDays,
+      'dueMessage': dueMessage,
+    };
   }
 
   
@@ -65,21 +126,17 @@ Future<void> _syncWithCloud(ObjectBoxService ob) async {
         // ✅ ONLY save if there is a difference
         if (difference.abs() > 0.01) { // Using 0.01 to avoid floating point precision issues
           
-          /* LOGIC CHECK:
-            Your getter: balance = (Gave) - (Got)
-            If difference > 0: Cloud balance is higher -> We need to ADD a 'Gave' entry.
-            If difference < 0: Cloud balance is lower -> We need to ADD a 'Got' entry.
-          */
-          
           TransactionType type = difference > 0 ? TransactionType.gave : TransactionType.got;
           double transactionAmount = difference.abs();
           String description = "Updated by Admin";
 
           TransactionUdhari newTransaction = TransactionUdhari.create(
+            syid:ganarateID(), 
             amount: transactionAmount,
             type: type,
             date: DateTime.now(),
             description: description,
+            synced: true,
           );
 
           // Link the transaction to the customer
@@ -94,7 +151,7 @@ Future<void> _syncWithCloud(ObjectBoxService ob) async {
 
           print_log("✅ udhari Sync: ${currentCustomer.name} updated. New Balance: $cloudBalance (Adj: $transactionAmount as ${type.name})");
         } else {
-          // print_log("ℹ️ udhari Sync: ${currentCustomer.name} is already up to date.");
+          print_log("ℹ️ udhari Sync: ${currentCustomer.name} is already up to date.");
         }
       }
     }
@@ -118,6 +175,7 @@ Future<void> _syncWithCloud(ObjectBoxService ob) async {
       // Customer not found, create a new one
       //debugPrint("Udhari currentCustomer Creating new customer: $name");
       final newCustomer = udhariCustomer(
+        syid: int.tryParse(ucuniid) ?? ganarateID(),
         ucuniid : ucuniid,
         name: name.trim(),
         phone: phone.isNotEmpty ? phone.trim() : '',
@@ -148,6 +206,118 @@ Future<void> _syncWithCloud(ObjectBoxService ob) async {
     );
   }
 
+// Build the due date indicator on the avatar
+Widget _buildDueDateIndicator(udhariCustomer customer) {
+  var dueStatus = _checkDueStatus(customer);
+  
+  if (dueStatus['hasOverdue'] == true) {
+    return Container(
+      width: 15,
+      height: 15,
+      decoration: BoxDecoration(
+        color: Colors.red,
+        shape: BoxShape.circle,
+        border: Border.all(color: Colors.white, width: 2),
+      ),
+      child: const Icon(
+        Icons.warning,
+        color: Colors.white,
+        size: 10,
+      ),
+    );
+  } else if (dueStatus['hasDueTomorrow'] == true) {
+    return Container(
+      width: 15,
+      height: 15,
+      decoration: BoxDecoration(
+        color: Colors.orange,
+        shape: BoxShape.circle,
+        border: Border.all(color: Colors.white, width: 2),
+      ),
+      child: const Icon(
+        Icons.alarm,
+        color: Colors.white,
+        size: 10,
+      ),
+    );
+  } else if (dueStatus['dueDays'] != null && dueStatus['dueDays'] <= 3) {
+    return Container(
+      width: 15,
+      height: 15,
+      decoration: BoxDecoration(
+        color: Colors.blue,
+        shape: BoxShape.circle,
+        border: Border.all(color: Colors.white, width: 2),
+      ),
+      child: Text(
+        '${dueStatus['dueDays']}',
+        style: const TextStyle(
+          color: Colors.white,
+          fontSize: 8,
+          fontWeight: FontWeight.bold,
+        ),
+        textAlign: TextAlign.center,
+      ),
+    );
+  }
+  
+  return const SizedBox.shrink();
+}
+
+// Build warning text for due dates
+Widget _buildDueDateWarning(udhariCustomer customer) {
+  var dueStatus = _checkDueStatus(customer);
+  
+  if (dueStatus['today']) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+      decoration: BoxDecoration(
+        color: Colors.orange.shade50,
+        borderRadius: BorderRadius.circular(4),
+        border: Border.all(color: Colors.orange.shade200),
+      ),
+      child: Text(
+        dueStatus['dueMessage'] ?? 'Due Today!',
+        style: TextStyle(
+          color: Colors.orange.shade700,
+          fontSize: 10,
+          fontWeight: FontWeight.bold,
+        ),
+      ),
+    );
+  } 
+  else if (dueStatus['Tomorrow']) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+      decoration: BoxDecoration(
+        color: Colors.blue.shade50,
+        borderRadius: BorderRadius.circular(4),
+        border: Border.all(color: Colors.blue.shade200),
+      ),
+      child: Text(
+        dueStatus['dueMessage'] ?? 'Due Tomorrow',
+        style: TextStyle(
+          color: Colors.blue.shade700,
+          fontSize: 10,
+          fontWeight: FontWeight.bold,
+        ),
+      ),
+    );
+  }
+  
+  return const SizedBox.shrink();
+}
+
+// Simple check if customer has any due transactions (for the warning icon)
+bool _hasDueTransaction(udhariCustomer customer) {
+  var dueStatus = _checkDueStatus(customer);
+  return dueStatus['hasOverdue'] == true || 
+         dueStatus['hasDueTomorrow'] == true || 
+         dueStatus['dueDays'] != null;
+}
+
+
+
 
   @override
   Widget build(BuildContext context) {
@@ -156,6 +326,14 @@ Future<void> _syncWithCloud(ObjectBoxService ob) async {
         title: const Text("Udhari"),
         centerTitle: true,
         elevation: 1,
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.cloud_download_sharp),
+            onPressed: () async {
+              await _syncWithCloud(objectbox);
+            },
+          ),
+        ],
       ),
       // StreamBuilder will listen to _customerStream and rebuild the UI on new data.
       body: StreamBuilder<List<udhariCustomer>>(
@@ -212,33 +390,67 @@ Future<void> _syncWithCloud(ObjectBoxService ob) async {
                         padding: const EdgeInsets.symmetric(horizontal: 20.0),
                         child: const Icon(Icons.delete, color: Colors.white),
                       ),
-                      child: ListTile(
-                        leading: CircleAvatar(
-                          child: Text(
-                            (customer.name.isNotEmpty) 
-                                ? customer.name.substring(0, 1).toUpperCase() 
-                                : "?", // Show '?' if name is empty
-                            style: const TextStyle(fontWeight: FontWeight.bold),
+                      child: // In your StreamBuilder, inside ListView.builder
+                        ListTile(
+                          leading: Stack(
+                            children: [
+                              CircleAvatar(
+                                child: Text(
+                                  (customer.name.isNotEmpty) 
+                                      ? customer.name.substring(0, 1).toUpperCase() 
+                                      : "?", // Show '?' if name is empty
+                                  style: const TextStyle(fontWeight: FontWeight.bold),
+                                ),
+                              ),
+                              // Due date indicator
+                              Positioned(
+                                right: 0,
+                                bottom: 0,
+                                child: _buildDueDateIndicator(customer),
+                              ),
+                            ],
                           ),
-                        ),
-                        title: Text(customer.name, style: const TextStyle(fontWeight: FontWeight.bold)),
-                        trailing: Text('₹${balance.abs().toStringAsFixed(2)}',
-                          style: TextStyle(
-                            color: balance > 0 ? Colors.green.shade700 : (balance < 0 ? Colors.red.shade700 : Colors.grey),
-                            fontWeight: FontWeight.bold,
-                            fontSize: 16,
+                          title: Row(
+                            children: [
+                              Expanded(
+                                child: Text(
+                                  customer.name, 
+                                  style: const TextStyle(fontWeight: FontWeight.bold)
+                                ),
+                              ),
+                              // Due date warning text if needed
+                              // _buildDueDateWarning(customer),
+                            ],
                           ),
-                        ),
-                        subtitle: Text(balance > 0 ? 'You will get' : (balance < 0 ? 'You will give' : 'Settled')),
-                        onTap: () {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (context) => CustomerTransactionsPage(customer: customer),
-                            ),
-                          );
-                        },
-                      ),
+                          trailing: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            crossAxisAlignment: CrossAxisAlignment.end,
+                            children: [
+                              Text('₹${balance.abs().toStringAsFixed(2)}',
+                                style: TextStyle(
+                                  color: balance > 0 ? Colors.green.shade700 : (balance < 0 ? Colors.red.shade700 : Colors.grey),
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 16,
+                                ),
+                              ),
+                              _buildDueDateWarning(customer),
+                                // const Icon(  
+                                //   Icons.warning_amber_rounded,
+                                //   color: Colors.orange,
+                                //   size: 16,
+                                // ),
+                            ],
+                          ),
+                          subtitle: Text(balance > 0 ? 'You will get' : (balance < 0 ? 'You will give' : 'Settled')),
+                          onTap: () {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (context) => CustomerTransactionsPage(customer: customer),
+                              ),
+                            );
+                          },
+                        )
                     );
                   },
                 ),

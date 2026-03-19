@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import 'package:test1/database_Module/party_database.dart';
 import 'package:test1/database_Module/ObjectBoxService.dart';
 import 'package:objectbox/objectbox.dart';
+import 'package:test1/utilities.dart';
 
 // The Party model class is not shown here, assuming it's correctly defined in party_database.dart
 
@@ -103,6 +104,7 @@ class _AddPartyPageState extends State<AddPartyPage> {
     if (transactionId == null) {
       // New party
       final party = Parties(
+        syid:ganarateID(), 
         customername: _nameController.text.trim(),
         mobilenumber: _phoneController.text.trim(),
         category: selectedCategory ?? '',

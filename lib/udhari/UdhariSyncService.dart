@@ -4,12 +4,13 @@ import '../database_Module/udharicustomer.dart';
 import '../utilities.dart'; // Import your entity
 import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:io';
+import 'package:objectbox/objectbox.dart';
 
 class UdhariSyncService {
-  static const String baseUrl = "https://your-domain.com/save_udhari.php"; 
+  // static const String baseUrl = "https://your-domain.com/save_udhari.php"; 
 
   // 1. Sync a Single Customer (Save/Update)
-  static Future<void> syncCustomer(udhariCustomer customer) async {
+  static Future<void> syncCustomer(udhariCustomer customer,Box<udhariCustomer> box) async {
     try {
       final prefs = await SharedPreferences.getInstance();
     final apicall = await prefs.getString("adminPanel") ?? "no";
@@ -35,6 +36,11 @@ class UdhariSyncService {
       if (response.statusCode != 200) {
         print_log_red("Failed to sync customer: ${response.body}");
       } else{
+         final udhariCustomer = box.get(customer.id);
+          if (udhariCustomer != null) {
+            udhariCustomer.synced = true;
+            box.put(udhariCustomer);
+          }
         print_log(" customer: ${response.body}");
       }
     } catch (e) {

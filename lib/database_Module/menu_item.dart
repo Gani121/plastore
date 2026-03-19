@@ -7,7 +7,8 @@ import 'package:objectbox/objectbox.dart';
 class MenuItem {
   @Id()
   int id = 0;
-
+  int syid;
+  bool synced;
   String name; //
   String sellPrice;
   String sellPriceType; //efault to rs
@@ -50,6 +51,8 @@ class MenuItem {
 
   MenuItem({
     this.id = 0,
+        required this.syid,
+    this.synced = false,
     required this.name,
     required this.sellPrice,
     required this.sellPriceType,
@@ -126,6 +129,8 @@ class MenuItem {
     bool? favorites,
     String? H_portion,
     String? F_portion,
+    int? syid,
+    bool? synced,
   }) {
     return MenuItem(
       id: id ?? this.id,
@@ -161,6 +166,8 @@ class MenuItem {
       H_portion: H_portion ?? this.H_portion,
       F_portion: F_portion ?? this.F_portion,
       h_qty: h_qty ?? this.h_qty,
+      syid: syid ?? this.syid,
+      synced: synced ?? this.synced,
     );
   }
 
@@ -168,6 +175,8 @@ class MenuItem {
   factory MenuItem.fromMap(Map<String, dynamic> map) {
     return MenuItem(
       id: map['id'] ?? 0,
+            syid: map['syid'] ?? 1,
+      synced: map['synced'] ?? false,
       name: map['name'] ?? '',
       sellPrice: map['sellPrice'] ?? '0',
       sellPriceType: map['sellPriceType'] ?? '',
@@ -207,6 +216,8 @@ class MenuItem {
   Map<String, dynamic> toMap() {
     return {
       'id': id,
+            'syid': syid, // Add category
+      'synced': synced, // Add category
       'name': name,
       'sellPrice': sellPrice,
       'sellPriceType': sellPriceType,
@@ -244,7 +255,7 @@ class MenuItem {
 
   @override
   String toString() {
-    return 'MenuItem(id: $id, name: $name, '
+    return 'MenuItem(id: $id, name: $name,  syid $syid synced $synced'
         'sellPrice: $sellPrice, '
         'adjustStock: $adjustStock, '
         'h_price: $h_price, '
@@ -255,6 +266,8 @@ class MenuItem {
   factory MenuItem.fromJson(Map<String, dynamic> json) {
     return MenuItem(
       itemCode: json['id']?.toString(),
+      syid: json['syid'] ?? 1,
+      synced: json['synced'] ?? false,
       // id:  int.tryParse(json['id']) ?? 0,
       name: (json['submenu']?.toString() ?? ''),
       sellPrice:json['full_price']?.toString() ??'0.00',
@@ -293,6 +306,8 @@ class MenuItem {
 
   Map<String, dynamic> toJson() {
     return {
+            'syid': syid, // Add category
+      'synced': synced, // Add category
       'name': name,
       'sellPrice': sellPrice,
       'sellPriceType': sellPriceType,

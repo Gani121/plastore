@@ -3,24 +3,23 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:image_picker/image_picker.dart';
 import '../database_Module/menu_item.dart';
-import 'package:objectbox/objectbox.dart';
-import '../objectbox.g.dart'; // This will be generated
-import 'dart:typed_data';
-import 'dart:io';
+// import 'package:objectbox/objectbox.dart';
+import '../objectbox.g.dart';
 import 'package:path_provider/path_provider.dart';
-import 'package:path/path.dart' as p;
-import 'package:image_picker/image_picker.dart';
 import '../utilities.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:test1/inventory/sync_service.dart';
 
 final ImagePicker picker = ImagePicker();
+final sync = SyncService();
 
 class AddItemPage extends StatefulWidget {
   final Store? store; // 👈 made nullable
   final MenuItem? item; // 👈 optional edit
   final int? totalItems;
+
 
   const AddItemPage({super.key, this.store, this.item,this.totalItems});
 
@@ -117,22 +116,22 @@ class _AddItemPageState extends State<AddItemPage> {
       mrpController.text = item.mrp.toString();
       purchasePriceController.text = item.purchasePrice.toString();
       acSellPrice1Controller.text = item.acSellPrice.toString();
-      acSellPrice1ControllerHalf.text = item.acSellPriceHalf.toString() ?? '0';
+      acSellPrice1ControllerHalf.text = item.acSellPriceHalf.toString();
       nonAcSellPrice1Controller.text = item.nonAcSellPrice.toString();
-      nonAcSellPrice1ControllerHalf.text = item.nonAcSellPriceHalf.toString() ?? '0';
+      nonAcSellPrice1ControllerHalf.text = item.nonAcSellPriceHalf.toString();
       onlineDeliveryPriceController.text = item.onlineDeliveryPrice.toString();
-      onlineDeliveryPriceControllerHalf.text = item.onlineDeliveryPriceHalf.toString() ?? '0';
+      onlineDeliveryPriceControllerHalf.text = item.onlineDeliveryPriceHalf.toString();
       onlineSellPriceController.text = item.onlineSellPrice.toString();
-      onlineSellPriceControllerHalf.text = item.onlineSellPriceHalf.toString() ?? '0';
+      onlineSellPriceControllerHalf.text = item.onlineSellPriceHalf.toString();
       hsnCodeController.text = item.hsnCode.toString();
-      description.text = item.reserved_field.toString() ?? "";
+      description.text = item.reserved_field.toString();
       itemCodeController.text = item.itemCode.toString();
       barCodeController.text = item.barCode.toString();
       barCode2Controller.text = item.barCode2.toString();
       availableController.text = item.available.toString();
       adjustStockController.text = item.adjustStock.toString();
-      _gstRateController.text = item.gstRate.toString() ?? "0.0";
-      _cessRateController.text = item.cessRate.toString() ?? "0.0";
+      _gstRateController.text = item.gstRate.toString();
+      _cessRateController.text = item.cessRate.toString();
       _withTaxController.text = item.withTax.toString();
       halfPriceController.text = item.h_price.toString();
       fullPriceController.text = item.f_price.toString();
@@ -274,6 +273,7 @@ class _AddItemPageState extends State<AddItemPage> {
       if(isEditing){
         menuItem = MenuItem(
         id: widget.item!.id,
+        syid:ganarateID(), 
         name: nameController.text.trim(),
         sellPrice: sellPriceController.text.trim(),
         sellPriceType: sellPriceType.trim(),
@@ -306,6 +306,7 @@ class _AddItemPageState extends State<AddItemPage> {
 
          menuItem = MenuItem(
         // id: isEditing ? widget.item!.id : itemCodeController.text ?? 0,
+        syid:ganarateID(), 
         name: nameController.text.trim(),
         sellPrice: sellPriceController.text.trim(),
         sellPriceType: sellPriceType.trim(),
@@ -341,7 +342,7 @@ class _AddItemPageState extends State<AddItemPage> {
       final id = _menuItemBox.put(menuItem); // ✅ get actual ID from ObjectBox
       final updatedItem = await _menuItemBox.get(id,) ?? menuItem; // ✅ fetch saved version from disk
       print_log("payload updatedItem $updatedItem");
-      await sendItemtoServer(updatedItem);
+      await sync.sendItemtoServer(updatedItem);
 
       if (mounted) {
         screen_massage(context, '✅ Item Saved');
@@ -359,64 +360,6 @@ class _AddItemPageState extends State<AddItemPage> {
   }
 
 
-  Future<void> sendItemtoServer(MenuItem item) async {
-    final prefs = await SharedPreferences.getInstance();
-    try {
-      
-      final hotelName = prefs.getString(AppConstants.usernameKey);
-
-      if (hotelName == null) {
-        print_log("Error: hotelName not found in SharedPreferences");
-        if (mounted) {
-          screen_massage(context, 'Error: Could not find hotel name for API call.');
-        }
-        return;
-      }
-
-      final payload = {
-        'hotel_name': hotelName,
-        'issingle': true,
-        'menuItems': [
-          {
-            // 'id': (item.id != 0 ? item.id : DateTime.now().millisecondsSinceEpoch),
-            'menu': item.category,
-            'submenu': item.name,
-            'h_price': double.tryParse(item.h_price ?? '0') ?? 0.0,
-            'f_price': double.tryParse(item.f_price ?? '0') ?? 0.0,
-            'ac_price': double.tryParse(item.acSellPrice ?? '0') ?? 0.0,
-            'ac_price_half': double.tryParse(item.acSellPriceHalf ?? '0') ?? 0.0,
-            'nonac_price': double.tryParse(item.nonAcSellPrice ?? '0') ?? 0.0,
-            'nonac_price_half': double.tryParse(item.nonAcSellPriceHalf ?? '0') ?? 0.0,
-            'online_price': double.tryParse(item.onlineSellPrice ?? '0') ?? 0.0,
-            'online_price_half': double.tryParse(item.onlineSellPriceHalf ?? '0') ?? 0.0,
-            'parcel_price': double.tryParse(item.onlineDeliveryPrice ?? '0') ?? 0.0,
-            'parcel_price_half': double.tryParse(item.onlineDeliveryPriceHalf ?? '0') ?? 0.0,
-            'purchaseprice': double.tryParse(item.purchasePrice ?? '0') ?? 0.0,
-            'mrp': double.tryParse(item.mrp ?? '0') ?? 0.0,
-            'stock': item.adjustStock ?? 0,
-            'available': item.available ?? 0,
-            'itemvnv': 0, // This field is not in your MenuItem model
-            'description': item.reserved_field,
-            'gst': item.gstRate ,
-            'itemCode': item.itemCode,
-            'barCode': item.barCode ,
-            'hsnCode': item.hsnCode ,
-          }
-        ]
-      };
-
-      print_log("Payload to send to server: ${jsonEncode(payload)}");
-
-      http.Response? response = await apiCalls("a", hotelName, payload);
-        if (response == null) {
-          return;
-        }
-
-      print_log('Server Response: ${response.statusCode} ${response.body}');
-    } catch (e) {
-      print_log_red('Error sending item to server: $e');
-    }
-  }
 
   void _loadCategories() {
     final items = _menuItemBox.getAll();

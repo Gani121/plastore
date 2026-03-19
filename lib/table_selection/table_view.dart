@@ -559,7 +559,7 @@ Future<void> readAndSaveToPrefsforkot() async {
 
 
         } else {
-          final newCart = tableCart(tableNo: tNo, tCart: stringCart);
+          final newCart = tableCart(syid:ganarateID(), tableNo: tNo, tCart: stringCart);
           cartBox.put(newCart);
           //debugPrint("🟢 Created ObjectBox Cart → Table $tNo");
         }
@@ -688,7 +688,7 @@ Future<void> readAndSaveToPrefs() async {
           cartBox.put(existing);
           //debugPrint("🟢 Merged ObjectBox Cart → Table $tNo");
         } else {
-          final newCart = tableCart(tableNo: tNo, tCart: stringCartNew);
+          final newCart = tableCart(syid:ganarateID(), tableNo: tNo, tCart: stringCartNew);
           cartBox.put(newCart);
           //debugPrint("🟢 Created new ObjectBox Cart → Table $tNo");
         }
@@ -858,6 +858,7 @@ void _addNewTable() {
                     // --- This logic for creating the object is unchanged ---
                     // NOTE: You are saving the sectionName into the 'paymentMethod' field.
                     final newTableObject = Active_Table_view(
+                      syid:ganarateID(), 
                       number: newTableNumber,
                       paymentMethod: sectionName,
                     );

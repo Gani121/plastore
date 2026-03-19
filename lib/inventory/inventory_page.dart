@@ -6,6 +6,7 @@ import 'dart:io';
 import '../objectbox.g.dart';
 import 'package:objectbox/objectbox.dart';
 import '../database_Module/menu_item.dart';
+import '../database_Module/cunsuption.dart'; // Adjust path
 import 'package:test1/database_Module/ObjectBoxService.dart';
 import 'package:provider/provider.dart';
 import '../theme_setting/theme_provider.dart';
@@ -15,6 +16,7 @@ import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:test1/inventory/InventoryMasterPage.dart';
+import 'package:test1/inventory/sync_service.dart';
 
 class InventoryPage extends StatefulWidget {
   //final Store store;
@@ -27,6 +29,8 @@ class InventoryPage extends StatefulWidget {
 
 class _InventoryPageState extends State<InventoryPage> {
   late final Box<MenuItem> _menuItemBox;
+  late Box<InventoryItem> _inventoryBox;
+  late Box<ItemConsumption> _consumptionBox;
   List<MenuItem> _items = [];
   List<MenuItem> _filteredItems = []; // To hold search results
   final TextEditingController _searchController = TextEditingController();
@@ -41,17 +45,25 @@ class _InventoryPageState extends State<InventoryPage> {
   final List<String> _alphabets = [];
   String _currentAlphabet = '';
   int? totalItems;
+  final sync = SyncService();
 
   @override
   void initState() {
     super.initState();
-    final store = Provider.of<ObjectBoxService>(context, listen: false).store;
-    _menuItemBox = store.box<MenuItem>();
+    final _store = Provider.of<ObjectBoxService>(context, listen: false).store;
+    _menuItemBox = _store.box<MenuItem>();
+    _inventoryBox = _store.box<InventoryItem>();
+    _consumptionBox = _store.box<ItemConsumption>();
     _searchController.addListener(_filterItems);
     // Add a listener to update the active alphabet while scrolling
     _itemPositionsListener.itemPositions.addListener(_onScroll);
     // Load items after the first frame to ensure context is available
-    WidgetsBinding.instance.addPostFrameCallback((_) => _loadItems());
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _loadItems();
+      sync.addNewStock(null, _inventoryBox);
+      sync.saveRecipeToServer(null, null, null, _consumptionBox);
+      _sendItemsToServer();
+    });
   }
 
   @override
@@ -72,10 +84,20 @@ class _InventoryPageState extends State<InventoryPage> {
     });
   }
 
+  Future<void> _sendItemsToServer() async {
+    final items = _menuItemBox.getAll();
+    // Sort items alphabetically by name (case-insensitive)
+    for (var item in items) {
+      if(!item.synced){
+        await sync.sendItemtoServer(item);
+      }
+    }
+  }
+
   Map<String, List<MenuItem>> _getGroupedItems() {
     Map<String, List<MenuItem>> grouped = {};
     for (var item in _filteredItems) {
-      String cat = item.category ?? "Uncategorized";
+      String cat = item.category;
       if (!grouped.containsKey(cat)) {
         grouped[cat] = [];
       }
@@ -134,174 +156,314 @@ class _InventoryPageState extends State<InventoryPage> {
   }
 
 
-  Future<void> _showAdjustStockDialog(BuildContext context, MenuItem item) async {
-    final TextEditingController controller = TextEditingController();
-    bool isOverride = false;
+Future<void> _showAdjustStockDialog(BuildContext context, MenuItem item) async {
+  final TextEditingController controller = TextEditingController();
+  bool isOverride = false;
 
-    await showDialog(
-      context: context,
-      builder: (context) {
-        bool _isProcessing = false;
-        return StatefulBuilder(
-          builder: (context, setDialogState) {
-            return AlertDialog(
-              title: Text("${AppLocalizations.of(context)!.print} ${item.name}"),
-              content: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  TextField(
-                    controller: controller,
-                    keyboardType: TextInputType.number,
-                    decoration: InputDecoration(
-                      labelText: AppLocalizations.of(context)!.enter_qty_add,
-                      border: OutlineInputBorder(),
-                    ),
+  await showDialog(
+    context: context,
+    builder: (context) {
+      bool _isProcessing = false;
+      return StatefulBuilder(
+        builder: (context, setDialogState) {
+          return AlertDialog(
+            title: Text("Adjust Stock - ${item.name}"),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                // Current stock display
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: Colors.grey[200],
+                    borderRadius: BorderRadius.circular(8),
                   ),
-                  const SizedBox(height: 10),
-                  Row(
+                  child: Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      const Text("Override Stock"),
-                      Switch(
-                        value: isOverride,
-                        onChanged: (val) {
-                          setDialogState(() {
-                            isOverride = val;
-                          });
-                        },
+                      Text(
+                        "Current Stock:",
+                        style: TextStyle(fontWeight: FontWeight.bold),
+                      ),
+                      Text(
+                        "${item.adjustStock ?? 0}",
+                        style: TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.blue,
+                        ),
                       ),
                     ],
                   ),
-                ],
-              ),
-              actions: [
-                TextButton(
-                  onPressed: () => Navigator.pop(context),
-                  child: Text(AppLocalizations.of(context)!.cancel),
                 ),
-                ElevatedButton(
-                  onPressed: _isProcessing ? null : () async {
-                    setDialogState(() {
-                      _isProcessing = true;
-                    });
+                const SizedBox(height: 16),
+                TextField(
+                  controller: controller,
+                  keyboardType: TextInputType.number,
+                  decoration: InputDecoration(
+                    labelText: "Enter quantity to add/reduce",
+                    hintText: "Use -ve for reduction, e.g., -5",
+                    border: OutlineInputBorder(),
+                    // prefixIcon: Icon(isOverride ? I.edit_note : I.add_box),
+                  ),
+                ),
+                const SizedBox(height: 10),
+                // Info text based on mode
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: Colors.blue[50],
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Row(
+                    children: [
+                      // Icon(
+                      //   // isOverride ? I.warning_amber : I.info,
+                      //   size: 16,
+                      //   color: isOverride ? Colors.orange : Colors.blue,
+                      // ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text( "Add mode: Use positive number(1) to add, negative number(-1) to reduce",
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: Colors.blue[900],
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 10),
+                // Override switch
+                // Row(
+                //   mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                //   children: [
+                //     Text(
+                //       "Override Mode",
+                //       style: TextStyle(
+                //         fontWeight: isOverride ? FontWeight.bold : FontWeight.normal,
+                //         color: isOverride ? Colors.orange : null,
+                //       ),
+                //     ),
+                //     Switch(
+                //       value: isOverride,
+                //       activeColor: Colors.orange,
+                //       onChanged: (val) {
+                //         setDialogState(() {
+                //           isOverride = val;
+                //           controller.clear(); // Clear input when switching modes
+                //         });
+                //       },
+                //     ),
+                //   ],
+                // ),
+              ],
+            ),
+            actions: [
+              TextButton(
+                onPressed: _isProcessing ? null : () => Navigator.pop(context),
+                child: Text(AppLocalizations.of(context)!.cancel),
+              ),
+              ElevatedButton(
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.blue,
+                ),
+                onPressed: _isProcessing ? null : () async {
+                  setDialogState(() {
+                    _isProcessing = true;
+                  });
+
+                  try {
                     final store = Provider.of<ObjectBoxService>(context, listen: false).store;
                     final Box<MenuItem> menuItemBox = store.box<MenuItem>();
 
                     final int addValue = int.tryParse(controller.text) ?? 0;
-                    if (!isOverride && addValue <= 0) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(content: Text(AppLocalizations.of(context)!.enter_valid_number)),
-                      );
-                      setDialogState(() {
-                        _isProcessing = false;
-                      });
-                      return;
+                    
+                    // Validate input
+                    if (controller.text.isEmpty) {
+                      throw Exception('Please enter a value');
                     }
 
-                    // Update the stock
+                    // Calculate new stock
                     int currentStock = item.adjustStock ?? 0;
-                    if (isOverride) {
-                      item.adjustStock = addValue;
-                    } else {
-                      item.adjustStock = currentStock + addValue;
+                    int newStock;
+                    
+                    
+                      newStock = currentStock + addValue;
+                    
+
+                    // Validate new stock is not negative
+                    if (newStock < 0) {
+                      throw Exception('Stock cannot be negative. Current: $currentStock, Change: $addValue');
                     }
 
-                    // Save to database
-                    menuItemBox.put(item);
-                    print_log("✅ Stock updated in $item");
-                    await sendItemtoServer(item);
+                    // Send to server FIRST (to ensure server sync)
+                    try {
+                      await sendStockToServer(item, addValue, isOverride:isOverride);
+                      
+                      // Update local stock only after successful server update
+                      item.adjustStock = newStock;
+                      
+                      // Save to local database
+                      menuItemBox.put(item);
+                      print_log("✅ Stock updated locally: ${item.name} -> $newStock");
 
-                    if (context.mounted) {
-                      setDialogState(() {
-                        _isProcessing = false;
-                      });
-                      Navigator.pop(context); // Close dialog
-
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(content: Text("✅ Stock updated to ${item.adjustStock}")),
-                      );
-                      // _filteredItems
-                      setState(() {});
-                    }
-                  },
-                  child: _isProcessing
-                      ? const SizedBox(
-                          height: 20,
-                          width: 20,
-                          child: CircularProgressIndicator(
-                            strokeWidth: 2,
+                      if (context.mounted) {
+                        Navigator.pop(context); // Close dialog
+                        
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content: Text("✅ Stock updated to $newStock"),
+                            backgroundColor: Colors.green,
                           ),
-                        )
-                      : const Text("OK"),
-                ),
-              ],
-            );
-          },
-        );
-      },
-    );
-  }
-    Future<void> sendItemtoServer(MenuItem item) async {
-    final prefs = await SharedPreferences.getInstance();
-    try {
+                        );
+                        
+                        // Refresh UI
+                        setState(() {});
+                      }
+                    } catch (serverError) {
+                      // Server update failed
+                      print_log('❌ Server update failed: $serverError');
+                      
+                      if (context.mounted) {
+                        // Ask user if they want to retry or proceed with local only
+                        bool? retry = await showDialog(
+                          context: context,
+                          builder: (context) => AlertDialog(
+                            title: Text('Server Sync Failed'),
+                            content: Text('Failed to update stock on server. Do you want to retry?'),
+                            actions: [
+                              TextButton(
+                                onPressed: () => Navigator.pop(context, false),
+                                child: Text('Local Only'),
+                              ),
+                              ElevatedButton(
+                                onPressed: () => Navigator.pop(context, true),
+                                child: Text('Retry'),
+                              ),
+                            ],
+                          ),
+                        );
+
+                        if (retry == true) {
+                          // Retry server update
+                          setDialogState(() {
+                            _isProcessing = false;
+                          });
+                          return; // This will restart the process
+                        } else {
+                          // Proceed with local update only
+                          item.adjustStock = newStock;
+                          menuItemBox.put(item);
+                          
+                          Navigator.pop(context);
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: Text("⚠️ Stock updated locally only"),
+                              backgroundColor: Colors.orange,
+                            ),
+                          );
+                          setState(() {});
+                        }
+                      }
+                    }
+                  } catch (e) {
+                    if (context.mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Text("❌ Error: $e"),
+                          backgroundColor: Colors.red,
+                        ),
+                      );
+                    }
+                    setDialogState(() {
+                      _isProcessing = false;
+                    });
+                  }
+                },
+                child: _isProcessing
+                    ? const SizedBox(
+                        height: 20,
+                        width: 20,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          color: Colors.white,
+                        ),
+                      )
+                    : const Text("UPDATE"),
+              ),
+            ],
+          );
+        },
+      );
+    },
+  );
+}
+
+
+
+  // Future<void> sendItemtoServer(MenuItem item) async {
+  //   final prefs = await SharedPreferences.getInstance();
+  //   try {
       
-      final hotelName = prefs.getString(AppConstants.usernameKey);
+  //     final hotelName = prefs.getString(AppConstants.usernameKey);
 
-      if (hotelName == null) {
-        print_log("Error: hotelName not found in SharedPreferences");
-        if (mounted) {
-          screen_massage(context, 'Error: Could not find hotel name for API call.');
-        }
-        return;
-      }
+  //     if (hotelName == null) {
+  //       print_log("Error: hotelName not found in SharedPreferences");
+  //       if (mounted) {
+  //         screen_massage(context, 'Error: Could not find hotel name for API call.');
+  //       }
+  //       return;
+  //     }
 
-      final payload = {
-        'hotel_name': hotelName,
-        'issingle': true,
-        'menuItems': [
-          {
-            // 'id': item.itemCode?.isNotEmpty == true ? item.itemCode : (item.id != 0 ? item.id.toString() : 'item_${DateTime.now().millisecondsSinceEpoch}'),
-            'menu': item.category,
-            'submenu': item.name,
-            'h_price': double.tryParse(item.h_price ?? '0') ?? 0.0,
-            'f_price': double.tryParse(item.f_price ?? '0') ?? 0.0,
-            'ac_price': double.tryParse(item.acSellPrice ?? '0') ?? 0.0,
-            'ac_price_half': double.tryParse(item.acSellPriceHalf ?? '0') ?? 0.0,
-            'nonac_price': double.tryParse(item.nonAcSellPrice ?? '0') ?? 0.0,
-            'nonac_price_half': double.tryParse(item.nonAcSellPriceHalf ?? '0') ?? 0.0,
-            'online_price': double.tryParse(item.onlineSellPrice ?? '0') ?? 0.0,
-            'online_price_half': double.tryParse(item.onlineSellPriceHalf ?? '0') ?? 0.0,
-            'parcel_price': double.tryParse(item.onlineDeliveryPrice ?? '0') ?? 0.0,
-            'parcel_price_half': double.tryParse(item.onlineDeliveryPriceHalf ?? '0') ?? 0.0,
-            'purchaseprice': double.tryParse(item.purchasePrice ?? '0') ?? 0.0,
-            'mrp': double.tryParse(item.mrp ?? '0') ?? 0.0,
-            'stock': item.adjustStock ?? 0,
-            'available': item.available ?? 0,
-            'itemvnv': 0, // This field is not in your MenuItem model
-            'description': item.reserved_field,
-            'gst': item.gstRate ,
-            'itemCode': item.itemCode,
-            'barCode': item.barCode ,
-            'hsnCode': item.hsnCode ,
-          }
-        ]
-      };
+  //     final payload = {
+  //       'hotel_name': hotelName,
+  //       'issingle': true,
+  //       'menuItems': [
+  //         {
+  //           // 'id': item.itemCode?.isNotEmpty == true ? item.itemCode : (item.id != 0 ? item.id.toString() : 'item_${DateTime.now().millisecondsSinceEpoch}'),
+  //           'menu': item.category,
+  //           'submenu': item.name,
+  //           'h_price': double.tryParse(item.h_price ?? '0') ?? 0.0,
+  //           'f_price': double.tryParse(item.f_price ?? '0') ?? 0.0,
+  //           'ac_price': double.tryParse(item.acSellPrice ?? '0') ?? 0.0,
+  //           'ac_price_half': double.tryParse(item.acSellPriceHalf ?? '0') ?? 0.0,
+  //           'nonac_price': double.tryParse(item.nonAcSellPrice ?? '0') ?? 0.0,
+  //           'nonac_price_half': double.tryParse(item.nonAcSellPriceHalf ?? '0') ?? 0.0,
+  //           'online_price': double.tryParse(item.onlineSellPrice ?? '0') ?? 0.0,
+  //           'online_price_half': double.tryParse(item.onlineSellPriceHalf ?? '0') ?? 0.0,
+  //           'parcel_price': double.tryParse(item.onlineDeliveryPrice ?? '0') ?? 0.0,
+  //           'parcel_price_half': double.tryParse(item.onlineDeliveryPriceHalf ?? '0') ?? 0.0,
+  //           'purchaseprice': double.tryParse(item.purchasePrice ?? '0') ?? 0.0,
+  //           'mrp': double.tryParse(item.mrp ?? '0') ?? 0.0,
+  //           'stock': item.adjustStock ?? 0,
+  //           'available': item.available ?? 0,
+  //           'itemvnv': 0, // This field is not in your MenuItem model
+  //           'description': item.reserved_field,
+  //           'gst': item.gstRate ,
+  //           'itemCode': item.itemCode,
+  //           'barCode': item.barCode ,
+  //           'hsnCode': item.hsnCode ,
+  //         }
+  //       ]
+  //     };
 
-      print_log("Payload to send to server: ${jsonEncode(payload)}");
+  //     print_log("Payload to send to server: ${jsonEncode(payload)}");
 
-      http.Response? response = await apiCalls("a", hotelName, payload);
-        if (response == null) {
-          return;
-        }
+  //     http.Response? response = await apiCalls("a", hotelName, payload);
+  //       if (response == null) {
+  //         return;
+  //       }
 
-      print_log('Server Response: ${response.statusCode} ${response.body}');
-    } catch (e) {
-      print_log_red('Error sending item to server: $e');
-    }
-  }
+  //     print_log('Server Response: ${response.statusCode} ${response.body}');
+  //   } catch (e) {
+  //     print_log_red('Error sending item to server: $e');
+  //   }
+  // }
 
   Widget _buildItemCard(MenuItem item) {
-    final themeProvider = Provider.of<ThemeProvider>(context, listen: false);
+    // final themeProvider = Provider.of<ThemeProvider>(context, listen: false);
     final store = Provider.of<ObjectBoxService>(context, listen: false).store;
 
     // Image path logic

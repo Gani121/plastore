@@ -39,6 +39,7 @@ import 'package:pdf/widgets.dart' as pw;
 // import 'package:flutter/material.dart' show debugPrint;
 
 
+
   enum PrintQuality {
     light,
     normal, 
@@ -57,16 +58,16 @@ import 'package:pdf/widgets.dart' as pw;
 
 class BillPrinter {
   thermal.BlueThermalPrinter printer = thermal.BlueThermalPrinter.instance;
-  thermal.BluetoothDevice? _selectedDevice;
-  thermal.BluetoothDevice? _selectedKOTDevice;
-  bl.BluetoothDevice? _connectedDevice;
+  // thermal.BluetoothDevice? _selectedDevice;
+  // thermal.BluetoothDevice? _selectedKOTDevice;
+  // bl.BluetoothDevice? _connectedDevice;
   Generator? _generator;
   Function()? onTransactionAdded;
-  List<bl.ScanResult> _scanResults = [];
-  StreamSubscription<List<bl.ScanResult>>? _scanSubscription;
-  static const String SERVICE_UUID1 = "0000ff00-0000-1000-8000-00805f9b34fb";
-  static const String CHARACTERISTIC_UUID = "0000ff02-0000-1000-8000-00805f9b34fb";
-  static String SERVICE_UUID = "49535343-8841-43f4-a8d4-ecbe34729bb3";
+  // List<bl.ScanResult> _scanResults = [];
+  // StreamSubscription<List<bl.ScanResult>>? _scanSubscription;
+  // static const String SERVICE_UUID1 = "0000ff00-0000-1000-8000-00805f9b34fb";
+  // static const String CHARACTERISTIC_UUID = "0000ff02-0000-1000-8000-00805f9b34fb";
+  // static String SERVICE_UUID = "49535343-8841-43f4-a8d4-ecbe34729bb3";
   late List<int> bytes = [];
   final int printerWidth = 384;
   late bool KOT_Print = false;
@@ -140,7 +141,7 @@ class BillPrinter {
       final cart =  (oldcart1 != null) ? oldcart1 : cart1;
       final _tableno = tableNo ?? 0;
       final prefs = await SharedPreferences.getInstance();
-      SERVICE_UUID = prefs.getString('selected_printer_uuid') ?? "49535343-8841-43f4-a8d4-ecbe34729bb3";
+      // SERVICE_UUID = prefs.getString('selected_printer_uuid') ?? "49535343-8841-43f4-a8d4-ecbe34729bb3";
       maxChunkSize =  prefs.getInt('chunkSize') ?? 200;
       final int billNo = (transactionData?['billNo'] == null) ? getNextBillNo(context) : transactionData?['billNo'];
       final box = store.box<Transaction>();
@@ -153,7 +154,7 @@ class BillPrinter {
       KOT_Print = mode.toLowerCase().contains("kot") || payment_mode.toLowerCase().contains("kot");
       
       bool settle_button_enabled = prefs.getBool("settle_button_enabled") ?? false;
-      bool otherprinter = prefs.getBool("otherprinter") ?? false;
+      // bool otherprinter = prefs.getBool("otherprinter") ?? false;
       if(settle_button_enabled){
         print_log("in settel transection only");
           await settel_update(
@@ -191,10 +192,41 @@ class BillPrinter {
       bytes = [];
 
       // print_log("settle_button_enabled mode ${isConnected}  payment_mode $payment_mode settle_button_enabled $settle_button_enabled");
-
+      // bool isconnected = true;
+      if(address.isEmpty){
+        screen_massage(context, "Printer is not Selected");
+        return false;
+      }
+        
       bool isconnected =  await _connectToPrinter(address);
+      String massage = 
+      """ 
+      Printer is not connected.
+      1. Bluetooth is Connected to Other Device.
+      2. Unpaire Your Other Devices.
+      3. Turn off Printer 5min And Try Again.
+      """;
       if(!isconnected){
-      return false;
+        if(context.mounted){
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: RichText(
+                text: TextSpan(
+                  text: massage,
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    color: Colors.white,
+                    fontSize: 16,
+                  ),
+                ),
+              ),
+              duration: Duration(seconds: 10),
+              backgroundColor: Colors.blue, // Optional: change background color
+              // behavior: SnackBarBehavior.floating,
+            ),
+          );
+        }
+        return false;
       }
 
       switch (mode.toLowerCase()) {
@@ -369,7 +401,7 @@ Future<List<int>> _getLogoBytes(String imagePath, {int printerWidth = 384}) asyn
     return cmd;
     
   } catch (e) {
-    //debugPrint("❌ Logo error: $e");
+    print_log_red("❌ Logo error: $e");
     return [0x1B, 0x40];
   }
 }
@@ -421,29 +453,29 @@ Future<void> printBillWithLogo(thermal.BlueThermalPrinter bluetooth) async {
     String contactPhone = prefs.getString('contactPhone') ?? '';
     String contactEmail = prefs.getString('contactEmail') ?? '';
     String businessAddress = prefs.getString('businessAddress') ?? '';
-    bool marathi = prefs.getBool('marathi') ?? false;
+    // bool marathi = prefs.getBool('marathi') ?? false;
     bool customerName = prefs.getBool('customerName') ?? false;
-    String gst = prefs.getString('gst') ?? '';
-    String? upiId = prefs.getString('upi');
+    // String gst = prefs.getString('gst') ?? '';
+    // String? upiId = prefs.getString('upi');
 
-    // ⚙ Printer user settings
-    bool printQr = prefs.getBool('printQR') ?? true;
-    String _qrSize = prefs.getString('qrSize') ?? "5";
-    int logoWidth = prefs.getInt('logoWidth') ?? 200;
-    int logoheight = prefs.getInt('logoheight') ?? 200;
+    // // ⚙ Printer user settings
+    // bool printQr = prefs.getBool('printQR') ?? true;
+    // String _qrSize = prefs.getString('qrSize') ?? "5";
+    // int logoWidth = prefs.getInt('logoWidth') ?? 200;
+    // int logoheight = prefs.getInt('logoheight') ?? 200;
     String footer =  prefs.getString('footerText')?? "** Thank You **";
-    bool printName = prefs.getBool('printName') ?? true;
-    String paperSize = prefs.getString('paperSize') ?? '2';
-    bool _printQRlogo = prefs.getBool('printQRlogo') ?? true;
+    // bool printName = prefs.getBool('printName') ?? true;
+    // String paperSize = prefs.getString('paperSize') ?? '2';
+    // bool _printQRlogo = prefs.getBool('printQRlogo') ?? true;
     
-    int headerFontSizePref = prefs.getInt('headerFontSize') ?? 2;
-    int itemFontSizePref = (prefs.getDouble('fontSize') ?? 1).toInt();
+    // int headerFontSizePref = prefs.getInt('headerFontSize') ?? 2;
+    // int itemFontSizePref = (prefs.getDouble('fontSize') ?? 1).toInt();
 
-    // Get print quality from settings or use maximum
-    PrintQuality quality = PrintQuality.maximum;
-    SoundPattern sound = SoundPattern.tripleBeep;
+    // // Get print quality from settings or use maximum
+    // PrintQuality quality = PrintQuality.maximum;
+    // SoundPattern sound = SoundPattern.tripleBeep;
     final String dateTime = DateFormat('dd-MMM-yyyy hh:mm a').format(DateTime.now());
-    final imagePath = prefs.getString('imagePath');
+    // final imagePath = prefs.getString('imagePath');
     String? address;
     thermal.BluetoothDevice? device;
 
@@ -470,15 +502,15 @@ Future<void> printBillWithLogo(thermal.BlueThermalPrinter bluetooth) async {
       }
 
       // Method 2: If not bonded, create a device from address and connect
-      if (device == null) {
+      // if (device == null) {
         //debugPrint("🔄 Printer not bonded, creating device from address...");
-        device = thermal.BluetoothDevice("Printer", address);
-        //debugPrint("✅ Created device from address: ${device.address}");
-      }
+        device ??= thermal.BluetoothDevice("Printer", address);
+      //   //debugPrint("✅ Created device from address: ${device.address}");
+      // }
 
       bool? isConnected = await printer.isConnected;
       if (isConnected != true) {
-        await printer.connect(device!);
+        await printer.connect(device);
         print_log("❌ connected");
       }
       printer.writeBytes(Uint8List.fromList(initCommand));
@@ -755,21 +787,21 @@ Future<void> printBillWithLogo(thermal.BlueThermalPrinter bluetooth) async {
       _generator = Generator(_paperSize, await CapabilityProfile.load());
 
       final connected = await PrinterService.connectToPrinterUsingMac(macAddress);
-      print_log("connected true $connected");
+      print_log("connected $connected");
       await PrinterService.Initialize_Printer();
       sleep(2, "s");
 
       return connected;
     } catch (e) {
-      //debugPrint("❌ Error connecting to printer: $e");
+      print_log_red("❌ Error connecting to printer: $e");
       return false;
     }
   }
 
-  Future<bool> _isConnected() async {
-    final isconnected = PrinterService.isconnected();
-    return isconnected;
-  }
+  // Future<bool> _isConnected() async {
+  //   final isconnected = PrinterService.isconnected();
+  //   return isconnected;
+  // }
 
   Future<void> _disconnect() async {
 
@@ -781,7 +813,7 @@ Future<void> printBillWithLogo(thermal.BlueThermalPrinter bluetooth) async {
 
     } catch (e) {
 
-      //debugPrint("❌ Error sending chunk $e");
+      print_log_red("❌ Error sending chunk $e");
 
     }
     _generator = null;
@@ -802,10 +834,10 @@ Future<void> printBillWithLogo(thermal.BlueThermalPrinter bluetooth) async {
         sleep(3, "s");
 
       } catch (e) {
-        //debugPrint("❌ Error sending chunk $e");
+        print_log_red("❌ Error sending chunk $e");
       }
     bytes = [];
-    //debugPrint("🎉 All data sent successfully to printer!");
+    print_log_red("🎉 All data sent successfully to printer!");
   }
 
 
@@ -829,7 +861,7 @@ Future<void> printBillWithLogo(thermal.BlueThermalPrinter bluetooth) async {
         await Future.delayed(Duration(milliseconds: 30));
         
       } catch (e) {
-        //debugPrint("❌ Error sending chunk ${(i ~/ maxChunkSize) + 1}: $e");
+        print_log_red("❌ Error sending chunk ${(i ~/ maxChunkSize) + 1}: $e");
         // Try with response if withoutResponse fails
         try {
           await printerCharacteristics.write(chunk, withoutResponse: false);
@@ -847,51 +879,51 @@ Future<void> printBillWithLogo(thermal.BlueThermalPrinter bluetooth) async {
 
 
 
-  Uint8List _processImageForPrinter(
-    Uint8List rgbaBytes, 
-    int originalWidth, 
-    int originalHeight, 
-    int targetWidth
-  ) {
-    final originalImage = img.Image.fromBytes(
-      width: originalWidth,
-      height: originalHeight,
-      bytes: rgbaBytes.buffer,
-      format: img.Format.uint8,
-      order: img.ChannelOrder.rgba,
-    );
+  // Uint8List _processImageForPrinter(
+  //   Uint8List rgbaBytes, 
+  //   int originalWidth, 
+  //   int originalHeight, 
+  //   int targetWidth
+  // ) {
+  //   final originalImage = img.Image.fromBytes(
+  //     width: originalWidth,
+  //     height: originalHeight,
+  //     bytes: rgbaBytes.buffer,
+  //     format: img.Format.uint8,
+  //     order: img.ChannelOrder.rgba,
+  //   );
 
-    final resizedImage = img.copyResize(
-      originalImage,
-      width: targetWidth,
-      interpolation: img.Interpolation.average,
-    );
+  //   final resizedImage = img.copyResize(
+  //     originalImage,
+  //     width: targetWidth,
+  //     interpolation: img.Interpolation.average,
+  //   );
 
-    final pitch = resizedImage.width ~/ 8;
-    final result = Uint8List(resizedImage.height * pitch);
-    int resultIndex = 0;
+  //   final pitch = resizedImage.width ~/ 8;
+  //   final result = Uint8List(resizedImage.height * pitch);
+  //   int resultIndex = 0;
 
-    for (int y = 0; y < resizedImage.height; y++) {
-      for (int x_byte = 0; x_byte < pitch; x_byte++) {
-        int packedByte = 0;
-        for (int x_bit = 0; x_bit < 8; x_bit++) {
-          final x = x_byte * 8 + x_bit;
+  //   for (int y = 0; y < resizedImage.height; y++) {
+  //     for (int x_byte = 0; x_byte < pitch; x_byte++) {
+  //       int packedByte = 0;
+  //       for (int x_bit = 0; x_bit < 8; x_bit++) {
+  //         final x = x_byte * 8 + x_bit;
           
-          final pixel = resizedImage.getPixel(x, y);
-          final luminance = (0.299 * pixel.r + 0.587 * pixel.g + 0.114 * pixel.b).toInt();
+  //         final pixel = resizedImage.getPixel(x, y);
+  //         final luminance = (0.299 * pixel.r + 0.587 * pixel.g + 0.114 * pixel.b).toInt();
           
-          if (luminance < 128) {
-            // --- THIS IS THE KEY CHANGE ---
-            // Reverses the bit order to match many common thermal printers.
-            packedByte |= (1 << x_bit); 
-          }
-        }
-        result[resultIndex++] = packedByte;
-      }
-    }
+  //         if (luminance < 128) {
+  //           // --- THIS IS THE KEY CHANGE ---
+  //           // Reverses the bit order to match many common thermal printers.
+  //           packedByte |= (1 << x_bit); 
+  //         }
+  //       }
+  //       result[resultIndex++] = packedByte;
+  //     }
+  //   }
     
-    return result;
-  }
+  //   return result;
+  // }
 
 
 
@@ -907,52 +939,52 @@ Future<void> printBillWithLogo(thermal.BlueThermalPrinter bluetooth) async {
 
 
 
-  Future<List<int>> _setPrintQuality(PrintQuality quality) async {
-    try {
+  // Future<List<int>> _setPrintQuality(PrintQuality quality) async {
+  //   try {
       
       
-      // bytes += _generator!.reset();
+  //     // bytes += _generator!.reset();
       
-      switch (quality) {
-        case PrintQuality.light:
-          // Light printing (fast, less contrast)
-          bytes += _generator!.rawBytes([0x1B, 0x37, 0x14, 0xC8, 0x96]); // Low heating
-          bytes += _generator!.rawBytes([0x1B, 0x45, 0x00]); // Emphasis off
-          break;
+  //     switch (quality) {
+  //       case PrintQuality.light:
+  //         // Light printing (fast, less contrast)
+  //         bytes += _generator!.rawBytes([0x1B, 0x37, 0x14, 0xC8, 0x96]); // Low heating
+  //         bytes += _generator!.rawBytes([0x1B, 0x45, 0x00]); // Emphasis off
+  //         break;
           
-        case PrintQuality.normal:
-          // Normal printing (balanced)
-          bytes += _generator!.rawBytes([0x1B, 0x37, 0x1E, 0x64, 0xC8]); // Medium heating
-          bytes += _generator!.rawBytes([0x1B, 0x45, 0x00]); // Emphasis off
-          break;
+  //       case PrintQuality.normal:
+  //         // Normal printing (balanced)
+  //         bytes += _generator!.rawBytes([0x1B, 0x37, 0x1E, 0x64, 0xC8]); // Medium heating
+  //         bytes += _generator!.rawBytes([0x1B, 0x45, 0x00]); // Emphasis off
+  //         break;
           
-        case PrintQuality.dark:
-          // Dark printing (good contrast)
-          bytes += _generator!.rawBytes([0x1B, 0x37, 0x28, 0x50, 0xFA]); // High heating
-          bytes += _generator!.rawBytes([0x1B, 0x45, 0x01]); // Emphasis on
-          bytes += _generator!.rawBytes([0x1D, 0x45, 0x01]); // High density
-          break;
+  //       case PrintQuality.dark:
+  //         // Dark printing (good contrast)
+  //         bytes += _generator!.rawBytes([0x1B, 0x37, 0x28, 0x50, 0xFA]); // High heating
+  //         bytes += _generator!.rawBytes([0x1B, 0x45, 0x01]); // Emphasis on
+  //         bytes += _generator!.rawBytes([0x1D, 0x45, 0x01]); // High density
+  //         break;
           
-        case PrintQuality.maximum:
-        //debugPrint("🎛️ Setting print quality: $quality");
-          // Maximum darkness (slowest, best for images)
-          bytes += _generator!.rawBytes([0x1B, 0x37, 0x32, 0x32, 0xFA]); // Max heating
-          bytes += _generator!.rawBytes([0x1B, 0x45, 0x01]); // Emphasis on
-          bytes += _generator!.rawBytes([0x1D, 0x45, 0x02]); // Maximum density
-          // bytes += _generator!.rawBytes([0x1B, 0x2A, 0x21]); // High energy
-          // Slow down print speed for better heating
-          bytes += _generator!.rawBytes([0x1B, 0x1D, 0x03]); // Reduced speed
-          break;
-      }
+  //       case PrintQuality.maximum:
+  //       //debugPrint("🎛️ Setting print quality: $quality");
+  //         // Maximum darkness (slowest, best for images)
+  //         bytes += _generator!.rawBytes([0x1B, 0x37, 0x32, 0x32, 0xFA]); // Max heating
+  //         bytes += _generator!.rawBytes([0x1B, 0x45, 0x01]); // Emphasis on
+  //         bytes += _generator!.rawBytes([0x1D, 0x45, 0x02]); // Maximum density
+  //         // bytes += _generator!.rawBytes([0x1B, 0x2A, 0x21]); // High energy
+  //         // Slow down print speed for better heating
+  //         bytes += _generator!.rawBytes([0x1B, 0x1D, 0x03]); // Reduced speed
+  //         break;
+  //     }
       
-      //debugPrint("✅ Print quality set to: $quality");
-      return bytes;
+  //     //debugPrint("✅ Print quality set to: $quality");
+  //     return bytes;
       
-    } catch (e) {
-      //debugPrint("❌ Error setting print quality: $e");
-      return bytes;
-    }
-  }
+  //   } catch (e) {
+  //     print_log_red("❌ Error setting print quality: $e");
+  //     return bytes;
+  //   }
+  // }
 
   // Rest of your methods remain the same...
   int getNextBillNo(BuildContext context) {
@@ -1055,11 +1087,11 @@ Future<void> printBillWithLogo(thermal.BlueThermalPrinter bluetooth) async {
     // ⚙ Printer user settings
     bool printQr = prefs.getBool('printQR') ?? true;
     String _qrSize = prefs.getString('qrSize') ?? "5";
-    int logoWidth = prefs.getInt('logoWidth') ?? 200;
-    int logoheight = prefs.getInt('logoheight') ?? 200;
+    // int logoWidth = prefs.getInt('logoWidth') ?? 200;
+    // int logoheight = prefs.getInt('logoheight') ?? 200;
     String footer =  prefs.getString('footerText')?? "** Thank You **";
     bool printName = prefs.getBool('printName') ?? true;
-    String paperSize = prefs.getString('paperSize') ?? '2';
+    // String paperSize = prefs.getString('paperSize') ?? '2';
     bool _printQRlogo = prefs.getBool('printQRlogo') ?? true;
     
     int headerFontSizePref = prefs.getInt('headerFontSize') ?? 2;
@@ -1067,8 +1099,8 @@ Future<void> printBillWithLogo(thermal.BlueThermalPrinter bluetooth) async {
     //  int itemFontSize = (prefs.getDouble('fontSize') ?? 1).round().clamp(1, 3);
 
     // Get print quality from settings or use maximum
-    PrintQuality quality = PrintQuality.maximum;
-    SoundPattern sound = SoundPattern.tripleBeep;
+    // PrintQuality quality = PrintQuality.maximum;
+    // SoundPattern sound = SoundPattern.tripleBeep;
     final String dateTime = DateFormat('dd-MMM-yyyy hh:mm a').format(DateTime.now());
     
     // Convert font sizes to ESC/POS sizes
@@ -1104,7 +1136,7 @@ Future<void> printBillWithLogo(thermal.BlueThermalPrinter bluetooth) async {
       throw Exception("Printer not initialized");
     }
 
-    String address = prefs.getString('saved_printer_address') ?? "";
+    // String address = prefs.getString('saved_printer_address') ?? "";
 
 
     final maxLineWidth = _getMaxLineWidth(_paperSize); // first line width
@@ -1679,7 +1711,7 @@ Future<void> printBillWithLogo(thermal.BlueThermalPrinter bluetooth) async {
         final file = File(imagePath);
 
         if (!await file.exists()) {
-          //debugPrint("❌ Logo file not found at: $imagePath");
+          print_log_red("❌ Logo file not found at: $imagePath");
           return;
         }
 
@@ -1687,18 +1719,18 @@ Future<void> printBillWithLogo(thermal.BlueThermalPrinter bluetooth) async {
         final img.Image? original = img.decodeImage(imageBytes);
 
         if (original == null) {
-          //debugPrint("❌ Failed to decode image at: $imagePath");
+          print_log_red("❌ Failed to decode image at: $imagePath");
           return;
         }
 
         final resized = img.copyResize(original, width: logoWidth, maintainAspect: true,);
         final grayscale = img.grayscale(resized);
-        final Uint8List resizedBytes = img.encodePng(grayscale);
+        // final Uint8List resizedBytes = img.encodePng(grayscale);
         // final Uint8List resizedBytes1 = img.encodePng(resized);
         
 
         if (_generator == null) {
-          //debugPrint("❌ _generator is not initialized.");
+          print_log_red("❌ _generator is not initialized.");
           return;
         }
 
@@ -1719,8 +1751,8 @@ Future<void> printBillWithLogo(thermal.BlueThermalPrinter bluetooth) async {
 
 
         //debugPrint("✅ Logo printed successfully.");
-      } catch (e, stack) {
-        //debugPrint("❌ Error printing logo: $e");
+      } catch (e) {
+        print_log_red("❌ Error printing logo: $e");
         //debugPrint("Stack trace: $stack");
       }
     }
@@ -1792,12 +1824,12 @@ Future<void> printBillWithLogo(thermal.BlueThermalPrinter bluetooth) async {
         qrUiImage.dispose(); 
 
         if (originalQrImage == null) {
-          //debugPrint("❌ Failed to decode QR image");
+          print_log_red("❌ Failed to decode QR image");
           return;
         }
 
         if (_generator == null) {
-          //debugPrint("❌ _generator not initialized");
+          print_log_red("❌ _generator not initialized");
           return;
         }
 
@@ -1825,8 +1857,8 @@ Future<void> printBillWithLogo(thermal.BlueThermalPrinter bluetooth) async {
         
         //debugPrint("✅ QR printed successfully.");
       }
-    } catch (e, stack) {
-      //debugPrint("❌ Error printing QR: $e");
+    } catch (e) {
+      print_log_red("❌ Error printing QR: $e");
       //debugPrint("Stack trace: $stack");
     }
   }
@@ -1847,7 +1879,7 @@ Future<void> printBillWithLogo(thermal.BlueThermalPrinter bluetooth) async {
     }
     final prefs = await SharedPreferences.getInstance();
     bool marathi = prefs.getBool('marathi') ?? false;
-    PrintQuality quality = PrintQuality.maximum;
+    // PrintQuality quality = PrintQuality.maximum;
     final String dateTime = DateFormat('dd-MMM-yyyy hh:mm a').format(DateTime.now());
 
     List<Map<String, dynamic>> kotCart = cart.map((item) => Map<String, dynamic>.from(item)).toList();
@@ -1987,118 +2019,118 @@ Future<void> printBillWithLogo(thermal.BlueThermalPrinter bluetooth) async {
   }
 
 
-  List<String> _wrapText(String text, int width) {
-    List<String> lines = [];
-    List<String> words = text.split(' ');
-    String currentLine = '';
-    //debugPrint("currentLine $text  $width");
+  // List<String> _wrapText(String text, int width) {
+  //   List<String> lines = [];
+  //   List<String> words = text.split(' ');
+  //   String currentLine = '';
+  //   //debugPrint("currentLine $text  $width");
 
-    for (String word in words) {
-      if ((currentLine + ' ' + word).length <= width) {
-        currentLine += (currentLine.isEmpty ? '' : ' ') + word;
-      } else {
-        if (currentLine.isNotEmpty) {
-          lines.add(currentLine);
-        }
-        currentLine = word;
-      }
-      //debugPrint("currentLine $currentLine");
-    }
+  //   for (String word in words) {
+  //     if ((currentLine + ' ' + word).length <= width) {
+  //       currentLine += (currentLine.isEmpty ? '' : ' ') + word;
+  //     } else {
+  //       if (currentLine.isNotEmpty) {
+  //         lines.add(currentLine);
+  //       }
+  //       currentLine = word;
+  //     }
+  //     //debugPrint("currentLine $currentLine");
+  //   }
     
-    if (currentLine.isNotEmpty) {
-      lines.add(currentLine);
-    }
-    //debugPrint("currentLine $lines");
-    return lines;
-  }
+  //   if (currentLine.isNotEmpty) {
+  //     lines.add(currentLine);
+  //   }
+  //   //debugPrint("currentLine $lines");
+  //   return lines;
+  // }
 
-  Future<bl.BluetoothDevice?> _getSavedPrinter( {required bool KOTmode, required BuildContext context}) async {
-    final prefs = await SharedPreferences.getInstance();
-    String? address;
-    if(KOTmode){
-       address = prefs.getString('saved_KOT_printer_address');
-    } else{
-       address = prefs.getString('saved_printer_address');
-    }
-    //debugPrint("Looking for saved printer with address: $address");
+  // Future<bl.BluetoothDevice?> _getSavedPrinter( {required bool KOTmode, required BuildContext context}) async {
+  //   final prefs = await SharedPreferences.getInstance();
+  //   String? address;
+  //   if(KOTmode){
+  //      address = prefs.getString('saved_KOT_printer_address');
+  //   } else{
+  //      address = prefs.getString('saved_printer_address');
+  //   }
+  //   //debugPrint("Looking for saved printer with address: $address");
     
-    if (address == null) {
-      screen_massage(context, "Printer Is Not Selected");
-      return null;
-    }
+  //   if (address == null) {
+  //     screen_massage(context, "Printer Is Not Selected");
+  //     return null;
+  //   }
 
-    try {
-      // Method 1: Check bonded devices first (already paired)
-      List<bl.BluetoothDevice> bondedDevices = await bl.FlutterBluePlus.bondedDevices;
-      //debugPrint("Found ${bondedDevices.length} bonded devices");
+  //   try {
+  //     // Method 1: Check bonded devices first (already paired)
+  //     List<bl.BluetoothDevice> bondedDevices = await bl.FlutterBluePlus.bondedDevices;
+  //     //debugPrint("Found ${bondedDevices.length} bonded devices");
       
-      for (var device in bondedDevices) {
-        //debugPrint("Bonded: ${device.platformName} - ${device.remoteId}");
-        if (device.remoteId.toString() == address) {
-          //debugPrint("✅ Found saved printer in bonded devices!");
-          return device;
-        }
-      }
+  //     for (var device in bondedDevices) {
+  //       //debugPrint("Bonded: ${device.platformName} - ${device.remoteId}");
+  //       if (device.remoteId.toString() == address) {
+  //         //debugPrint("✅ Found saved printer in bonded devices!");
+  //         return device;
+  //       }
+  //     }
 
-      // Method 2: If not bonded, create a device from address and connect
-      //debugPrint("🔄 Printer not bonded, creating device from address...");
+  //     // Method 2: If not bonded, create a device from address and connect
+  //     //debugPrint("🔄 Printer not bonded, creating device from address...");
       
-      // Create device from address
-      bl.BluetoothDevice device = bl.BluetoothDevice(remoteId: bl.DeviceIdentifier(address));
+  //     // Create device from address
+  //     bl.BluetoothDevice device = bl.BluetoothDevice(remoteId: bl.DeviceIdentifier(address));
       
-      //debugPrint("✅ Created device from address: ${device.remoteId}");
-      return device;
+  //     //debugPrint("✅ Created device from address: ${device.remoteId}");
+  //     return device;
       
-    } catch (e) {
-      //debugPrint("❌ Error in _getSavedPrinter: $e");
-      screen_massage(context, "❌ Error in _getSavedPrinter: $e");
-      return null;
-    }
-  }
+  //   } catch (e) {
+  //     //debugPrint("❌ Error in _getSavedPrinter: $e");
+  //     screen_massage(context, "❌ Error in _getSavedPrinter: $e");
+  //     return null;
+  //   }
+  // }
 
-  Future<bl.BluetoothDevice?> _getSavedPrinter1( {required bool KOTmode}) async {
-    final prefs = await SharedPreferences.getInstance();
-    String? address;
-    if(KOTmode){
-       address = prefs.getString('saved_KOT_printer_address');
-    } else{
-       address = prefs.getString('saved_printer_address');
-    }
-    //debugPrint("Looking for saved printer with address: $address");
+  // Future<bl.BluetoothDevice?> _getSavedPrinter1( {required bool KOTmode}) async {
+  //   final prefs = await SharedPreferences.getInstance();
+  //   String? address;
+  //   if(KOTmode){
+  //      address = prefs.getString('saved_KOT_printer_address');
+  //   } else{
+  //      address = prefs.getString('saved_printer_address');
+  //   }
+  //   //debugPrint("Looking for saved printer with address: $address");
     
-    if (address == null) {
-      // screen_massage(context, "Printer Is Not Selected");
-      return null;
-    }
+  //   if (address == null) {
+  //     // screen_massage(context, "Printer Is Not Selected");
+  //     return null;
+  //   }
 
-    try {
-      // Method 1: Check bonded devices first (already paired)
-      List<bl.BluetoothDevice> bondedDevices = await bl.FlutterBluePlus.bondedDevices;
-      //debugPrint("Found ${bondedDevices.length} bonded devices");
+  //   try {
+  //     // Method 1: Check bonded devices first (already paired)
+  //     List<bl.BluetoothDevice> bondedDevices = await bl.FlutterBluePlus.bondedDevices;
+  //     //debugPrint("Found ${bondedDevices.length} bonded devices");
       
-      for (var device in bondedDevices) {
-        //debugPrint("Bonded: ${device.platformName} - ${device.remoteId}");
-        if (device.remoteId.toString() == address) {
-          //debugPrint("✅ Found saved printer in bonded devices!");
-          return device;
-        }
-      }
+  //     for (var device in bondedDevices) {
+  //       //debugPrint("Bonded: ${device.platformName} - ${device.remoteId}");
+  //       if (device.remoteId.toString() == address) {
+  //         //debugPrint("✅ Found saved printer in bonded devices!");
+  //         return device;
+  //       }
+  //     }
 
-      // Method 2: If not bonded, create a device from address and connect
-      //debugPrint("🔄 Printer not bonded, creating device from address...");
+  //     // Method 2: If not bonded, create a device from address and connect
+  //     //debugPrint("🔄 Printer not bonded, creating device from address...");
       
-      // Create device from address
-      bl.BluetoothDevice device = bl.BluetoothDevice(remoteId: bl.DeviceIdentifier(address));
+  //     // Create device from address
+  //     bl.BluetoothDevice device = bl.BluetoothDevice(remoteId: bl.DeviceIdentifier(address));
       
-      //debugPrint("✅ Created device from address: ${device.remoteId}");
-      return device;
+  //     //debugPrint("✅ Created device from address: ${device.remoteId}");
+  //     return device;
       
-    } catch (e) {
-      //debugPrint("❌ Error in _getSavedPrinter: $e");
-      // screen_massage(context, "❌ Error in _getSavedPrinter: $e");
-      return null;
-    }
-  }
+  //   } catch (e) {
+  //     print_log_red("❌ Error in _getSavedPrinter: $e");
+  //     // screen_massage(context, "❌ Error in _getSavedPrinter: $e");
+  //     return null;
+  //   }
+  // }
 
 
   Future<int> saveTransactionToObjectBox({
@@ -2128,24 +2160,30 @@ Future<void> printBillWithLogo(thermal.BlueThermalPrinter bluetooth) async {
     final prefs = await SharedPreferences.getInstance();
     final apicall = await prefs.getString("adminPanel") ?? "no";
     bool demo = prefs.getBool('demo') ?? false;   
-
+    // final billnos = transactionData?['billNo'];
     if (!apicall.toLowerCase().contains("no") || !demo) {
-      
-      http.Response? response = await apiCalls('get_billno', AppConstants.username, {});
-
-      if (response != null && response.statusCode == 200) {
-        final Map<String, dynamic> data = jsonDecode(response.body);
-        final rawBillNo = data['bill_no'] ?? data['data'][0]['transactions_id'];
-        transactionData?['billNo'] = (int.tryParse(rawBillNo.toString()) ?? 0) + 1;
-        // print_log('Extracted Bill No: $rawBillNo transactionData?[billNo] ${transactionData?['billNo']}');
-      } else {
-        print_log_red('Failed to fetch bill no or response was null');
+      try{
+        print_log("colling");
+        http.Response? response = await apiCalls('get_billno', AppConstants.username, {});
+        print_log("colling1");
+        if (response != null && response.statusCode == 200) {
+          print_log("colling2");
+          final Map<String, dynamic> data = jsonDecode(response.body);
+          final rawBillNo = data['bill_no'] ?? data['data'][0]['transactions_id'];
+          transactionData?['billNo'] = (int.tryParse(rawBillNo.toString()) ?? 0) + 1;
+          print_log('Extracted Bill No: $rawBillNo transactionData?[billNo] ${transactionData?['billNo']}');
+        } else {
+          print_log_red('Failed to fetch bill no or response was null');
+        }
+      } catch (e){
+        print_log_red('Error parsing JSON or ID: $e');
       }
     }
 
     late int createdId = 0;
 
     final tx = Transaction(
+      syid:ganarateID(), 
       time: fullDateTime,
       tableNo: tableNo,
       total: total,
@@ -2217,7 +2255,7 @@ Future<void> printBillWithLogo(thermal.BlueThermalPrinter bluetooth) async {
     final int transactionId = id;
     final store = Provider.of<ObjectBoxService>(context, listen: false).store;
     final box = store.box<Transaction>();
-    final prefs = await SharedPreferences.getInstance();
+    // final prefs = await SharedPreferences.getInstance();
     // final businessDateString = prefs.getString('BusinessDate') ?? DateTime.now().toString();
 
 
@@ -2234,7 +2272,7 @@ Future<void> printBillWithLogo(thermal.BlueThermalPrinter bluetooth) async {
 
       List<Map<String, dynamic>> oldCart = [];
       try {
-        oldCart = List<Map<String, dynamic>>.from(jsonDecode(existingTx.cartData ?? '[]'));
+        oldCart = List<Map<String, dynamic>>.from(jsonDecode(existingTx.cartData));
       } catch (e) {
         print_log("Error decoding old cart: $e");
       }
@@ -2518,7 +2556,7 @@ void processSale(MenuItem soldItem, int quantityDifference, BuildContext context
       final List<int> unsyncedIds = box.getAll().where((tx) => !(tx.synced)).map((tx) => tx.id).toList();
       print_log_red("Unsynced transaction IDs: $unsyncedIds");
 
-      int successfulSyncs = 0;
+      // int successfulSyncs = 0;
       for (int i in unsyncedIds) {
         try {
           
@@ -2539,11 +2577,11 @@ void processSale(MenuItem soldItem, int quantityDifference, BuildContext context
             box.put(existingTx);
           }
 
-          final success = await sendTransactionToServer(box, i).timeout(const Duration(seconds: 5));
+          await sendTransactionToServer(box, i).timeout(const Duration(seconds: 5));
           // await Future.delayed(Duration(seconds: 5));
-          if (success) {
-            successfulSyncs++;
-          }
+          // if (success) {
+          //   successfulSyncs++;
+          // }
         } catch (e) {
           print_log_red("❌ Got Exception Transaction failed ${unsyncedIds.length} $e ");
           // break;
@@ -2661,81 +2699,81 @@ void processSale(MenuItem soldItem, int quantityDifference, BuildContext context
   }
 
 
-  Future<double> _drawLogo(ui.Canvas canvas, double y, double width) async {
-    try {
-      final prefs = await SharedPreferences.getInstance();
-      int logoWidth = prefs.getInt('logoWidth') ?? 200;
-      int logoheight = prefs.getInt('logoheight') ?? 200;
+  // Future<double> _drawLogo(ui.Canvas canvas, double y, double width) async {
+  //   try {
+  //     final prefs = await SharedPreferences.getInstance();
+  //     int logoWidth = prefs.getInt('logoWidth') ?? 200;
+  //     int logoheight = prefs.getInt('logoheight') ?? 200;
 
-      final imagePath = prefs.getString('imagePath');
-      final _printlogo = prefs.getBool('printLogo') ?? true;
+  //     final imagePath = prefs.getString('imagePath');
+  //     final _printlogo = prefs.getBool('printLogo') ?? true;
 
-      // --- DIAGNOSTIC PRINT ---
-      // Let's check what path is being used.
-      //debugPrint("Attempting to load logo from path: $imagePath");
+  //     // --- DIAGNOSTIC PRINT ---
+  //     // Let's check what path is being used.
+  //     //debugPrint("Attempting to load logo from path: $imagePath");
 
-      if (imagePath != null && File(imagePath).existsSync() && _printlogo) {
+  //     if (imagePath != null && File(imagePath).existsSync() && _printlogo) {
         
-        // --- File was found, proceed ---
-        //debugPrint("Logo file found. Decoding...");
+  //       // --- File was found, proceed ---
+  //       //debugPrint("Logo file found. Decoding...");
 
-        final file = File(imagePath);
-        final imageBytes = await file.readAsBytes();
+  //       final file = File(imagePath);
+  //       final imageBytes = await file.readAsBytes();
         
-        img.Image? original = img.decodeImage(imageBytes);
+  //       img.Image? original = img.decodeImage(imageBytes);
 
-        // Handle failed decode
-        if (original == null) {
-          // --- ADDED ERROR PRINT ---
-          //debugPrint("Error: Could not decode logo image. Is it a valid PNG/JPG?");
-          return 0.0;
-        }
+  //       // Handle failed decode
+  //       if (original == null) {
+  //         // --- ADDED ERROR PRINT ---
+  //         print_log_red("Error: Could not decode logo image. Is it a valid PNG/JPG?");
+  //         return 0.0;
+  //       }
         
-        // Resize to fit printer width
-        final resized = img.copyResize(original, width: logoWidth, maintainAspect: true);
-        final grayscale = img.grayscale(resized);
-        final Uint8List resizedBytes = img.encodePng(grayscale); // Grayscale is optional
+  //       // Resize to fit printer width
+  //       final resized = img.copyResize(original, width: logoWidth, maintainAspect: true);
+  //       final grayscale = img.grayscale(resized);
+  //       final Uint8List resizedBytes = img.encodePng(grayscale); // Grayscale is optional
         
-        final codec = await ui.instantiateImageCodec(resizedBytes);
-        final frame = await codec.getNextFrame();
-        final image = frame.image;
+  //       final codec = await ui.instantiateImageCodec(resizedBytes);
+  //       final frame = await codec.getNextFrame();
+  //       final image = frame.image;
 
-        // Scale image to fit canvas width if it's too large
-        double imageWidth = image.width.toDouble();
-        double imageHeight = image.height.toDouble();
-        if (imageWidth > width) {
-          final ratio = width / imageWidth;
-          imageWidth = width;
-          imageHeight = imageHeight * ratio;
-        }
+  //       // Scale image to fit canvas width if it's too large
+  //       double imageWidth = image.width.toDouble();
+  //       double imageHeight = image.height.toDouble();
+  //       if (imageWidth > width) {
+  //         final ratio = width / imageWidth;
+  //         imageWidth = width;
+  //         imageHeight = imageHeight * ratio;
+  //       }
 
-        // Center the logo
-        final xOffset = (width - imageWidth) / 2;
-        final rect = ui.Rect.fromLTWH(xOffset, y, imageWidth, imageHeight);
+  //       // Center the logo
+  //       final xOffset = (width - imageWidth) / 2;
+  //       final rect = ui.Rect.fromLTWH(xOffset, y, imageWidth, imageHeight);
         
-        canvas.drawImageRect(
-          image,
-          ui.Rect.fromLTWH(0, 0, image.width.toDouble(), image.height.toDouble()),
-          rect,
-          Paint(),
-        );
+  //       canvas.drawImageRect(
+  //         image,
+  //         ui.Rect.fromLTWH(0, 0, image.width.toDouble(), image.height.toDouble()),
+  //         rect,
+  //         Paint(),
+  //       );
       
-        // --- 1. FIXED THIS PRINT ---
-        // This was showing an "Error" message before, now it shows success.
-        //debugPrint("Logo drawn successfully. Height: ${imageHeight + 10.0}");
-        return imageHeight + 10.0; // Return height + padding
+  //       // --- 1. FIXED THIS PRINT ---
+  //       // This was showing an "Error" message before, now it shows success.
+  //       //debugPrint("Logo drawn successfully. Height: ${imageHeight + 10.0}");
+  //       return imageHeight + 10.0; // Return height + padding
 
-      } else {
-        // --- 2. ADDED THIS PRINT ---
-        // This is the most likely reason your logo isn't showing.
-        //debugPrint("Logo not drawn. Reason: File path was null or file does not exist at path.");
-        return 0.0;
-      }
-    } catch (e) {
-      //debugPrint("Error drawing logo: $e");
-      return 0.0;
-    }
-  }
+  //     } else {
+  //       // --- 2. ADDED THIS PRINT ---
+  //       // This is the most likely reason your logo isn't showing.
+  //       //debugPrint("Logo not drawn. Reason: File path was null or file does not exist at path.");
+  //       return 0.0;
+  //     }
+  //   } catch (e) {
+  //     print_log_red("Error drawing logo: $e");
+  //     return 0.0;
+  //   }
+  // }
 
   Future<ui.Image?> _loadLogoImage() async {
     try {
@@ -2756,7 +2794,7 @@ void processSale(MenuItem soldItem, int quantityDifference, BuildContext context
       }
       return null;
     } catch (e) {
-      print('Failed to load logo: $e');
+      print_log_red('Failed to load logo: $e');
       return null;
     }
   }
@@ -2826,7 +2864,7 @@ void processSale(MenuItem soldItem, int quantityDifference, BuildContext context
       
       return qrImage.height.toDouble(); // + padding
     } catch (e) {
-      //debugPrint("Error drawing QR code: $e");
+      print_log_red("Error drawing QR code: $e");
       return 0.0;
     }
   }
@@ -2885,7 +2923,7 @@ void processSale(MenuItem soldItem, int quantityDifference, BuildContext context
       return byteData.buffer.asUint8List();
 
     } catch (e) {
-      //debugPrint("Error generating receipt image: $e");
+      print_log_red("Error generating receipt image: $e");
       return null;
     }
   }
@@ -2904,11 +2942,11 @@ void processSale(MenuItem soldItem, int quantityDifference, BuildContext context
 
     
     // Map your printer's font sizes (1, 2, 3) to pixel font sizes
-    final Map<int, double> fontSizes = {
-      1: 18.0, // Small (items)
-      2: 24.0, // Medium (total)
-      3: 30.0, // Large (header)
-    };
+    // final Map<int, double> fontSizes = {
+    //   1: 18.0, // Small (items)
+    //   2: 24.0, // Medium (total)
+    //   3: 30.0, // Large (header)
+    // };
     
     // --- 2. Get All Data (Copied from your function) ---
     
@@ -2924,12 +2962,12 @@ void processSale(MenuItem soldItem, int quantityDifference, BuildContext context
     String gst = prefs.getString('gst') ?? '';
     
     // ⚙ Printer user settings
-    bool printQr = prefs.getBool('printQR') ?? false;
-    String _qrSize = prefs.getString('qrSize') ?? "5";
-    double qrSize = getQrPixelSize(_qrSize);
+    // bool printQr = prefs.getBool('printQR') ?? false;
+    // String _qrSize = prefs.getString('qrSize') ?? "5";
+    // double qrSize = getQrPixelSize(_qrSize);
     bool printName = prefs.getBool('printName') ?? true;
-    String footer =  prefs.getString('footerText') ?? "** Thank You **";
-    String? upiId = prefs.getString('upi');
+    // String footer =  prefs.getString('footerText') ?? "** Thank You **";
+    // String? upiId = prefs.getString('upi');
     bool customerName = prefs.getBool('customerName') ?? false;
     String paperSize = prefs.getString('paperSize') ?? '2';
     // Width in pixels. 58mm printers are ~384px. 80mm are ~576px.
@@ -3099,7 +3137,7 @@ void processSale(MenuItem soldItem, int quantityDifference, BuildContext context
       return byteData.buffer.asUint8List();
 
     } catch (e) {
-      //debugPrint("Error generating receipt image: $e");
+      print_log_red("Error generating receipt image: $e");
       return null;
     }
   }
@@ -3426,7 +3464,7 @@ void processSale(MenuItem soldItem, int quantityDifference, BuildContext context
         return byteData.buffer.asUint8List();
 
       } catch (e) {
-        //debugPrint("Error generating receipt image: $e");
+        print_log_red("Error generating receipt image: $e");
         return null;
       }
     }
@@ -3444,11 +3482,11 @@ void processSale(MenuItem soldItem, int quantityDifference, BuildContext context
 
     
     // Map your printer's font sizes (1, 2, 3) to pixel font sizes
-    final Map<int, double> fontSizes = {
-      1: 18.0, // Small (items)
-      2: 24.0, // Medium (total)
-      3: 30.0, // Large (header)
-    };
+    // final Map<int, double> fontSizes = {
+    //   1: 18.0, // Small (items)
+    //   2: 24.0, // Medium (total)
+    //   3: 30.0, // Large (header)
+    // };
     
     // --- 2. Get All Data (Copied from your function) ---
     
@@ -3464,7 +3502,7 @@ void processSale(MenuItem soldItem, int quantityDifference, BuildContext context
     String gst = prefs.getString('gst') ?? '';
     
     // ⚙ Printer user settings
-    bool printQr = prefs.getBool('printQR') ?? false;
+    // bool printQr = prefs.getBool('printQR') ?? false;
     String _qrSize = prefs.getString('qrSize') ?? "5";
     double qrSize = getQrPixelSize(_qrSize);
     bool printName = prefs.getBool('printName') ?? true;
@@ -3661,7 +3699,7 @@ void processSale(MenuItem soldItem, int quantityDifference, BuildContext context
       return byteData.buffer.asUint8List();
 
     } catch (e) {
-      //debugPrint("Error generating receipt image: $e");
+      print_log_red("Error generating receipt image: $e");
       return null;
     }
   }
@@ -3716,351 +3754,392 @@ String wrapText(String text, int length) {
   return wrappedText + currentLine.trim();
 }
 
-// Make sure to import your project-specific files (ObjectBoxService, etc.)
+  // Make sure to import your project-specific files (ObjectBoxService, etc.)
 
-Future<Uint8List?> generateReceiptPdfToShare({
-  required List<Map<String, dynamic>> cart1,
-  required int total, // We will calculate the exact total with GST, but keep this for fallback
-  required int billNo,
-  required Map<String, dynamic>? transactionData,
-  required int tableno,
-  required BuildContext context,
-}) async {
-  try {
-    final store = Provider.of<ObjectBoxService>(context, listen: false).store;
-    final pdf = pw.Document();
-    final prefs = await SharedPreferences.getInstance();
+  Future<Uint8List?> generateReceiptPdfToShare({
+    required List<Map<String, dynamic>> cart1,
+    required int total, // We will calculate the exact total with GST, but keep this for fallback
+    required int billNo,
+    required Map<String, dynamic>? transactionData,
+    required int tableno,
+    required BuildContext context,
+  }) async {
+    try {
+      final store = Provider.of<ObjectBoxService>(context, listen: false).store;
+      final pdf = pw.Document();
+      final prefs = await SharedPreferences.getInstance();
 
-    // 1. Fetch Business Info
-    String businessName = prefs.getString('businessName') ?? 'Hotel Test';
-    String contactPhone = prefs.getString('contactPhone') ?? '';
-    String contactEmail = prefs.getString('contactEmail') ?? '';
-    String businessAddress = prefs.getString('businessAddress') ?? '';
-    String upiId = prefs.getString('upi') ?? '';
-    String whatsapptext = prefs.getString('whatsapptext') ?? 'Thank you for your business!';
-    final int new_billNo = (transactionData?['billNo'] == null) ? getNextBillNo(context) : transactionData?['billNo'];
+      // 1. Fetch Business Info
+      String businessName = prefs.getString('businessName') ?? 'Hotel Test';
+      String contactPhone = prefs.getString('contactPhone') ?? '';
+      String contactEmail = prefs.getString('contactEmail') ?? '';
+      String businessAddress = prefs.getString('businessAddress') ?? '';
+      String upiId = prefs.getString('upi') ?? '';
+      String whatsapptext = prefs.getString('whatsapptext') ?? 'Thank you for your business!';
+      final int new_billNo = (transactionData?['billNo'] == null) ? getNextBillNo(context) : transactionData?['billNo'];
 
-    final String dateTime = DateFormat('dd/MM/yy hh:mm a').format(DateTime.now());
-    List<Map<String, dynamic>> cart = cart1.map((item) => Map<String, dynamic>.from(item)).toList();
+      final String dateTime = DateFormat('dd/MM/yy hh:mm a').format(DateTime.now());
+      List<Map<String, dynamic>> cart = cart1.map((item) => Map<String, dynamic>.from(item)).toList();
 
-    Map<String, Map<String, dynamic>> mapsitem = getmenyBycart(cart, store);
-    int totalQty = cart.fold(0, (sum, item) => sum + (item['qty'] as int? ?? 0));
+      Map<String, Map<String, dynamic>> mapsitem = getmenyBycart(cart, store);
+      int totalQty = cart.fold(0, (sum, item) => sum + (item['qty'] as int? ?? 0));
 
-    // 2. Prepare Images
-    pw.MemoryImage? qrImageProvider;
-    pw.MemoryImage? logoImage;
+      // 2. Prepare Images
+      pw.MemoryImage? qrImageProvider;
+      pw.MemoryImage? logoImage;
 
-    final Uint8List? qrBytes = await generateQRImage(total: total);
-    if (qrBytes != null) {
-      qrImageProvider = pw.MemoryImage(qrBytes);
-    }
-
-    final imagePath = prefs.getString('imagePath');
-    if (imagePath != null && File(imagePath).existsSync()) {
-      final file = File(imagePath);
-      final imageBytes = await file.readAsBytes();
-      final img.Image? original = img.decodeImage(imageBytes);
-      if (original != null) {
-        final resized = img.copyResize(original, width: 600, maintainAspect: true);
-        logoImage = pw.MemoryImage(Uint8List.fromList(img.encodePng(resized)));
+      final Uint8List? qrBytes = await generateQRImage(total: total);
+      if (qrBytes != null) {
+        qrImageProvider = pw.MemoryImage(qrBytes);
       }
-    }
 
-    // --- HELPERS ---
-    double _toDouble(dynamic value) {
-      if (value == null) return 0.0;
-      if (value is num) return value.toDouble();
-      return double.tryParse(value.toString()) ?? 0.0;
-    }
-
-    String wrapText(String text, int length) {
-      if (text.isEmpty) return "";
-      List<String> words = text.split(' ');
-      String wrappedText = '';
-      String currentLine = '';
-      for (String word in words) {
-        if ((currentLine + word).length > length) {
-          wrappedText += currentLine.trim() + '\n';
-          currentLine = word + ' ';
-        } else {
-          currentLine += word + ' ';
+      final imagePath = prefs.getString('imagePath');
+      if (imagePath != null && File(imagePath).existsSync()) {
+        final file = File(imagePath);
+        final imageBytes = await file.readAsBytes();
+        final img.Image? original = img.decodeImage(imageBytes);
+        if (original != null) {
+          final resized = img.copyResize(original, width: 600, maintainAspect: true);
+          logoImage = pw.MemoryImage(Uint8List.fromList(img.encodePng(resized)));
         }
       }
-      return wrappedText + currentLine.trim();
-    }
 
-    // --- FINANCIAL CALCULATIONS ---
-    double subTotalCalc = 0.0;
-    double totalGstCalc = 0.0;
+      // --- HELPERS ---
+      double _toDouble(dynamic value) {
+        if (value == null) return 0.0;
+        if (value is num) return value.toDouble();
+        return double.tryParse(value.toString()) ?? 0.0;
+      }
 
-    for (var item in cart) {
-      int qty = _toDouble(item['qty']).toInt();
-      double rate = _toDouble(item['sellPrice']);
-      var itemExtraData = mapsitem[item['name']];
-      double gstRate = _toDouble(itemExtraData?["gstRate"]);
+      String wrapText(String text, int length) {
+        if (text.isEmpty) return "";
+        List<String> words = text.split(' ');
+        String wrappedText = '';
+        String currentLine = '';
+        for (String word in words) {
+          if ((currentLine + word).length > length) {
+            wrappedText += currentLine.trim() + '\n';
+            currentLine = word + ' ';
+          } else {
+            currentLine += word + ' ';
+          }
+        }
+        return wrappedText + currentLine.trim();
+      }
+
+      // --- FINANCIAL CALCULATIONS ---
+      double subTotalCalc = 0.0;
+      double totalGstCalc = 0.0;
+
+      for (var item in cart) {
+        int qty = _toDouble(item['qty']).toInt();
+        double rate = _toDouble(item['sellPrice']);
+        var itemExtraData = mapsitem[item['name']];
+        double gstRate = _toDouble(itemExtraData?["gstRate"]);
+        
+        double itemBaseAmount = qty * rate;
+        double itemGstAmount = itemBaseAmount * (gstRate / 100);
+        
+        subTotalCalc += itemBaseAmount;
+        totalGstCalc += itemGstAmount;
+      }
+
+      double discountAmt = _toDouble(transactionData?['discount']);
+      double serviceChargeAmt = _toDouble(transactionData?['serviceCharge']);
+      double receivedAmt = _toDouble(transactionData?['recivedamount']);
+      double pendingAmt = _toDouble(transactionData?['pendingamount']);
       
-      double itemBaseAmount = qty * rate;
-      double itemGstAmount = itemBaseAmount * (gstRate / 100);
+      // Final Grand Total includes the base amount + tax + service charge - discount
+      double finalGrandTotal = subTotalCalc + totalGstCalc + serviceChargeAmt - discountAmt;
       
-      subTotalCalc += itemBaseAmount;
-      totalGstCalc += itemGstAmount;
-    }
+      // If pending wasn't properly passed, recalculate it
+      if (pendingAmt == 0 && receivedAmt > 0 && receivedAmt < finalGrandTotal) {
+        pendingAmt = finalGrandTotal - receivedAmt;
+      }
 
-    double discountAmt = _toDouble(transactionData?['discount']);
-    double serviceChargeAmt = _toDouble(transactionData?['serviceCharge']);
-    double receivedAmt = _toDouble(transactionData?['recivedamount']);
-    double pendingAmt = _toDouble(transactionData?['pendingamount']);
-    
-    // Final Grand Total includes the base amount + tax + service charge - discount
-    double finalGrandTotal = subTotalCalc + totalGstCalc + serviceChargeAmt - discountAmt;
-    
-    // If pending wasn't properly passed, recalculate it
-    if (pendingAmt == 0 && receivedAmt > 0 && receivedAmt < finalGrandTotal) {
-      pendingAmt = finalGrandTotal - receivedAmt;
-    }
-
-    // 3. Build the PDF
-    pdf.addPage(
-      pw.MultiPage(
-        pageTheme: pw.PageTheme(
-          pageFormat: PdfPageFormat.a4,
-          margin: const pw.EdgeInsets.all(32),
-          buildBackground: (pw.Context context) {
-            return pw.FullPage(
-              ignoreMargins: true,
-              child: pw.Container(color: PdfColors.white),
-            );
-          },
-        ),
-        header: (pw.Context context) {
-          return pw.Column(
-            children: [
-              pw.Row(
-                mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
-                children: [
-                  pw.Text("ORIGINAL FOR RECIPIENT", style: pw.TextStyle(fontSize: 12, color: PdfColors.grey400)),
-                  pw.Text('TAX INVOICE', style: pw.TextStyle(fontSize: 20, fontWeight: pw.FontWeight.bold)),
-                ],
-              ),
-              pw.Divider(thickness: 1),
-              pw.SizedBox(height: 10),
-            ],
-          );
-        },
-        footer: (pw.Context context) {
-          return pw.Column(
-            children: [
-              pw.Row(
-                mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
-                children: [
-                  pw.Text("Customer Signature", style: const pw.TextStyle(fontSize: 14)),
-                  pw.Text("Authorized Signatory", style: const pw.TextStyle(fontSize: 14)),
-                ],
-              ),
-              pw.SizedBox(height: 20),
-              pw.Center(child: pw.Text("Thank You! Visit Again!", style: pw.TextStyle(fontWeight: pw.FontWeight.bold, fontSize: 14))),
-              pw.Divider(thickness: 1),
-              pw.Row(
-                mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
-                children: [
-                  pw.Text("Page ${context.pageNumber} of ${context.pagesCount}", style: const pw.TextStyle(fontSize: 12)),
-                  pw.Text("ORBIPAY by Nextorbitals", style: pw.TextStyle(fontSize: 12, fontWeight: pw.FontWeight.bold, color: PdfColors.grey400)),
-                ],
-              ),
-            ],
-          );
-        },
-        build: (pw.Context context) {
-          return [
-              pw.Row(
-                mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
-                children: [
-                  pw.Text("FROM", style: pw.TextStyle(fontSize: 12, fontWeight: pw.FontWeight.bold, color: PdfColors.grey400)), 
-                ],
-              ),
-              pw.SizedBox(height: 3),
-
-              // Business Info & Logo Row
-              pw.Row(
-                crossAxisAlignment: pw.CrossAxisAlignment.start,
-                children: [
-                  pw.Expanded(
-                    child: pw.Column(
-                      crossAxisAlignment: pw.CrossAxisAlignment.start,
-                      children: [
-                        pw.Text(businessName, style: pw.TextStyle(fontSize: 26, fontWeight: pw.FontWeight.bold, color: PdfColors.blue)),
-                        if (businessAddress.isNotEmpty) pw.Text(wrapText(businessAddress, 40), style: const pw.TextStyle(fontSize: 14), softWrap: true,),
-                        if (contactPhone.isNotEmpty) pw.Text("Ph: $contactPhone", style: const pw.TextStyle(fontSize: 14)),
-                        if (contactEmail.isNotEmpty) pw.Text(contactEmail, style: const pw.TextStyle(fontSize: 14)),
-                      ],
-                    ),
-                  ),
-                  if (logoImage != null)
-                    pw.Container(height: 100, width: 100, child: pw.Image(logoImage)),
-                ],
-              ),
-              pw.SizedBox(height: 10),
-              pw.Divider(thickness: 1),
-
-              // Customer & Bill Info Row
-              pw.Row(
-                mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
-                children: [
-                  pw.Column(
-                    crossAxisAlignment: pw.CrossAxisAlignment.start,
-                    children: [
-                      pw.Text("Bill To: ${transactionData?['customerName'] ?? 'Customer'}", style: pw.TextStyle(fontWeight: pw.FontWeight.bold, fontSize: 14)),
-                      if (transactionData?['reserved'] != null) pw.Text("Address: ${transactionData?['reserved']}", softWrap: true, style: const pw.TextStyle(fontSize: 14)),
-                      pw.Text("Ph: ${transactionData?['mobileNo'] ?? '-'}", style: const pw.TextStyle(fontSize: 14)),
-                    ],
-                  ),
-                  pw.Column(
-                    crossAxisAlignment: pw.CrossAxisAlignment.end,
-                    children: [
-                      pw.Text("Bill No: $new_billNo", style: pw.TextStyle(fontWeight: pw.FontWeight.bold, fontSize: 14)),
-                      pw.Text("Date: $dateTime", style: const pw.TextStyle(fontSize: 14)),
-                    ],
-                  ),
-                ],
-              ),
-              pw.SizedBox(height: 15),
-
-              // Items Table with GST
-              pw.TableHelper.fromTextArray(
-                headers: ['#', 'ITEM NAME', 'QTY', 'MRP', 'RATE', 'GST %', 'TOTAL'],
-                headerStyle: pw.TextStyle(fontWeight: pw.FontWeight.bold, fontSize: 14),
-                cellStyle: const pw.TextStyle(fontSize: 13),
-                data: List<List<dynamic>>.generate(cart.length, (index) {
-                  var item = cart[index];
-                  
-                  int qty = _toDouble(item['qty']).toInt();
-                  double rate = _toDouble(item['sellPrice']);
-                  
-                  var itemExtraData = mapsitem[item['name']];
-                  double mrp = _toDouble(itemExtraData?["mrp"]);
-                  double gstRate = _toDouble(itemExtraData?["gstRate"]);
-                  
-                  if (mrp == 0) mrp = rate;
-
-                  // Calculate Item Total Including GST
-                  double itemBase = qty * rate;
-                  double itemGst = itemBase * (gstRate / 100);
-                  double itemFinalTotal = itemBase + itemGst;
-
-                  return [
-                    index + 1,
-                    item['name'] ?? 'Item',
-                    qty,
-                    mrp.toStringAsFixed(2),
-                    rate.toStringAsFixed(2),
-                    "${gstRate.toStringAsFixed(0)}%",
-                    itemFinalTotal.toStringAsFixed(2),
-                  ];
-                }),
-                headerDecoration: const pw.BoxDecoration(color: PdfColors.grey200),
-                columnWidths: {
-                  0: const pw.FixedColumnWidth(40),
-                  1: const pw.FlexColumnWidth(),
-                },
-                cellAlignment: pw.Alignment.centerRight,
-                cellAlignments: {
-                  0: pw.Alignment.centerLeft, 
-                  1: pw.Alignment.centerLeft
-                },
-              ),
-              
-              // Total Calculation Row
-              pw.Container(
-                padding: const pw.EdgeInsets.all(8),
-                decoration: const pw.BoxDecoration(border: pw.Border(bottom: pw.BorderSide(width: 1))),
-                child: pw.Row(
+      // 3. Build the PDF
+      pdf.addPage(
+        pw.MultiPage(
+          pageTheme: pw.PageTheme(
+            pageFormat: PdfPageFormat.a4,
+            margin: const pw.EdgeInsets.all(32),
+            buildBackground: (pw.Context context) {
+              return pw.FullPage(
+                ignoreMargins: true,
+                child: pw.Container(color: PdfColors.white),
+              );
+            },
+          ),
+          header: (pw.Context context) {
+            return pw.Column(
+              children: [
+                pw.Row(
+                  mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
                   children: [
-                    pw.Text("TOTAL", style: pw.TextStyle(fontWeight: pw.FontWeight.bold, fontSize: 14)),
-                    pw.Spacer(),
-                    pw.Text("Qty: $totalQty", style: pw.TextStyle(fontWeight: pw.FontWeight.bold, fontSize: 14)),
-                    pw.SizedBox(width: 50),
-                    pw.Text("Rs. ${finalGrandTotal.toStringAsFixed(2)}", style: pw.TextStyle(fontWeight: pw.FontWeight.bold, fontSize: 14)),
+                    pw.Text("ORIGINAL FOR RECIPIENT", style: pw.TextStyle(fontSize: 12, color: PdfColors.grey400)),
+                    pw.Text('TAX INVOICE', style: pw.TextStyle(fontSize: 20, fontWeight: pw.FontWeight.bold)),
                   ],
                 ),
-              ),
-              pw.SizedBox(height: 15),
+                pw.Divider(thickness: 1),
+                pw.SizedBox(height: 10),
+              ],
+            );
+          },
+          footer: (pw.Context context) {
+            return pw.Column(
+              children: [
+                pw.Row(
+                  mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+                  children: [
+                    pw.Text("Customer Signature", style: const pw.TextStyle(fontSize: 14)),
+                    pw.Text("Authorized Signatory", style: const pw.TextStyle(fontSize: 14)),
+                  ],
+                ),
+                pw.SizedBox(height: 20),
+                pw.Center(child: pw.Text("Thank You! Visit Again!", style: pw.TextStyle(fontWeight: pw.FontWeight.bold, fontSize: 14))),
+                pw.Divider(thickness: 1),
+                pw.Row(
+                  mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+                  children: [
+                    pw.Text("Page ${context.pageNumber} of ${context.pagesCount}", style: const pw.TextStyle(fontSize: 12)),
+                    pw.Text("ORBIPAY by Nextorbitals", style: pw.TextStyle(fontSize: 12, fontWeight: pw.FontWeight.bold, color: PdfColors.grey400)),
+                  ],
+                ),
+              ],
+            );
+          },
+          build: (pw.Context context) {
+            return [
+                pw.Row(
+                  mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+                  children: [
+                    pw.Text("FROM", style: pw.TextStyle(fontSize: 12, fontWeight: pw.FontWeight.bold, color: PdfColors.grey400)), 
+                  ],
+                ),
+                pw.SizedBox(height: 3),
 
-              // Payment and QR Section
-              pw.Row(
-                crossAxisAlignment: pw.CrossAxisAlignment.start,
-                children: [
-                  pw.Expanded(
-                    flex: 3,
-                    child: pw.Column(
+                // Business Info & Logo Row
+                pw.Row(
+                  crossAxisAlignment: pw.CrossAxisAlignment.start,
+                  children: [
+                    pw.Expanded(
+                      child: pw.Column(
+                        crossAxisAlignment: pw.CrossAxisAlignment.start,
+                        children: [
+                          pw.Text(businessName, style: pw.TextStyle(fontSize: 26, fontWeight: pw.FontWeight.bold, color: PdfColors.blue)),
+                          if (businessAddress.isNotEmpty) pw.Text(wrapText(businessAddress, 40), style: const pw.TextStyle(fontSize: 14), softWrap: true,),
+                          if (contactPhone.isNotEmpty) pw.Text("Ph: $contactPhone", style: const pw.TextStyle(fontSize: 14)),
+                          if (contactEmail.isNotEmpty) pw.Text(contactEmail, style: const pw.TextStyle(fontSize: 14)),
+                        ],
+                      ),
+                    ),
+                    if (logoImage != null)
+                      pw.Container(height: 100, width: 100, child: pw.Image(logoImage)),
+                  ],
+                ),
+                pw.SizedBox(height: 10),
+                pw.Divider(thickness: 1),
+
+                // Customer & Bill Info Row
+                pw.Row(
+                  mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+                  children: [
+                    pw.Column(
                       crossAxisAlignment: pw.CrossAxisAlignment.start,
                       children: [
-                        pw.Text("BILL AMOUNT IN WORDS", style: pw.TextStyle(fontSize: 13, color: PdfColors.grey700)),
-                        pw.Text("${_convertNumberToWords(finalGrandTotal.round())} only", style: pw.TextStyle(fontWeight: pw.FontWeight.bold, fontSize: 14)),
-                        pw.SizedBox(height: 10),
-                        pw.Text("Acc Type: Saving", style: const pw.TextStyle(fontSize: 14)),
-                        pw.Text("UPI ID: $upiId", style: const pw.TextStyle(fontSize: 14)),
-                        pw.SizedBox(height: 10),
-                        pw.Text("TERMS AND CONDITION", style: pw.TextStyle(fontWeight: pw.FontWeight.bold, fontSize: 8)),
-                        pw.Text(whatsapptext, style: const pw.TextStyle(fontSize: 8)),
-                        if (qrImageProvider != null)
-                          pw.Padding(
-                            padding: const pw.EdgeInsets.only(top: 10),
-                            child: pw.Container(
-                              height: 130, 
-                              width: 130,
-                              decoration: pw.BoxDecoration(border: pw.Border.all(color: PdfColors.grey200)),
-                              child: pw.Image(qrImageProvider),
-                            ),
-                          ),
+                        pw.Text("Bill To: ${transactionData?['customerName'] ?? 'Customer'}", style: pw.TextStyle(fontWeight: pw.FontWeight.bold, fontSize: 14)),
+                        if (transactionData?['reserved'] != null) pw.Text("Address: ${transactionData?['reserved']}", softWrap: true, style: const pw.TextStyle(fontSize: 14)),
+                        pw.Text("Ph: ${transactionData?['mobileNo'] ?? '-'}", style: const pw.TextStyle(fontSize: 14)),
                       ],
                     ),
-                  ),
-                  // Financial Summary with GST Breakdown
-                  pw.Expanded(
-                    flex: 2,
-                    child: pw.Column(
+                    pw.Column(
+                      crossAxisAlignment: pw.CrossAxisAlignment.end,
                       children: [
-                        _buildSummaryRowImproved("Taxable Amount", subTotalCalc.toStringAsFixed(2)),
-                        _buildSummaryRowImproved("Total GST", totalGstCalc.toStringAsFixed(2)),
-                        if (serviceChargeAmt > 0) _buildSummaryRowImproved("Service Charge", serviceChargeAmt.toStringAsFixed(2)),
-                        if (discountAmt > 0) _buildSummaryRowImproved("Discount", discountAmt.toStringAsFixed(2)),
-                        pw.Divider(thickness: 1),
-                        _buildSummaryRowImproved("GRAND TOTAL", "Rs. ${finalGrandTotal.toStringAsFixed(2)}", isBold: true),
-                        pw.SizedBox(height: 5),
-                        if (receivedAmt > 0) _buildSummaryRowImproved("Received", receivedAmt.toStringAsFixed(2)),
-                        if (pendingAmt > 0) _buildSummaryRowImproved("Pending", pendingAmt.toStringAsFixed(2)),
+                        pw.Text("Bill No: $new_billNo", style: pw.TextStyle(fontWeight: pw.FontWeight.bold, fontSize: 14)),
+                        pw.Text("Date: $dateTime", style: const pw.TextStyle(fontSize: 14)),
                       ],
                     ),
+                  ],
+                ),
+                pw.SizedBox(height: 15),
+
+                // Items Table with GST
+                pw.TableHelper.fromTextArray(
+                  headers: ['#', 'ITEM NAME', 'QTY', 'MRP', 'RATE', 'GST %', 'TOTAL'],
+                  headerStyle: pw.TextStyle(fontWeight: pw.FontWeight.bold, fontSize: 14),
+                  cellStyle: const pw.TextStyle(fontSize: 13),
+                  data: List<List<dynamic>>.generate(cart.length, (index) {
+                    var item = cart[index];
+                    
+                    int qty = _toDouble(item['qty']).toInt();
+                    double rate = _toDouble(item['sellPrice']);
+                    
+                    var itemExtraData = mapsitem[item['name']];
+                    double mrp = _toDouble(itemExtraData?["mrp"]);
+                    double gstRate = _toDouble(itemExtraData?["gstRate"]);
+                    
+                    if (mrp == 0) mrp = rate;
+
+                    // Calculate Item Total Including GST
+                    double itemBase = qty * rate;
+                    double itemGst = itemBase * (gstRate / 100);
+                    double itemFinalTotal = itemBase + itemGst;
+
+                    return [
+                      index + 1,
+                      item['name'] ?? 'Item',
+                      qty,
+                      mrp.toStringAsFixed(2),
+                      rate.toStringAsFixed(2),
+                      "${gstRate.toStringAsFixed(0)}%",
+                      itemFinalTotal.toStringAsFixed(2),
+                    ];
+                  }),
+                  headerDecoration: const pw.BoxDecoration(color: PdfColors.grey200),
+                  columnWidths: {
+                    0: const pw.FixedColumnWidth(40),
+                    1: const pw.FlexColumnWidth(),
+                  },
+                  cellAlignment: pw.Alignment.centerRight,
+                  cellAlignments: {
+                    0: pw.Alignment.centerLeft, 
+                    1: pw.Alignment.centerLeft
+                  },
+                ),
+                
+                // Total Calculation Row
+                pw.Container(
+                  padding: const pw.EdgeInsets.all(8),
+                  decoration: const pw.BoxDecoration(border: pw.Border(bottom: pw.BorderSide(width: 1))),
+                  child: pw.Row(
+                    children: [
+                      pw.Text("TOTAL", style: pw.TextStyle(fontWeight: pw.FontWeight.bold, fontSize: 14)),
+                      pw.Spacer(),
+                      pw.Text("Qty: $totalQty", style: pw.TextStyle(fontWeight: pw.FontWeight.bold, fontSize: 14)),
+                      pw.SizedBox(width: 50),
+                      pw.Text("Rs. ${finalGrandTotal.toStringAsFixed(2)}", style: pw.TextStyle(fontWeight: pw.FontWeight.bold, fontSize: 14)),
+                    ],
                   ),
-                ],
-              ),
-              // pw.SizedBox(height: 20),
-          ];
-        },
-      ),
-    );
+                ),
+                pw.SizedBox(height: 15),
 
-    // 4. Save Logic
-    final String folderPath = '/storage/emulated/0/Orbipay';
-    final directory = Directory(folderPath);
-    if (!await directory.exists()) await directory.create(recursive: true);
+                // Payment and QR Section
+                pw.Row(
+                  crossAxisAlignment: pw.CrossAxisAlignment.start,
+                  children: [
+                    pw.Expanded(
+                      flex: 3,
+                      child: pw.Column(
+                        crossAxisAlignment: pw.CrossAxisAlignment.start,
+                        children: [
+                          pw.Text("BILL AMOUNT IN WORDS", style: pw.TextStyle(fontSize: 13, color: PdfColors.grey700)),
+                          pw.Text("${_convertNumberToWords(finalGrandTotal.round())} only", style: pw.TextStyle(fontWeight: pw.FontWeight.bold, fontSize: 14)),
+                          pw.SizedBox(height: 10),
+                          pw.Text("Acc Type: Saving", style: const pw.TextStyle(fontSize: 14)),
+                          pw.Text("UPI ID: $upiId", style: const pw.TextStyle(fontSize: 14)),
+                          pw.SizedBox(height: 10),
+                          pw.Text("TERMS AND CONDITION", style: pw.TextStyle(fontWeight: pw.FontWeight.bold, fontSize: 8)),
+                          pw.Text(whatsapptext, style: const pw.TextStyle(fontSize: 8)),
+                          if (qrImageProvider != null)
+                            pw.Padding(
+                              padding: const pw.EdgeInsets.only(top: 10),
+                              child: pw.Container(
+                                height: 130, 
+                                width: 130,
+                                decoration: pw.BoxDecoration(border: pw.Border.all(color: PdfColors.grey200)),
+                                child: pw.Image(qrImageProvider),
+                              ),
+                            ),
+                        ],
+                      ),
+                    ),
+                    // Financial Summary with GST Breakdown
+                    pw.Expanded(
+                      flex: 2,
+                      child: pw.Column(
+                        children: [
+                          _buildSummaryRowImproved("Taxable Amount", subTotalCalc.toStringAsFixed(2)),
+                          _buildSummaryRowImproved("Total GST", totalGstCalc.toStringAsFixed(2)),
+                          if (serviceChargeAmt > 0) _buildSummaryRowImproved("Service Charge", serviceChargeAmt.toStringAsFixed(2)),
+                          if (discountAmt > 0) _buildSummaryRowImproved("Discount", discountAmt.toStringAsFixed(2)),
+                          pw.Divider(thickness: 1),
+                          _buildSummaryRowImproved("GRAND TOTAL", "Rs. ${finalGrandTotal.toStringAsFixed(2)}", isBold: true),
+                          pw.SizedBox(height: 5),
+                          if (receivedAmt > 0) _buildSummaryRowImproved("Received", receivedAmt.toStringAsFixed(2)),
+                          if (pendingAmt > 0) _buildSummaryRowImproved("Pending", pendingAmt.toStringAsFixed(2)),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+                // pw.SizedBox(height: 20),
+            ];
+          },
+        ),
+      );
 
-    final String filePath = "$folderPath/Orbipay_bill_$billNo.pdf";
-    final File file = File(filePath);
-    final Uint8List pdfsave = await pdf.save();
-    try{
-      await file.writeAsBytes(pdfsave);
+
+      var status = await Permission.storage.status;
+      if (!status.isGranted) {
+        status = await Permission.storage.request();
+      }
+
+      // 4. Save Logic
+      // final String folderPath = '/storage/emulated/0/Download/Orbipay';
+      // final directory = Directory(folderPath);
+      // if (!await directory.exists()) await directory.create(recursive: true);
+
+      // final String filePath = "$folderPath/Orbipay_bill_$billNo.pdf";
+      // final File file = File(filePath);
+      final Uint8List pdfsave = await pdf.save();
+      final String fileName = 'Orbipay_bill_$new_billNo.pdf';
+
+      final Directory downloadsDir1 = Directory('/storage/emulated/0/Download');
+      if (!await downloadsDir1.exists()) {
+        await downloadsDir1.create(recursive: true);
+      }
+      
+      final String filePath1 = '${downloadsDir1.path}/$fileName';
+      final File file1 = File(filePath1);
+      await file1.writeAsBytes(pdfsave);
+      
+
+
+      print_log('PDF saved to: and $filePath1');  // For debugging
+
+      return pdfsave;
     } catch (e) {
-      print_log_red("Error generating PDF: $e");
+      print_log_red("Error generating PDF in bill print: $e");
       return null;
     }
-
-    return pdfsave;
-  } catch (e) {
-    print_log_red("Error generating PDF: $e");
-    return null;
   }
-}
+
+
+    Future<bool> saveBillPdf(Uint8List pdfBytes, String fileName, int billNo) async {
+      try {
+        // Get ROOT external storage: /storage/emulated/0/
+        Directory? extDir = await getExternalStorageDirectory();
+        if (extDir == null) return false;
+        
+        // Navigate UP to root: /storage/emulated/0/
+        final Directory rootDir = Directory(extDir.parent.parent.path);
+        
+        // Create your structure: /storage/emulated/0/Orbipay/Bills/
+        final String folderPath = '${rootDir.path}/Orbipay/Bills';
+        final Directory billsDir = Directory(folderPath);
+        await billsDir.create(recursive: true);
+        
+        final String filePath = '$folderPath/$fileName';
+        final File file = File(filePath);
+        await file.writeAsBytes(pdfBytes);
+        
+        print_log('✅ Saved: $filePath');
+        return true;
+      } catch (e) {
+        print_log_red('❌ Error: $e');
+        return false;
+      }
+    }
 
 // Ensure this helper is outside the main function, or just drop it at the bottom of your file
 pw.Widget _buildSummaryRowImproved(String title, String value, {bool isBold = false}) {
@@ -4117,7 +4196,7 @@ pw.Widget _buildSummaryRowImproved(String title, String value, {bool isBold = fa
       return byteData.buffer.asUint8List();
 
     } catch (e) {
-      //debugPrint("Error generating receipt image: $e");
+      print_log_red("Error generating receipt image: $e");
       return null;
     }
   }
@@ -4138,46 +4217,46 @@ pw.Widget _buildSummaryRowImproved(String title, String value, {bool isBold = fa
     // const double receiptWidth = 384.0;
     
     // Map your printer's font sizes (1, 2, 3) to pixel font sizes
-    final Map<int, double> fontSizes = {
-      1: 18.0, // Small (items)
-      2: 24.0, // Medium (total)
-      3: 30.0, // Large (header)
-    };
+    // final Map<int, double> fontSizes = {
+    //   1: 18.0, // Small (items)
+    //   2: 24.0, // Medium (total)
+    //   3: 30.0, // Large (header)
+    // };
     
     // --- 2. Get All Data (Copied from your function) ---
     
     List<Map<String, dynamic>> cart = cart1.map((item) => Map<String, dynamic>.from(item)).toList();
     final prefs = await SharedPreferences.getInstance();
     
-    double getQrPixelSize(qrSize) {
-      switch (qrSize) {
-        case "3": return 150;
-        case "5": return 180;
-        case "7": return 200;
-        default: return 150;
-      }
-    }
+    // double getQrPixelSize(qrSize) {
+    //   switch (qrSize) {
+    //     case "3": return 150;
+    //     case "5": return 180;
+    //     case "7": return 200;
+    //     default: return 150;
+    //   }
+    // }
 
     // 🏪 Business info
-    String businessName = prefs.getString('businessName') ?? 'Hotel Test';
+    // String businessName = prefs.getString('businessName') ?? 'Hotel Test';
       
     String paperSize = prefs.getString('paperSize') ?? '2';
     // Width in pixels. 58mm printers are ~384px. 80mm are ~576px.
     final double receiptWidth = (paperSize == "2") ? 384.0 :(paperSize == "3") ? 512.0 : 576.0 ;
 
     
-    String contactPhone = prefs.getString('contactPhone') ?? '';
-    String contactEmail = prefs.getString('contactEmail') ?? '';
-    String businessAddress = prefs.getString('businessAddress') ?? '';
-    String gst = prefs.getString('gst') ?? '';
+    // String contactPhone = prefs.getString('contactPhone') ?? '';
+    // String contactEmail = prefs.getString('contactEmail') ?? '';
+    // String businessAddress = prefs.getString('businessAddress') ?? '';
+    // String gst = prefs.getString('gst') ?? '';
     
     // ⚙ Printer user settings
-    bool printQr = prefs.getBool('printQR') ?? false;
-    String _qrSize = prefs.getString('qrSize') ?? "5";
-    double qrSize = getQrPixelSize(_qrSize);
-    bool printName = prefs.getBool('printName') ?? true;
-    String footer =  prefs.getString('footerText')?? "** Thank You **";
-    String? upiId = prefs.getString('upi');
+    // bool printQr = prefs.getBool('printQR') ?? false;
+    // String _qrSize = prefs.getString('qrSize') ?? "5";
+    // double qrSize = getQrPixelSize(_qrSize);
+    // bool printName = prefs.getBool('printName') ?? true;
+    // String footer =  prefs.getString('footerText')?? "** Thank You **";
+    // String? upiId = prefs.getString('upi');
     
     // int headerFontSize = prefs.getInt('headerFontSize') ?? 3;
     // int itemFontSize = (prefs.getDouble('fontSize') ?? 1).toInt();
@@ -4310,7 +4389,7 @@ pw.Widget _buildSummaryRowImproved(String title, String value, {bool isBold = fa
       return byteData.buffer.asUint8List();
 
     } catch (e) {
-      //debugPrint("Error generating receipt image: $e");
+      print_log_red("Error generating receipt image: $e");
       return null;
     }
   }
@@ -4363,7 +4442,7 @@ pw.Widget _buildSummaryRowImproved(String title, String value, {bool isBold = fa
     try {
       store = Provider.of<ObjectBoxService>(context, listen: false).store;
       bytes = [];
-      final stopwatch = Stopwatch()..start();
+      // final stopwatch = Stopwatch()..start();
       final prefs = await SharedPreferences.getInstance();
 
       // final device = await _getSavedPrinter(KOTmode: false, context: context);
@@ -4499,7 +4578,7 @@ pw.Widget _buildSummaryRowImproved(String title, String value, {bool isBold = fa
     try {
       store = Provider.of<ObjectBoxService>(context, listen: false).store;
       bytes = [];
-      final stopwatch = Stopwatch()..start();
+      // final stopwatch = Stopwatch()..start();
       final prefs = await SharedPreferences.getInstance();
 
       // final device = await _getSavedPrinter(KOTmode: false, context: context);

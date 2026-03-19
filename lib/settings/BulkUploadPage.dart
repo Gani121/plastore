@@ -192,6 +192,7 @@ class _BulkUploadPageState extends State<BulkUploadPage> {
 
     for (var row in parsedItems) {
       final item = MenuItem(
+        syid:ganarateID(), 
         name: row['name'].toString(),
         sellPrice: row['sellPrice'].toString(),
         sellPriceType: row['sellPriceType'].toString(),

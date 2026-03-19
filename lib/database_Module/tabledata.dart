@@ -6,7 +6,8 @@ import 'menu_item.dart';
 class Active_Table_view {
   @Id()
   int id = 0;
-
+    int syid;
+  bool synced;
   @Unique()
   int number;
 
@@ -24,6 +25,8 @@ class Active_Table_view {
 
   Active_Table_view({
     required this.number,
+        required this.syid,
+    this.synced = false,
     this.total = 0.0,
     this.paymentMethod = 'Cash',
     this.reserved_field,
@@ -42,7 +45,8 @@ class Active_Table_view {
 class CartItem {
   @Id()
   int id = 0;
-
+    int syid;
+  bool synced;
   int quantity;
   
   // Store menu item details directly for cart display
@@ -61,6 +65,8 @@ class CartItem {
   CartItem({
     required this.name,
     required this.price,
+        required this.syid,
+    this.synced = false,
     this.quantity = 1,
     this.reserved_field,
     this.reserved_field1,
@@ -77,7 +83,8 @@ class CartItem {
 class OrderItem {
   @Id()
   int id = 0;
-
+    int syid;
+  bool synced;
   String name;
   int quantity;
   double price;
@@ -94,6 +101,8 @@ class OrderItem {
     required this.name,
     required this.quantity,
     required this.price,
+        required this.syid,
+    this.synced = false,
     this.reserved_field,
     this.reserved_field1,
     this.reserved_field2,

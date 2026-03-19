@@ -19,6 +19,7 @@ int imageHeight = 92;
 double boxHeight = 0.4;
 double boxText = 16;
 bool isHoldEnabled = false;
+bool isParcel = false;
 List<String> categories = [];
 String? selectedCategory = "ALL";
 bool _isVoiceSelected = false;
@@ -207,11 +208,13 @@ class _NewOrderPageState extends State<NewOrderPage> with AutomaticKeepAliveClie
   bool _isPrinting = false;
   String? billingType;
   bool _isProcessing = false;
+  String? _previousBillingType; // Add this to store previous billing type
 
   @override
   void initState() {
     super.initState();
     _loadPrefs();
+    isParcel = false;
     final stopwatch = Stopwatch()..start();
     final store = Provider.of<ObjectBoxService>(context, listen: false).store;
     menuItemBox = store.box<MenuItem>();
@@ -522,46 +525,29 @@ class _NewOrderPageState extends State<NewOrderPage> with AutomaticKeepAliveClie
       hasImage = imageFile.existsSync();
     }
     
-    //if available, otherwise fallback to f_price, otherwise 0
+    // In _ListViewHalfFullState's _buildListItem_half_full method
     double fPrice;
-    // ////debugPrint(" $billingType == REGULAR  buildItemCardWithImage_half_full");
+    double hPrice;
+
     switch (billingType) {
       case "AC":
-        fPrice = double.tryParse(item['acSellPrice']?.toString() ?? '0.0')?? 0;
+        fPrice = double.tryParse(item['acSellPrice']?.toString() ?? '0.0') ?? 0;
+        hPrice = double.tryParse(item['acSellPriceHalf']?.toString() ?? '0.0') ?? 0;
         break;
       case "Non-Ac":
-        fPrice = double.tryParse(item['nonAcSellPrice']?.toString() ?? '0.0')?? 0;
+        fPrice = double.tryParse(item['nonAcSellPrice']?.toString() ?? '0.0') ?? 0;
+        hPrice = double.tryParse(item['nonAcSellPriceHalf']?.toString() ?? '0.0') ?? 0;
         break;
       case "online-sale":
-        fPrice = double.tryParse(item['onlineSellPrice']?.toString() ?? '0.0')?? 0;
+        fPrice = double.tryParse(item['onlineSellPrice']?.toString() ?? '0.0') ?? 0;
+        hPrice = double.tryParse(item['onlineSellPriceHalf']?.toString() ?? '0.0') ?? 0;
         break;
       case "online Delivery Price (parcel)":
-        fPrice = double.tryParse(item['onlineDeliveryPrice']?.toString() ?? '0.0')?? 0;
-        // ////debugPrint(" $billingType == REGULAR _ListViewHalfFullState $fPrice");
+        fPrice = double.tryParse(item['onlineDeliveryPrice']?.toString() ?? '0.0') ?? 0;
+        hPrice = double.tryParse(item['onlineDeliveryPriceHalf']?.toString() ?? '0.0') ?? 0;
         break;
       default:
         fPrice = double.tryParse(item['f_price']?.toString() ?? '0.0') ?? 0;
-        break;
-    }
-
-    // double hPrice = double.tryParse(item['h_price']?.toString() ?? '0.0') ?? 0;
-    double hPrice;
-    // ////debugPrint(" $billingType == REGULAR  buildItemCardWithImage_half_full");
-    switch (billingType) {
-      case "AC":
-        hPrice = double.tryParse(item['acSellPriceHalf']?.toString() ?? '0.0')?? 0;
-        break;
-      case "Non-Ac":
-        hPrice = double.tryParse(item['nonAcSellPriceHalf']?.toString() ?? '0.0')?? 0;
-        break;
-      case "online-sale":
-        hPrice = double.tryParse(item['onlineSellPriceHalf']?.toString() ?? '0.0')?? 0;
-        break;
-      case "online Delivery Price (parcel)":
-        hPrice = double.tryParse(item['onlineDeliveryPriceHalf']?.toString() ?? '0.0')?? 0;
-        // ////debugPrint(" $billingType == REGULAR _ListViewHalfFullState $fPrice");
-        break;
-      default:
         hPrice = double.tryParse(item['h_price']?.toString() ?? '0.0') ?? 0;
         break;
     }
@@ -2281,13 +2267,34 @@ class _NewOrderPageState extends State<NewOrderPage> with AutomaticKeepAliveClie
                               isActive: isHoldEnabled,
                             ),
 
-                            // _buildFlatSquareButton(
-                            //   Icons.local_shipping,
-                            //   "PARCEL",
-                            //   () {
-                            //     //TODO: Do something
-                            //   },
-                            // ),
+                            _buildFlatSquareButton(
+                              Icons.local_shipping,
+                              "PARCEL",
+                              () async {
+                                setState(() {
+                                  isParcel = !isParcel;
+                                  
+                                  // When parcel is enabled, set billing type to "online Delivery Price (parcel)"
+                                  if (isParcel) {
+                                    billingType = "online Delivery Price (parcel)";
+                                    print_log("Parcel enabled - billingType set to: $billingType");
+                                  } else {
+                                    // When parcel is disabled, revert to previous billing type or default
+                                    // You might want to store the previous billing type or use a default
+                                    billingType = "REGULAR"; // Or whatever your default is
+                                    print_log("Parcel disabled - billingType set to: $billingType");
+                                  }
+                                  
+                                  // Refresh the filtered items to show prices based on new billing type
+                                  _filterItems(category: selectedCategory);
+                                });
+
+                                // final prefs = await SharedPreferences.getInstance();
+                                // await prefs.setBool('isParcel', isParcel);
+                                // await prefs.setString('selectedBillingType', billingType ?? "REGULAR");
+                              },
+                              isActive: isParcel,
+                            ),
                           ],
                         ),
                       ),

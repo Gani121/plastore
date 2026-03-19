@@ -72,6 +72,14 @@ class _SalesReportPageState extends State<SalesReportPage> {
   Map<String, Map<String, double>> menuItemConsumptionMap = {};
   Map<String, String> inventoryUnitMap = {};
   List<expences> _allExpenses = [];
+  bool _showAllItems = false;
+  // Add these variables to your State class
+  double _totalCash = 0;
+  double _totalOnline = 0;
+  double _totalCard = 0;
+  double _totalCredit = 0;
+  int _totalCreditTransactions = 0;
+  double _totalPendingCredit = 0;
 
   @override
   void initState() {
@@ -119,6 +127,13 @@ class _SalesReportPageState extends State<SalesReportPage> {
       await _loadTransactions();
     }
   }
+    String _formatNumber(double number) {
+    if (number == number.toInt()) {
+      return number.toInt().toString();
+    }
+    return number.toStringAsFixed(2);
+  }
+
 
   Future<void> _pickToDate() async {
     final picked = await showDatePicker(
@@ -1086,7 +1101,7 @@ double _getTodayExpenses() {
     double avgDailyExpense = yearTotal / dayOfYear;
 
     return Container(
-      padding: const EdgeInsets.all(20),
+      padding: const EdgeInsets.fromLTRB(20,10,20,10),
       decoration: BoxDecoration(
         color: Colors.blue.shade50,
         borderRadius: BorderRadius.circular(12),
@@ -1106,9 +1121,9 @@ double _getTodayExpenses() {
               ),
             ],
           ),
-          const SizedBox(height: 20),
+          const SizedBox(height: 1),
           const Divider(),
-          const SizedBox(height: 10),
+          const SizedBox(height: 1),
           // Bottom Row: Today, Week, and Year Avg
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceAround,
@@ -1161,8 +1176,14 @@ double _getTodayExpenses() {
                   _buildHeader(),
                   _buildConsumptionSummaryCard(), // Added Consumption Card
                   if (orderTypeTotalMap.isNotEmpty) _buildOrderTypeSummaryCard(),
-                  _buildExpenseSummaryCard(),
+                  // _buildExpenseSummaryCard(),
+                  // Payment Method Summary
+                  _buildPaymentMethodSummaryCard(),
+                  _buildExpenseSupplierCard(),
+                  _buildItemWiseExpenseSummaryCard(),
+                  _buildWastageSummaryCard(),
                   _buildExpensecategryCard(),
+                  _buildExpenseTypeCard() ,
                   if (citemPriceMap.isNotEmpty) _buildportionWiseSummaryCard(),
                   if (categoryPriceMap.isNotEmpty) _buildCategoryWiseSummaryCard(),
                   if (adjustStock.isNotEmpty) _buildadjustStockSummaryCard(),
@@ -1186,6 +1207,560 @@ double _getTodayExpenses() {
             ),
     );
   }
+
+  Map<String, Map<String, dynamic>> _getItemWiseExpenses() {
+    final Map<String, Map<String, dynamic>> itemWiseMap = {};
+    
+    for (final expenseJson in expensesList) {
+      try {
+        final data = jsonDecode(expenseJson);
+        
+        // Skip if no title or quantity
+        if (data['title'] == null || data['title'].toString().isEmpty) continue;
+        
+        final String itemName = data['title'];
+        final double amount = (data['amount'] ?? 0).toDouble();
+        final double quantity = data['quantity'] != null 
+            ? double.tryParse(data['quantity'].toString()) ?? 0 
+            : 0;
+        final String unit = data['unit'] ?? '';
+        final String expenseType = data['expenseType'] ?? 'Expense';
+        
+        if (itemWiseMap.containsKey(itemName)) {
+          // Update existing item
+          final existing = itemWiseMap[itemName]!;
+          existing['totalAmount'] = (existing['totalAmount'] as double) + amount;
+          existing['totalQuantity'] = (existing['totalQuantity'] as double) + quantity;
+          existing['count'] = (existing['count'] as int) + 1;
+          
+          // Add to transactions list
+          (existing['transactions'] as List).add({
+            'amount': amount,
+            'quantity': quantity,
+            'type': expenseType,
+            'date': data['date'],
+          });
+        } else {
+          // Add new item
+          itemWiseMap[itemName] = {
+            'itemName': itemName,
+            'totalAmount': amount,
+            'totalQuantity': quantity,
+            'unit': unit,
+            'count': 1,
+            'category': data['category'] ?? 'Unknown',
+            'transactions': [{
+              'amount': amount,
+              'quantity': quantity,
+              'type': expenseType,
+              'date': data['date'],
+            }],
+          };
+        }
+      } catch (e) {
+        print_log_red('Error processing expense for item-wise summary: $e');
+      }
+    }
+    
+    // Sort by total amount (highest first)
+    final sortedEntries = itemWiseMap.entries.toList()
+      ..sort((a, b) => b.value['totalAmount'].compareTo(a.value['totalAmount']));
+    
+    return Map.fromEntries(sortedEntries);
+  }
+
+  Widget _buildItemWiseExpenseSummaryCard() {
+    final itemWiseData = _getItemWiseExpenses();
+    
+    if (itemWiseData.isEmpty) {
+      return const SizedBox.shrink();
+    }
+    
+    double totalExpenseAmount = itemWiseData.values.fold(
+      0.0, 
+      (sum, item) => sum + (item['totalAmount'] as double)
+    );
+    
+    return Card(
+      margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      elevation: 2,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      child: Padding(
+        padding: const EdgeInsets.all(12.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Header with total
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        color: Colors.orange.shade50,
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Icon(
+                        Icons.pie_chart,
+                        color: Colors.orange.shade800,
+                        size: 20,
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    const Text(
+                      'Item-wise Expenses',
+                      style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                    ),
+                  ],
+                ),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                  decoration: BoxDecoration(
+                    color: Colors.orange.shade50,
+                    borderRadius: BorderRadius.circular(15),
+                  ),
+                  child: Text(
+                    'Total: ₹${totalExpenseAmount.toStringAsFixed(2)}',
+                    style: TextStyle(
+                      fontWeight: FontWeight.bold,
+                      color: Colors.orange.shade800,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            
+            const SizedBox(height: 12),
+            
+            // Table Header
+            Container(
+              padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 4),
+              decoration: BoxDecoration(
+                color: Colors.grey.shade100,
+                borderRadius: BorderRadius.circular(6),
+              ),
+              child: Row(
+                children: const [
+                  Expanded(
+                    flex: 3,
+                    child: Text(
+                      'Item Name',
+                      style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+                    ),
+                  ),
+                  Expanded(
+                    flex: 1,
+                    child: Text(
+                      'Qty',
+                      style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+                      textAlign: TextAlign.right,
+                    ),
+                  ),
+                  Expanded(
+                    flex: 1,
+                    child: Text(
+                      'Unit',
+                      style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+                      textAlign: TextAlign.right,
+                    ),
+                  ),
+                  Expanded(
+                    flex: 1,
+                    child: Text(
+                      'Amount',
+                      style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+                      textAlign: TextAlign.right,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            
+            const SizedBox(height: 8),
+            
+            // Item rows
+            ...itemWiseData.entries.map((entry) {
+              final itemName = entry.key;
+              final data = entry.value;
+              final totalAmount = data['totalAmount'] as double;
+              final totalQuantity = data['totalQuantity'] as double;
+              final unit = data['unit'] as String;
+              
+              return Padding(
+                padding: const EdgeInsets.symmetric(vertical: 6.0),
+                child: Row(
+                  children: [
+                    Expanded(
+                      flex: 3,
+                      child: Text(
+                        itemName,
+                        style: const TextStyle(fontSize: 13),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                    Expanded(
+                      flex: 1,
+                      child: Text(
+                        _formatNumber(totalQuantity),
+                        style: const TextStyle(fontSize: 13),
+                        textAlign: TextAlign.right,
+                      ),
+                    ),
+                    Expanded(
+                      flex: 1,
+                      child: Text(
+                        unit.isEmpty ? '-' : unit,
+                        style: const TextStyle(fontSize: 13),
+                        textAlign: TextAlign.right,
+                      ),
+                    ),
+                    Expanded(
+                      flex: 1,
+                      child: Text(
+                        '₹${totalAmount.toStringAsFixed(2)}',
+                        style: const TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w500,
+                          color: Colors.red,
+                        ),
+                        textAlign: TextAlign.right,
+                      ),
+                    ),
+                  ],
+                ),
+              );
+            }).toList(),
+            
+            const Divider(),
+            
+            // Total Row
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: 8.0),
+              child: Row(
+                children: [
+                  const Expanded(
+                    flex: 3,
+                    child: Text(
+                      'Total',
+                      style: TextStyle(fontWeight: FontWeight.bold),
+                    ),
+                  ),
+                  Expanded(
+                    flex: 1,
+                    child: Text(
+                      '${itemWiseData.length} items',
+                      style: const TextStyle(fontWeight: FontWeight.w500),
+                      textAlign: TextAlign.right,
+                    ),
+                  ),
+                  Expanded(
+                    flex: 1,
+                    child: Container(), // Empty for unit column
+                  ),
+                  Expanded(
+                    flex: 1,
+                    child: Text(
+                      '₹${totalExpenseAmount.toStringAsFixed(2)}',
+                      style: const TextStyle(
+                        fontWeight: FontWeight.bold,
+                        color: Colors.red,
+                      ),
+                      textAlign: TextAlign.right,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+Widget _buildWastageSummaryCard() {
+  final Map<String, Map<String, dynamic>> wastageMap = {};
+  double totalWastageValue = 0;
+  
+  for (final expenseJson in expensesList) {
+    try {
+      final data = jsonDecode(expenseJson);
+      
+      // Only process wastage entries
+      if (data['expenseType'] != 'Wastage') continue;
+      
+      final String itemName = data['title'] ?? 'Unknown';
+      final double amount = (data['amount'] ?? 0).toDouble();
+      final double quantity = data['quantity'] != null 
+          ? double.tryParse(data['quantity'].toString()) ?? 0 
+          : 0;
+      final String unit = data['unit'] ?? 'pcs';
+      
+      totalWastageValue += amount;
+      
+      if (wastageMap.containsKey(itemName)) {
+        final existing = wastageMap[itemName]!;
+        existing['totalAmount'] = (existing['totalAmount'] as double) + amount;
+        existing['totalQuantity'] = (existing['totalQuantity'] as double) + quantity;
+      } else {
+        wastageMap[itemName] = {
+          'totalAmount': amount,
+          'totalQuantity': quantity,
+          'unit': unit,
+        };
+      }
+    } catch (e) {
+      print_log_red('Error processing wastage: $e');
+    }
+  }
+  
+  if (wastageMap.isEmpty) {
+    return const SizedBox.shrink();
+  }
+  
+  // Sort by total amount (highest first)
+  final sortedWastage = wastageMap.entries.toList()
+    ..sort((a, b) => b.value['totalAmount'].compareTo(a.value['totalAmount']));
+  
+  // Calculate wastage percentage
+  double wastagePercentage = expensesDateRange > 0 ? (totalWastageValue / expensesDateRange) * 100 : 0;
+  
+  return Card(
+    margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+    elevation: 2,
+    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+    child: Padding(
+      padding: const EdgeInsets.all(12.0),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Header
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: Colors.red.shade50,
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Icon(
+                      Icons.warning_amber_rounded,
+                      color: Colors.red.shade800,
+                      size: 20,
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  const Text(
+                    'Wastage Summary',
+                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                  ),
+                ],
+              ),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                decoration: BoxDecoration(
+                  color: Colors.red.shade50,
+                  borderRadius: BorderRadius.circular(15),
+                ),
+                child: Text(
+                 '${wastagePercentage.toStringAsFixed(1)}%',
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    color: Colors.red.shade800,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          
+          const SizedBox(height: 12),
+          
+          // // Wastage Percentage Line
+          // Container(
+          //   padding: const EdgeInsets.all(10),
+          //   decoration: BoxDecoration(
+          //     color: Colors.red.shade50,
+          //     borderRadius: BorderRadius.circular(8),
+          //     border: Border.all(color: Colors.red.shade200),
+          //   ),
+          //   child: Row(
+          //     mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          //     children: [
+          //       Row(
+          //         children: [
+          //           Icon(Icons.pie_chart, size: 16, color: Colors.red.shade800),
+          //           const SizedBox(width: 8),
+          //           const Text(
+          //             'Wastage % of Total Expenses:',
+          //             style: TextStyle(fontWeight: FontWeight.w500),
+          //           ),
+          //         ],
+          //       ),
+          //       Text(
+          //         '${wastagePercentage.toStringAsFixed(1)}%',
+          //         style: TextStyle(
+          //           fontWeight: FontWeight.bold,
+          //           color: Colors.red.shade800,
+          //           fontSize: 16,
+          //         ),
+          //       ),
+          //     ],
+          //   ),
+          // ),
+          
+          // const SizedBox(height: 12),
+          
+          // Table Header
+          Container(
+            padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 4),
+            decoration: BoxDecoration(
+              color: Colors.red.shade50,
+              borderRadius: BorderRadius.circular(6),
+            ),
+            child: Row(
+              children: const [
+                Expanded(
+                  flex: 3,
+                  child: Text(
+                    'Item Name',
+                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+                  ),
+                ),
+                Expanded(
+                  flex: 1,
+                  child: Text(
+                    'Qty',
+                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+                    textAlign: TextAlign.right,
+                  ),
+                ),
+                Expanded(
+                  flex: 1,
+                  child: Text(
+                    'Unit',
+                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+                    textAlign: TextAlign.right,
+                  ),
+                ),
+                Expanded(
+                  flex: 1,
+                  child: Text(
+                    'Loss',
+                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+                    textAlign: TextAlign.right,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          
+          const SizedBox(height: 8),
+          
+          // Wastage rows
+          ...sortedWastage.map((entry) {
+            final itemName = entry.key;
+            final data = entry.value;
+            final totalAmount = data['totalAmount'] as double;
+            final totalQuantity = data['totalQuantity'] as double;
+            final unit = data['unit'] as String;
+            
+            return Padding(
+              padding: const EdgeInsets.symmetric(vertical: 6.0),
+              child: Row(
+                children: [
+                  Expanded(
+                    flex: 3,
+                    child: Text(
+                      itemName,
+                      style: const TextStyle(fontSize: 13),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                  Expanded(
+                    flex: 1,
+                    child: Text(
+                      _formatNumber(totalQuantity),
+                      style: const TextStyle(fontSize: 13),
+                      textAlign: TextAlign.right,
+                    ),
+                  ),
+                  Expanded(
+                    flex: 1,
+                    child: Text(
+                      unit.isEmpty ? '-' : unit,
+                      style: const TextStyle(fontSize: 13),
+                      textAlign: TextAlign.right,
+                    ),
+                  ),
+                  Expanded(
+                    flex: 1,
+                    child: Text(
+                      '₹${totalAmount.toStringAsFixed(2)}',
+                      style: const TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w500,
+                        color: Colors.red,
+                      ),
+                      textAlign: TextAlign.right,
+                    ),
+                  ),
+                ],
+              ),
+            );
+          }).toList(),
+          
+          const Divider(),
+          
+          // Total Row
+          Padding(
+            padding: const EdgeInsets.symmetric(vertical: 8.0),
+            child: Row(
+              children: [
+                const Expanded(
+                  flex: 3,
+                  child: Text(
+                    'Total Wastage',
+                    style: TextStyle(fontWeight: FontWeight.bold),
+                  ),
+                ),
+                Expanded(
+                  flex: 1,
+                  child: Text(
+                    '${wastageMap.length} items',
+                    style: const TextStyle(fontWeight: FontWeight.w500),
+                    textAlign: TextAlign.right,
+                  ),
+                ),
+                Expanded(
+                  flex: 1,
+                  child: Container(), // Empty for unit column
+                ),
+                Expanded(
+                  flex: 1,
+                  child: Text(
+                    '₹${totalWastageValue.toStringAsFixed(2)}',
+                    style: const TextStyle(
+                      fontWeight: FontWeight.bold,
+                      color: Colors.red,
+                    ),
+                    textAlign: TextAlign.right,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    ),
+  );
+}
+
 
   Widget _buildCategoryWiseSummaryCard() {
     if (categoryPriceMap.isEmpty) return const SizedBox.shrink();
@@ -1252,6 +1827,339 @@ double _getTodayExpenses() {
       ),
     );
   }
+  void _calculatePaymentMethodTotals() {
+  _totalCash = 0;
+  _totalOnline = 0;
+  _totalCard = 0;
+  _totalCredit = 0;
+  _totalCreditTransactions = 0;
+  _totalPendingCredit = 0;
+  
+  for (final expenseJson in expensesList) {
+    try {
+      final data = jsonDecode(expenseJson);
+      final amount = (data['amount'] ?? 0).toDouble();
+      final paymentMethod = data['paymentMethod'] ?? 'Cash';
+      final receivedAmount = data['receivedAmount'] != null 
+          ? double.tryParse(data['receivedAmount'].toString()) ?? 0 
+          : amount;
+      
+      switch (paymentMethod) {
+        case 'Cash':
+          _totalCash += amount;
+          break;
+        case 'Online':
+          _totalOnline += amount;
+          break;
+        case 'Card':
+          _totalCard += amount;
+          break;
+        case 'Credit':
+          _totalCredit += amount;
+          _totalCreditTransactions++;
+          // Calculate pending amount for credit
+          if (receivedAmount < amount) {
+            _totalPendingCredit += (amount - receivedAmount);
+          }
+          break;
+        default:
+          _totalCash += amount; // Default to cash
+      }
+    } catch (e) {
+      print_log_red('Error calculating payment method totals: $e');
+    }
+  }
+  
+  // Update UI if needed
+  if(mounted){
+    setState(() {});
+  }
+}
+
+Widget _buildPaymentMethodSummaryCard() {
+  // Calculate totals if not already done
+  _calculatePaymentMethodTotals();
+  
+  double totalExpenses = _totalCash + _totalOnline + _totalCard + _totalCredit;
+  
+  if (totalExpenses == 0) {
+    return const SizedBox.shrink();
+  }
+  
+  return Card(
+    margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+    elevation: 2,
+    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+    child: Padding(
+      padding: const EdgeInsets.all(12.0),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Header
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: Colors.blue.shade50,
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Icon(
+                  Icons.payment,
+                  color: Colors.blue.shade800,
+                  size: 20,
+                ),
+              ),
+              const SizedBox(width: 10),
+              const Text(
+                'Expense Payment Method',
+                style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+              ),
+            ],
+          ),
+          
+          const SizedBox(height: 16),
+          
+          // Table Header
+          Container(
+            padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 4),
+            decoration: BoxDecoration(
+              color: Colors.grey.shade100,
+              borderRadius: BorderRadius.circular(6),
+            ),
+            child: const Row(
+              children: [
+                Expanded(
+                  flex: 2,
+                  child: Text(
+                    'Payment Method',
+                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+                  ),
+                ),
+                Expanded(
+                  flex: 1,
+                  child: Text(
+                    'Amount',
+                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+                    textAlign: TextAlign.right,
+                  ),
+                ),
+                // Expanded(
+                //   flex: 1,
+                //   child: Text(
+                //     '% of Total',
+                //     style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+                //     textAlign: TextAlign.right,
+                //   ),
+                // ),
+              ],
+            ),
+          ),
+          
+          const SizedBox(height: 8),
+          
+          // Cash Row
+          _buildPaymentMethodRow(
+            'Cash',
+            _totalCash,
+            totalExpenses,
+            Icons.money,
+            Colors.green,
+          ),
+          
+          // Online Row
+          _buildPaymentMethodRow(
+            'Online',
+            _totalOnline,
+            totalExpenses,
+            Icons.payment,
+            Colors.purple,
+          ),
+          
+          // Card Row
+          _buildPaymentMethodRow(
+            'Card',
+            _totalCard,
+            totalExpenses,
+            Icons.credit_card,
+            Colors.orange,
+          ),
+          
+          // Credit Row (with pending info)
+          Column(
+            children: [
+              _buildPaymentMethodRow(
+                'Credit',
+                _totalCredit,
+                totalExpenses,
+                Icons.credit_score,
+                Colors.red,
+              ),
+              if (_totalPendingCredit > 0) ...[
+                const SizedBox(height: 4),
+                Container(
+                  margin: const EdgeInsets.only(left: 40),
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: Colors.red.shade50,
+                    borderRadius: BorderRadius.circular(4),
+                    border: Border.all(color: Colors.red.shade200),
+                  ),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Row(
+                        children: [
+                          Icon(Icons.warning, size: 12, color: Colors.red.shade800),
+                          const SizedBox(width: 4),
+                          Text(
+                            'Pending Amount:',
+                            style: TextStyle(
+                              fontSize: 11,
+                              color: Colors.red.shade800,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                        ],
+                      ),
+                      Text(
+                        '₹${_totalPendingCredit.toStringAsFixed(2)}',
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.red.shade800,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+              if (_totalCreditTransactions > 0)
+                Padding(
+                  padding: const EdgeInsets.only(left: 40, top: 2),
+                  child: Align(
+                    alignment: Alignment.centerRight,
+                    child: Text(
+                      '$_totalCreditTransactions credit transaction${_totalCreditTransactions != 1 ? 's' : ''}',
+                      style: TextStyle(
+                        fontSize: 10,
+                        color: Colors.grey.shade600,
+                        fontStyle: FontStyle.italic,
+                      ),
+                    ),
+                  ),
+                ),
+            ],
+          ),
+          
+          const Divider(height: 24),
+          
+          // Total Row
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              const Text(
+                'Total Expenses',
+                style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold),
+              ),
+              Text(
+                '₹${totalExpenses.toStringAsFixed(2)}',
+                style: const TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.blue,
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    ),
+  );
+}
+
+Widget _buildPaymentMethodRow(String method, double amount, double total, IconData icon, Color color) {
+  double percentage = total > 0 ? (amount / total) * 100 : 0;
+  
+  return Padding(
+    padding: const EdgeInsets.symmetric(vertical: 6.0),
+    child: Row(
+      children: [
+        Expanded(
+          flex: 2,
+          child: Row(
+            children: [
+              Container(
+                width: 24,
+                height: 24,
+                decoration: BoxDecoration(
+                  color: color.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(4),
+                ),
+                child: Icon(icon, size: 14, color: color),
+              ),
+              const SizedBox(width: 8),
+              Text(
+                method,
+                style: const TextStyle(fontSize: 13),
+              ),
+            ],
+          ),
+        ),
+        Expanded(
+          flex: 1,
+          child: Text(
+            '₹${amount.toStringAsFixed(2)}',
+            style: TextStyle(
+              fontSize: 13,
+              fontWeight: FontWeight.w500,
+              color: amount > 0 ? Colors.black87 : Colors.grey,
+            ),
+            textAlign: TextAlign.right,
+          ),
+        ),
+        // Expanded(
+        //   flex: 1,
+        //   child: Row(
+        //     mainAxisAlignment: MainAxisAlignment.end,
+        //     children: [
+              // SizedBox(
+              //   width: 50,
+              //   child: Text(
+              //     '${percentage.toStringAsFixed(1)}%',
+              //     style: TextStyle(
+              //       fontSize: 12,
+              //       color: Colors.grey.shade600,
+              //     ),
+              //     textAlign: TextAlign.right,
+              //   ),
+              // ),
+              // const SizedBox(width: 8),
+              // Container(
+              //   width: 40,
+              //   height: 4,
+              //   decoration: BoxDecoration(
+              //     color: Colors.grey.shade200,
+              //     borderRadius: BorderRadius.circular(2),
+              //   ),
+                // child: FractionallySizedBox(
+                //   alignment: Alignment.centerLeft,
+                //   widthFactor: percentage / 100,
+                //   child: Container(
+                //     decoration: BoxDecoration(
+                //       color: color,
+                //       borderRadius: BorderRadius.circular(2),
+                //     ),
+                //   ),
+                // ),
+          //     ),
+          //   ],
+          // ),
+        // ),
+      ],
+    ),
+  );
+}
 
   Widget _buildConsumptionSummaryCard() {
     if (consumptionReport.isEmpty) return const SizedBox.shrink();
@@ -1698,102 +2606,190 @@ double _getTodayExpenses() {
     );
   }
 
-  Widget _buildExpenseSummaryCard() {
-    // Sort expenses by date (most recent first)
-    List<String> sortedExpenses = expensesList;
-  print_log("$sortedExpenses");
-    return Card(
-      margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-      elevation: 2,
-      child: Padding(
-        padding: const EdgeInsets.all(12.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Header Section
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                const Text(
-                  'Expense List',
-                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-                ),
-              ],
-            ),
-            
-            const Divider(),
+  Widget _buildExpenseTypeCard() {
+  // 1. Group and Sum expenses by expenseType
+  Map<String, double> typeTotals = {};
 
-            // The List of Expenses
-            if (sortedExpenses.isEmpty)
-              const Padding(
-                padding: EdgeInsets.all(20.0),
-                child: Center(child: Text("No expenses found for this range")),
-              )
-            else
-              ...sortedExpenses.map((expense) {
-                // Note: Since your data is stored as JSON in 'expence', 
-                // we decode it here to get the display values.
-                Map<String, dynamic> data = jsonDecode(expense);
-                
-                return Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 8.0, horizontal: 4.0),
-                  child: Row(
-                    children: [
-                      // Icon based on category
-                      // Container(
-                      //   padding: const EdgeInsets.all(8),
-                      //   decoration: BoxDecoration(
-                      //     color: Colors.blue.shade50,
-                      //     borderRadius: BorderRadius.circular(8),
-                      //   ),
-                      //   child: Icon(
-                      //     _getCategoryIcon(data['category'] ?? ''),
-                      //     size: 20,
-                      //     color: Colors.blue.shade800,
-                      //   ),
-                      // ),
-                      // const SizedBox(width: 12),
-                      
-                      // Title and Date
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              data['title'] ?? 'Unnamed',
-                              style: const TextStyle(
-                                fontSize: 15, 
-                                fontWeight: FontWeight.w500
-                              ),
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                            Text(
-                              "${data['category'] ?? 'Unknown'} - ${DateFormat('dd MMM yyyy').format(DateTime.parse(data['date']))}",
-                              style: TextStyle(fontSize: 12, color: Colors.grey[600]),
-                            ),
-                          ],
-                        ),
-                      ),
-                      
-                      // Amount
-                      Text(
-                        '₹${(data['amount'] ?? 0).toDouble().toStringAsFixed(2)}',
-                        style: const TextStyle(
-                          fontSize: 15, 
-                          fontWeight: FontWeight.bold,
-                          color: Colors.red
-                        ),
-                      ),
-                    ],
-                  ),
-                );
-              }).toList(),
-          ],
-        ),
-      ),
-    );
+  for (var expenseStr in expensesList) {
+    try {
+      Map<String, dynamic> data = jsonDecode(expenseStr);
+
+      String type = data['expenseType'] ?? 'Unknown Type';
+      double amount = (data['amount'] ?? 0).toDouble();
+
+      typeTotals[type] = (typeTotals[type] ?? 0) + amount;
+    } catch (e) {
+      print_log("Error decoding expense: $e");
+    }
   }
 
+  // 2. Sort by highest total
+  final sortedTypes = typeTotals.entries.toList()
+    ..sort((a, b) => b.value.compareTo(a.value));
+
+  return Card(
+    margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+    elevation: 2,
+    child: Padding(
+      padding: const EdgeInsets.all(12.0),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Header
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: const [
+              Text(
+                'Expense by Type',
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+              ),
+            ],
+          ),
+          const Divider(),
+
+          if (sortedTypes.isEmpty)
+            const Padding(
+              padding: EdgeInsets.all(20.0),
+              child: Center(
+                child: Text("No expenses found for this range"),
+              ),
+            )
+          else
+            ...sortedTypes.map((entry) {
+              return Padding(
+                padding: const EdgeInsets.symmetric(vertical: 8.0, horizontal: 4.0),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Row(
+                      children: [
+                        Icon(Icons.label, size: 18, color: Colors.orange.shade700),
+                        const SizedBox(width: 8),
+                        Text(
+                          entry.key,
+                          style: const TextStyle(
+                            fontSize: 15,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      ],
+                    ),
+                    Text(
+                      '₹${entry.value.toStringAsFixed(2)}',
+                      style: const TextStyle(
+                        fontSize: 15,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.red,
+                      ),
+                    ),
+                  ],
+                ),
+              );
+            }).toList(),
+        ],
+      ),
+    ),
+  );
+}
+
+Widget _buildExpenseSupplierCard() {
+  // 1. Group and Sum expenses by Supplier
+  Map<String, double> supplierTotals = {};
+
+  for (var expenseStr in expensesList) {
+    try {
+      Map<String, dynamic> data = jsonDecode(expenseStr);
+
+      String supplier = data['supplierName'] ?? 'Unknown Supplier';
+      double amount = (data['amount'] ?? 0).toDouble();
+
+      supplierTotals[supplier] = (supplierTotals[supplier] ?? 0) + amount;
+    } catch (e) {
+      print_log("Error decoding expense: $e");
+    }
+  }
+
+  // 2. Sort suppliers by highest spending
+  final sortedSuppliers = supplierTotals.entries.toList()
+    ..sort((a, b) => b.value.compareTo(a.value));
+
+  return Card(
+    margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+    elevation: 2,
+    child: Padding(
+      padding: const EdgeInsets.all(12.0),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Header
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: const [
+              Text(
+                'Expense by Supplier',
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ],
+          ),
+          const Divider(),
+
+          if (sortedSuppliers.isEmpty)
+            const Padding(
+              padding: EdgeInsets.all(20.0),
+              child: Center(
+                child: Text("No expenses found for this range"),
+              ),
+            )
+          else
+            ...sortedSuppliers.map((entry) {
+              return Padding(
+                padding: const EdgeInsets.symmetric(
+                  vertical: 8.0,
+                  horizontal: 4.0,
+                ),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    // Supplier Name
+                    Row(
+                      children: [
+                        Icon(
+                          Icons.store,
+                          size: 18,
+                          color: Colors.green.shade700,
+                        ),
+                        const SizedBox(width: 8),
+                        Text(
+                          entry.key,
+                          style: const TextStyle(
+                            fontSize: 15,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      ],
+                    ),
+
+                    // Total Amount
+                    Text(
+                      '₹${entry.value.toStringAsFixed(2)}',
+                      style: const TextStyle(
+                        fontSize: 15,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.red,
+                      ),
+                    ),
+                  ],
+                ),
+              );
+            }).toList(),
+        ],
+      ),
+    ),
+  );
+}
 
   Widget _buildExpensecategryCard() {
     // 1. Group and Sum expenses by Category
@@ -1883,24 +2879,6 @@ double _getTodayExpenses() {
   }
 
 
-  IconData _getCategoryIcon(String category) {
-    switch (category.toLowerCase()) {
-      case 'food':
-        return Icons.restaurant;
-      case 'utilities':
-        return Icons.bolt;
-      case 'transport':
-        return Icons.directions_car;
-      case 'shopping':
-        return Icons.shopping_bag;
-      case 'entertainment':
-        return Icons.movie;
-      case 'healthcare':
-        return Icons.medical_services;
-      default:
-        return Icons.money;
-    }
-  }
 
   Widget _buildDateFilterSection() {
     return Padding(
@@ -2073,10 +3051,11 @@ Widget _buildSummaryCard() {
                 ),
                 child: Column(
                   children: [
-                    _buildModernRow(expensesLabel, "₹${displayExpenses.toStringAsFixed(2)}", Colors.red.shade700),
                     _buildModernRow(totalSell, "₹${rangetotal.toStringAsFixed(2)}", Colors.black),
+                    _buildModernRow("Net Sell", "₹${profit.toStringAsFixed(2)}", Colors.black),
+                    _buildModernRow(expensesLabel, "₹${displayExpenses.toStringAsFixed(2)}", Colors.red.shade700),
                     const Divider(),
-                    _buildModernRow("NET PROFIT", "₹${(profit-displayExpenses).toStringAsFixed(2)}",profit >= 0 ? Colors.green.shade700 : Colors.red.shade700,isBold: true,fontSize: 18),
+                    _buildModernRow("NET PROFIT", "₹${(profit-displayExpenses).toStringAsFixed(2)}",(profit-displayExpenses) >= 0 ? Colors.green.shade700 : Colors.red.shade700,isBold: true,fontSize: 18),
                   ],
                 ),
               ),

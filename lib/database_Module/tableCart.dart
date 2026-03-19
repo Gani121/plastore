@@ -6,7 +6,8 @@ import 'package:objectbox/objectbox.dart';
 class tableCart {
   @Id()
   int id = 0;
-
+    int syid;
+  bool synced;
   int tableNo;
   String tCart;
   String? reserved_field = '';
@@ -20,6 +21,8 @@ class tableCart {
   tableCart({
     required this.tableNo,
     required this.tCart,
+        required this.syid,
+    this.synced = false,
     this.reserved_field,
     this.reserved_field1,
     this.reserved_field2,

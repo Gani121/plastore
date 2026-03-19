@@ -19,6 +19,10 @@ import 'database_Module/cunsuption.dart';
 import 'database_Module/expensDB.dart';
 import 'database_Module/menu_item.dart';
 import 'database_Module/party_database.dart';
+import 'database_Module/purchase_invoice_DB.dart';
+import 'database_Module/purchase_order_database.dart';
+import 'database_Module/quotation_database.dart';
+import 'database_Module/supplier_database.dart';
 import 'database_Module/tableCart.dart';
 import 'database_Module/tabledata.dart';
 import 'database_Module/transaction.dart';
@@ -88,7 +92,7 @@ final _entities = <obx_int.ModelEntity>[
   obx_int.ModelEntity(
     id: const obx_int.IdUid(2, 8114204961835078834),
     name: 'MenuItem',
-    lastPropertyId: const obx_int.IdUid(47, 8025367918054177096),
+    lastPropertyId: const obx_int.IdUid(49, 3111082863429707317),
     flags: 0,
     properties: <obx_int.ModelProperty>[
       obx_int.ModelProperty(
@@ -331,6 +335,18 @@ final _entities = <obx_int.ModelEntity>[
         type: 9,
         flags: 0,
       ),
+      obx_int.ModelProperty(
+        id: const obx_int.IdUid(48, 2505853251114935714),
+        name: 'syid',
+        type: 6,
+        flags: 0,
+      ),
+      obx_int.ModelProperty(
+        id: const obx_int.IdUid(49, 3111082863429707317),
+        name: 'synced',
+        type: 1,
+        flags: 0,
+      ),
     ],
     relations: <obx_int.ModelRelation>[],
     backlinks: <obx_int.ModelBacklink>[],
@@ -338,7 +354,7 @@ final _entities = <obx_int.ModelEntity>[
   obx_int.ModelEntity(
     id: const obx_int.IdUid(3, 4469350567211994079),
     name: 'Transaction',
-    lastPropertyId: const obx_int.IdUid(31, 537373968849050868),
+    lastPropertyId: const obx_int.IdUid(32, 658611132438731738),
     flags: 0,
     properties: <obx_int.ModelProperty>[
       obx_int.ModelProperty(
@@ -485,6 +501,12 @@ final _entities = <obx_int.ModelEntity>[
         type: 6,
         flags: 0,
       ),
+      obx_int.ModelProperty(
+        id: const obx_int.IdUid(32, 658611132438731738),
+        name: 'syid',
+        type: 6,
+        flags: 0,
+      ),
     ],
     relations: <obx_int.ModelRelation>[],
     backlinks: <obx_int.ModelBacklink>[],
@@ -492,7 +514,7 @@ final _entities = <obx_int.ModelEntity>[
   obx_int.ModelEntity(
     id: const obx_int.IdUid(7, 8243572385061020594),
     name: 'udhariCustomer',
-    lastPropertyId: const obx_int.IdUid(13, 2590552078034253499),
+    lastPropertyId: const obx_int.IdUid(15, 1611385746582746),
     flags: 0,
     properties: <obx_int.ModelProperty>[
       obx_int.ModelProperty(
@@ -549,6 +571,18 @@ final _entities = <obx_int.ModelEntity>[
         type: 9,
         flags: 0,
       ),
+      obx_int.ModelProperty(
+        id: const obx_int.IdUid(14, 7203235451108704840),
+        name: 'syid',
+        type: 6,
+        flags: 0,
+      ),
+      obx_int.ModelProperty(
+        id: const obx_int.IdUid(15, 1611385746582746),
+        name: 'synced',
+        type: 1,
+        flags: 0,
+      ),
     ],
     relations: <obx_int.ModelRelation>[],
     backlinks: <obx_int.ModelBacklink>[
@@ -562,7 +596,7 @@ final _entities = <obx_int.ModelEntity>[
   obx_int.ModelEntity(
     id: const obx_int.IdUid(8, 1884757268945243640),
     name: 'TransactionUdhari',
-    lastPropertyId: const obx_int.IdUid(15, 629919279716649099),
+    lastPropertyId: const obx_int.IdUid(19, 8953347660749874291),
     flags: 0,
     properties: <obx_int.ModelProperty>[
       obx_int.ModelProperty(
@@ -628,6 +662,30 @@ final _entities = <obx_int.ModelEntity>[
         type: 9,
         flags: 0,
       ),
+      obx_int.ModelProperty(
+        id: const obx_int.IdUid(16, 8870605394763773721),
+        name: 'dueDate',
+        type: 10,
+        flags: 0,
+      ),
+      obx_int.ModelProperty(
+        id: const obx_int.IdUid(17, 5153424326186144658),
+        name: 'reminderSent',
+        type: 1,
+        flags: 0,
+      ),
+      obx_int.ModelProperty(
+        id: const obx_int.IdUid(18, 6956161431755484610),
+        name: 'syid',
+        type: 6,
+        flags: 0,
+      ),
+      obx_int.ModelProperty(
+        id: const obx_int.IdUid(19, 8953347660749874291),
+        name: 'synced',
+        type: 1,
+        flags: 0,
+      ),
     ],
     relations: <obx_int.ModelRelation>[],
     backlinks: <obx_int.ModelBacklink>[],
@@ -635,7 +693,7 @@ final _entities = <obx_int.ModelEntity>[
   obx_int.ModelEntity(
     id: const obx_int.IdUid(9, 803850883550001508),
     name: 'CartItem',
-    lastPropertyId: const obx_int.IdUid(18, 2326055945279238616),
+    lastPropertyId: const obx_int.IdUid(20, 1322947260243538747),
     flags: 0,
     properties: <obx_int.ModelProperty>[
       obx_int.ModelProperty(
@@ -707,6 +765,18 @@ final _entities = <obx_int.ModelEntity>[
         type: 9,
         flags: 0,
       ),
+      obx_int.ModelProperty(
+        id: const obx_int.IdUid(19, 7031459810043636804),
+        name: 'syid',
+        type: 6,
+        flags: 0,
+      ),
+      obx_int.ModelProperty(
+        id: const obx_int.IdUid(20, 1322947260243538747),
+        name: 'synced',
+        type: 1,
+        flags: 0,
+      ),
     ],
     relations: <obx_int.ModelRelation>[],
     backlinks: <obx_int.ModelBacklink>[],
@@ -714,7 +784,7 @@ final _entities = <obx_int.ModelEntity>[
   obx_int.ModelEntity(
     id: const obx_int.IdUid(10, 7003873532803288360),
     name: 'OrderItem',
-    lastPropertyId: const obx_int.IdUid(18, 3444315800088588529),
+    lastPropertyId: const obx_int.IdUid(20, 285205673583690157),
     flags: 0,
     properties: <obx_int.ModelProperty>[
       obx_int.ModelProperty(
@@ -786,6 +856,18 @@ final _entities = <obx_int.ModelEntity>[
         type: 9,
         flags: 0,
       ),
+      obx_int.ModelProperty(
+        id: const obx_int.IdUid(19, 3927481171325759666),
+        name: 'syid',
+        type: 6,
+        flags: 0,
+      ),
+      obx_int.ModelProperty(
+        id: const obx_int.IdUid(20, 285205673583690157),
+        name: 'synced',
+        type: 1,
+        flags: 0,
+      ),
     ],
     relations: <obx_int.ModelRelation>[],
     backlinks: <obx_int.ModelBacklink>[],
@@ -793,7 +875,7 @@ final _entities = <obx_int.ModelEntity>[
   obx_int.ModelEntity(
     id: const obx_int.IdUid(12, 6667384983004949850),
     name: 'Active_Table_view',
-    lastPropertyId: const obx_int.IdUid(16, 3125477720319417828),
+    lastPropertyId: const obx_int.IdUid(18, 2831265446927798619),
     flags: 0,
     properties: <obx_int.ModelProperty>[
       obx_int.ModelProperty(
@@ -857,6 +939,18 @@ final _entities = <obx_int.ModelEntity>[
         type: 9,
         flags: 0,
       ),
+      obx_int.ModelProperty(
+        id: const obx_int.IdUid(17, 1520365774520258361),
+        name: 'syid',
+        type: 6,
+        flags: 0,
+      ),
+      obx_int.ModelProperty(
+        id: const obx_int.IdUid(18, 2831265446927798619),
+        name: 'synced',
+        type: 1,
+        flags: 0,
+      ),
     ],
     relations: <obx_int.ModelRelation>[],
     backlinks: <obx_int.ModelBacklink>[
@@ -870,7 +964,7 @@ final _entities = <obx_int.ModelEntity>[
   obx_int.ModelEntity(
     id: const obx_int.IdUid(13, 3969341799271811412),
     name: 'tableCart',
-    lastPropertyId: const obx_int.IdUid(9, 8372211435384421080),
+    lastPropertyId: const obx_int.IdUid(11, 1927858818119958752),
     flags: 0,
     properties: <obx_int.ModelProperty>[
       obx_int.ModelProperty(
@@ -927,6 +1021,18 @@ final _entities = <obx_int.ModelEntity>[
         type: 9,
         flags: 0,
       ),
+      obx_int.ModelProperty(
+        id: const obx_int.IdUid(10, 4508413639396916322),
+        name: 'syid',
+        type: 6,
+        flags: 0,
+      ),
+      obx_int.ModelProperty(
+        id: const obx_int.IdUid(11, 1927858818119958752),
+        name: 'synced',
+        type: 1,
+        flags: 0,
+      ),
     ],
     relations: <obx_int.ModelRelation>[],
     backlinks: <obx_int.ModelBacklink>[],
@@ -934,7 +1040,7 @@ final _entities = <obx_int.ModelEntity>[
   obx_int.ModelEntity(
     id: const obx_int.IdUid(14, 2768773813359552193),
     name: 'expences',
-    lastPropertyId: const obx_int.IdUid(9, 1635883901990268424),
+    lastPropertyId: const obx_int.IdUid(11, 1333389533984705924),
     flags: 0,
     properties: <obx_int.ModelProperty>[
       obx_int.ModelProperty(
@@ -991,6 +1097,18 @@ final _entities = <obx_int.ModelEntity>[
         type: 9,
         flags: 0,
       ),
+      obx_int.ModelProperty(
+        id: const obx_int.IdUid(10, 4571762548610073842),
+        name: 'syid',
+        type: 6,
+        flags: 0,
+      ),
+      obx_int.ModelProperty(
+        id: const obx_int.IdUid(11, 1333389533984705924),
+        name: 'synced',
+        type: 1,
+        flags: 0,
+      ),
     ],
     relations: <obx_int.ModelRelation>[],
     backlinks: <obx_int.ModelBacklink>[],
@@ -998,7 +1116,7 @@ final _entities = <obx_int.ModelEntity>[
   obx_int.ModelEntity(
     id: const obx_int.IdUid(15, 4201487541336974071),
     name: 'Parties',
-    lastPropertyId: const obx_int.IdUid(24, 9132185722945918360),
+    lastPropertyId: const obx_int.IdUid(26, 4819755331369326777),
     flags: 0,
     properties: <obx_int.ModelProperty>[
       obx_int.ModelProperty(
@@ -1127,6 +1245,18 @@ final _entities = <obx_int.ModelEntity>[
         type: 10,
         flags: 0,
       ),
+      obx_int.ModelProperty(
+        id: const obx_int.IdUid(25, 4469035305792609297),
+        name: 'syid',
+        type: 6,
+        flags: 0,
+      ),
+      obx_int.ModelProperty(
+        id: const obx_int.IdUid(26, 4819755331369326777),
+        name: 'synced',
+        type: 1,
+        flags: 0,
+      ),
     ],
     relations: <obx_int.ModelRelation>[],
     backlinks: <obx_int.ModelBacklink>[],
@@ -1134,7 +1264,7 @@ final _entities = <obx_int.ModelEntity>[
   obx_int.ModelEntity(
     id: const obx_int.IdUid(16, 5727313015559224984),
     name: 'InventoryItem',
-    lastPropertyId: const obx_int.IdUid(4, 4170777672823309710),
+    lastPropertyId: const obx_int.IdUid(11, 9038910502171452702),
     flags: 0,
     properties: <obx_int.ModelProperty>[
       obx_int.ModelProperty(
@@ -1161,6 +1291,48 @@ final _entities = <obx_int.ModelEntity>[
         type: 8,
         flags: 0,
       ),
+      obx_int.ModelProperty(
+        id: const obx_int.IdUid(5, 5645406025965306727),
+        name: 'category',
+        type: 9,
+        flags: 0,
+      ),
+      obx_int.ModelProperty(
+        id: const obx_int.IdUid(6, 6008325476476244624),
+        name: 'reserved_field',
+        type: 9,
+        flags: 0,
+      ),
+      obx_int.ModelProperty(
+        id: const obx_int.IdUid(7, 8858933880403906700),
+        name: 'reserved_field1',
+        type: 9,
+        flags: 0,
+      ),
+      obx_int.ModelProperty(
+        id: const obx_int.IdUid(8, 683292763525954807),
+        name: 'reserved_field2',
+        type: 9,
+        flags: 0,
+      ),
+      obx_int.ModelProperty(
+        id: const obx_int.IdUid(9, 8412269561799184683),
+        name: 'reserved_field3',
+        type: 9,
+        flags: 0,
+      ),
+      obx_int.ModelProperty(
+        id: const obx_int.IdUid(10, 6199823192068857287),
+        name: 'syid',
+        type: 6,
+        flags: 0,
+      ),
+      obx_int.ModelProperty(
+        id: const obx_int.IdUid(11, 9038910502171452702),
+        name: 'synced',
+        type: 1,
+        flags: 0,
+      ),
     ],
     relations: <obx_int.ModelRelation>[],
     backlinks: <obx_int.ModelBacklink>[],
@@ -1168,7 +1340,7 @@ final _entities = <obx_int.ModelEntity>[
   obx_int.ModelEntity(
     id: const obx_int.IdUid(17, 8669011261676476061),
     name: 'ItemConsumption',
-    lastPropertyId: const obx_int.IdUid(4, 6498618532039859085),
+    lastPropertyId: const obx_int.IdUid(6, 1124917715939850600),
     flags: 0,
     properties: <obx_int.ModelProperty>[
       obx_int.ModelProperty(
@@ -1200,6 +1372,316 @@ final _entities = <obx_int.ModelEntity>[
         indexId: const obx_int.IdUid(9, 8854451117807104129),
         relationField: 'inventoryItem',
         relationTarget: 'InventoryItem',
+      ),
+      obx_int.ModelProperty(
+        id: const obx_int.IdUid(5, 3037402141345348283),
+        name: 'syid',
+        type: 6,
+        flags: 0,
+      ),
+      obx_int.ModelProperty(
+        id: const obx_int.IdUid(6, 1124917715939850600),
+        name: 'synced',
+        type: 1,
+        flags: 0,
+      ),
+    ],
+    relations: <obx_int.ModelRelation>[],
+    backlinks: <obx_int.ModelBacklink>[],
+  ),
+  obx_int.ModelEntity(
+    id: const obx_int.IdUid(18, 3646327834900425017),
+    name: 'PurchaseInvoiceEntity',
+    lastPropertyId: const obx_int.IdUid(5, 4574475261507979469),
+    flags: 0,
+    properties: <obx_int.ModelProperty>[
+      obx_int.ModelProperty(
+        id: const obx_int.IdUid(1, 6297575824586141163),
+        name: 'id',
+        type: 6,
+        flags: 1,
+      ),
+      obx_int.ModelProperty(
+        id: const obx_int.IdUid(2, 4094565691589855627),
+        name: 'createdDate',
+        type: 10,
+        flags: 0,
+      ),
+      obx_int.ModelProperty(
+        id: const obx_int.IdUid(3, 3263201401773016903),
+        name: 'invoiceData',
+        type: 9,
+        flags: 0,
+      ),
+      obx_int.ModelProperty(
+        id: const obx_int.IdUid(4, 600419565060560289),
+        name: 'syid',
+        type: 6,
+        flags: 0,
+      ),
+      obx_int.ModelProperty(
+        id: const obx_int.IdUid(5, 4574475261507979469),
+        name: 'synced',
+        type: 1,
+        flags: 0,
+      ),
+    ],
+    relations: <obx_int.ModelRelation>[],
+    backlinks: <obx_int.ModelBacklink>[],
+  ),
+  obx_int.ModelEntity(
+    id: const obx_int.IdUid(19, 7845926616772917602),
+    name: 'Supplier',
+    lastPropertyId: const obx_int.IdUid(14, 6362725389168022675),
+    flags: 0,
+    properties: <obx_int.ModelProperty>[
+      obx_int.ModelProperty(
+        id: const obx_int.IdUid(1, 3565744782734047945),
+        name: 'id',
+        type: 6,
+        flags: 1,
+      ),
+      obx_int.ModelProperty(
+        id: const obx_int.IdUid(2, 4680183037351690015),
+        name: 'supplierName',
+        type: 9,
+        flags: 0,
+      ),
+      obx_int.ModelProperty(
+        id: const obx_int.IdUid(3, 954316052845861744),
+        name: 'mobileNumber',
+        type: 9,
+        flags: 0,
+      ),
+      obx_int.ModelProperty(
+        id: const obx_int.IdUid(4, 3176761288988486716),
+        name: 'address',
+        type: 9,
+        flags: 0,
+      ),
+      obx_int.ModelProperty(
+        id: const obx_int.IdUid(5, 345943896807138844),
+        name: 'gstNumber',
+        type: 9,
+        flags: 0,
+      ),
+      obx_int.ModelProperty(
+        id: const obx_int.IdUid(6, 6557997277808284802),
+        name: 'category',
+        type: 9,
+        flags: 0,
+      ),
+      obx_int.ModelProperty(
+        id: const obx_int.IdUid(7, 5422794324335940037),
+        name: 'paymentTerms',
+        type: 9,
+        flags: 0,
+      ),
+      obx_int.ModelProperty(
+        id: const obx_int.IdUid(8, 3142144545700594859),
+        name: 'createdDate',
+        type: 10,
+        flags: 0,
+      ),
+      obx_int.ModelProperty(
+        id: const obx_int.IdUid(9, 98872566440189549),
+        name: 'reserved_field',
+        type: 9,
+        flags: 0,
+      ),
+      obx_int.ModelProperty(
+        id: const obx_int.IdUid(10, 268360144975099746),
+        name: 'reserved_field1',
+        type: 9,
+        flags: 0,
+      ),
+      obx_int.ModelProperty(
+        id: const obx_int.IdUid(11, 6801362327673269183),
+        name: 'reserved_field2',
+        type: 9,
+        flags: 0,
+      ),
+      obx_int.ModelProperty(
+        id: const obx_int.IdUid(12, 9195135151541543561),
+        name: 'reserved_field3',
+        type: 9,
+        flags: 0,
+      ),
+      obx_int.ModelProperty(
+        id: const obx_int.IdUid(13, 7782323247671530884),
+        name: 'syid',
+        type: 6,
+        flags: 0,
+      ),
+      obx_int.ModelProperty(
+        id: const obx_int.IdUid(14, 6362725389168022675),
+        name: 'synced',
+        type: 1,
+        flags: 0,
+      ),
+    ],
+    relations: <obx_int.ModelRelation>[],
+    backlinks: <obx_int.ModelBacklink>[],
+  ),
+  obx_int.ModelEntity(
+    id: const obx_int.IdUid(20, 1135638778823892512),
+    name: 'PurchaseOrderEntity',
+    lastPropertyId: const obx_int.IdUid(11, 5783639787049349607),
+    flags: 0,
+    properties: <obx_int.ModelProperty>[
+      obx_int.ModelProperty(
+        id: const obx_int.IdUid(1, 5204289235979904984),
+        name: 'id',
+        type: 6,
+        flags: 1,
+      ),
+      obx_int.ModelProperty(
+        id: const obx_int.IdUid(2, 4700776378823196934),
+        name: 'createdAt',
+        type: 10,
+        flags: 0,
+      ),
+      obx_int.ModelProperty(
+        id: const obx_int.IdUid(3, 4773134575283562339),
+        name: 'orderData',
+        type: 9,
+        flags: 0,
+      ),
+      obx_int.ModelProperty(
+        id: const obx_int.IdUid(4, 2025191832968988909),
+        name: 'pdfPath',
+        type: 9,
+        flags: 0,
+      ),
+      obx_int.ModelProperty(
+        id: const obx_int.IdUid(5, 8630020050764803640),
+        name: 'signaturePath',
+        type: 9,
+        flags: 0,
+      ),
+      obx_int.ModelProperty(
+        id: const obx_int.IdUid(6, 7474404830234994308),
+        name: 'orderNumber',
+        type: 9,
+        flags: 2048,
+        indexId: const obx_int.IdUid(10, 6595738836647985989),
+      ),
+      obx_int.ModelProperty(
+        id: const obx_int.IdUid(7, 3719320499063610277),
+        name: 'supplierName',
+        type: 9,
+        flags: 2048,
+        indexId: const obx_int.IdUid(11, 5414468894383312252),
+      ),
+      obx_int.ModelProperty(
+        id: const obx_int.IdUid(8, 8285754267674255452),
+        name: 'statusIndex',
+        type: 6,
+        flags: 8,
+        indexId: const obx_int.IdUid(12, 3308414309763953271),
+      ),
+      obx_int.ModelProperty(
+        id: const obx_int.IdUid(9, 905358319370052252),
+        name: 'orderDate',
+        type: 10,
+        flags: 0,
+      ),
+      obx_int.ModelProperty(
+        id: const obx_int.IdUid(10, 5146644578307828289),
+        name: 'syid',
+        type: 6,
+        flags: 0,
+      ),
+      obx_int.ModelProperty(
+        id: const obx_int.IdUid(11, 5783639787049349607),
+        name: 'synced',
+        type: 1,
+        flags: 0,
+      ),
+    ],
+    relations: <obx_int.ModelRelation>[],
+    backlinks: <obx_int.ModelBacklink>[],
+  ),
+  obx_int.ModelEntity(
+    id: const obx_int.IdUid(21, 1244000944143152839),
+    name: 'QuotationEntity',
+    lastPropertyId: const obx_int.IdUid(12, 7911238566288039879),
+    flags: 0,
+    properties: <obx_int.ModelProperty>[
+      obx_int.ModelProperty(
+        id: const obx_int.IdUid(1, 3253681086820098804),
+        name: 'id',
+        type: 6,
+        flags: 1,
+      ),
+      obx_int.ModelProperty(
+        id: const obx_int.IdUid(2, 8950840843736018797),
+        name: 'createdAt',
+        type: 10,
+        flags: 0,
+      ),
+      obx_int.ModelProperty(
+        id: const obx_int.IdUid(3, 6910688089986841158),
+        name: 'quotationData',
+        type: 9,
+        flags: 0,
+      ),
+      obx_int.ModelProperty(
+        id: const obx_int.IdUid(4, 8064290415930138522),
+        name: 'pdfPath',
+        type: 9,
+        flags: 0,
+      ),
+      obx_int.ModelProperty(
+        id: const obx_int.IdUid(5, 5592129955400365629),
+        name: 'signaturePath',
+        type: 9,
+        flags: 0,
+      ),
+      obx_int.ModelProperty(
+        id: const obx_int.IdUid(6, 3162257691713824750),
+        name: 'quotationNumber',
+        type: 9,
+        flags: 2048,
+        indexId: const obx_int.IdUid(13, 8259563510771852113),
+      ),
+      obx_int.ModelProperty(
+        id: const obx_int.IdUid(7, 6571230918483957359),
+        name: 'partyName',
+        type: 9,
+        flags: 2048,
+        indexId: const obx_int.IdUid(14, 1215266294446603832),
+      ),
+      obx_int.ModelProperty(
+        id: const obx_int.IdUid(8, 4957289778215149555),
+        name: 'statusIndex',
+        type: 6,
+        flags: 8,
+        indexId: const obx_int.IdUid(15, 3471036569950358510),
+      ),
+      obx_int.ModelProperty(
+        id: const obx_int.IdUid(9, 3832282921993973130),
+        name: 'quotationDate',
+        type: 10,
+        flags: 0,
+      ),
+      obx_int.ModelProperty(
+        id: const obx_int.IdUid(10, 5036062148659813495),
+        name: 'eventDate',
+        type: 10,
+        flags: 0,
+      ),
+      obx_int.ModelProperty(
+        id: const obx_int.IdUid(11, 7235571574381630631),
+        name: 'syid',
+        type: 6,
+        flags: 0,
+      ),
+      obx_int.ModelProperty(
+        id: const obx_int.IdUid(12, 7911238566288039879),
+        name: 'synced',
+        type: 1,
+        flags: 0,
       ),
     ],
     relations: <obx_int.ModelRelation>[],
@@ -1250,8 +1732,8 @@ obx_int.ModelDefinition getObjectBoxModel() {
     // Typically, this is done with `dart run build_runner build`.
     generatorVersion: obx_int.GeneratorVersion.v2025_12_16,
     entities: _entities,
-    lastEntityId: const obx_int.IdUid(17, 8669011261676476061),
-    lastIndexId: const obx_int.IdUid(9, 8854451117807104129),
+    lastEntityId: const obx_int.IdUid(21, 1244000944143152839),
+    lastIndexId: const obx_int.IdUid(15, 3471036569950358510),
     lastRelationId: const obx_int.IdUid(0, 0),
     lastSequenceId: const obx_int.IdUid(0, 0),
     retiredEntityUids: const [
@@ -1505,7 +1987,7 @@ obx_int.ModelDefinition getObjectBoxModel() {
         final reserved_field5Offset = object.reserved_field5 == null
             ? null
             : fbb.writeString(object.reserved_field5!);
-        fbb.startTable(48);
+        fbb.startTable(50);
         fbb.addInt64(0, object.id);
         fbb.addOffset(1, nameOffset);
         fbb.addOffset(2, sellPriceOffset);
@@ -1546,6 +2028,8 @@ obx_int.ModelDefinition getObjectBoxModel() {
         fbb.addOffset(44, reserved_field3Offset);
         fbb.addOffset(45, reserved_field4Offset);
         fbb.addOffset(46, reserved_field5Offset);
+        fbb.addInt64(47, object.syid);
+        fbb.addBool(48, object.synced);
         fbb.finish(fbb.endTable());
         return object.id;
       },
@@ -1557,6 +2041,18 @@ obx_int.ModelDefinition getObjectBoxModel() {
           rootOffset,
           4,
           0,
+        );
+        final syidParam = const fb.Int64Reader().vTableGet(
+          buffer,
+          rootOffset,
+          98,
+          0,
+        );
+        final syncedParam = const fb.BoolReader().vTableGet(
+          buffer,
+          rootOffset,
+          100,
+          false,
         );
         final nameParam = const fb.StringReader(
           asciiOptimization: true,
@@ -1701,6 +2197,8 @@ obx_int.ModelDefinition getObjectBoxModel() {
         ).vTableGetNullable(buffer, rootOffset, 96);
         final object = MenuItem(
           id: idParam,
+          syid: syidParam,
+          synced: syncedParam,
           name: nameParam,
           sellPrice: sellPriceParam,
           sellPriceType: sellPriceTypeParam,
@@ -1787,7 +2285,7 @@ obx_int.ModelDefinition getObjectBoxModel() {
         final orderTypeOffset = object.orderType == null
             ? null
             : fbb.writeString(object.orderType!);
-        fbb.startTable(32);
+        fbb.startTable(33);
         fbb.addInt64(0, object.id);
         fbb.addInt64(1, object.time.millisecondsSinceEpoch);
         fbb.addInt64(2, object.tableNo);
@@ -1812,6 +2310,7 @@ obx_int.ModelDefinition getObjectBoxModel() {
         fbb.addOffset(28, orderTypeOffset);
         fbb.addInt64(29, object.cashamount);
         fbb.addInt64(30, object.upiamount);
+        fbb.addInt64(31, object.syid);
         fbb.finish(fbb.endTable());
         return object.id;
       },
@@ -1820,6 +2319,12 @@ obx_int.ModelDefinition getObjectBoxModel() {
         final rootOffset = buffer.derefObject(0);
         final timeParam = DateTime.fromMillisecondsSinceEpoch(
           const fb.Int64Reader().vTableGet(buffer, rootOffset, 6, 0),
+        );
+        final syidParam = const fb.Int64Reader().vTableGet(
+          buffer,
+          rootOffset,
+          66,
+          0,
         );
         final tableNoParam = const fb.Int64Reader().vTableGetNullable(
           buffer,
@@ -1909,6 +2414,7 @@ obx_int.ModelDefinition getObjectBoxModel() {
         ).vTableGetNullable(buffer, rootOffset, 58);
         final object = Transaction(
           time: timeParam,
+          syid: syidParam,
           tableNo: tableNoParam,
           total: totalParam,
           cartData: cartDataParam,
@@ -1969,7 +2475,7 @@ obx_int.ModelDefinition getObjectBoxModel() {
             ? null
             : fbb.writeString(object.reserved_field3!);
         final ucuniidOffset = fbb.writeString(object.ucuniid);
-        fbb.startTable(14);
+        fbb.startTable(16);
         fbb.addInt64(0, object.id);
         fbb.addOffset(1, nameOffset);
         fbb.addOffset(2, phoneOffset);
@@ -1979,6 +2485,8 @@ obx_int.ModelDefinition getObjectBoxModel() {
         fbb.addOffset(10, reserved_field2Offset);
         fbb.addOffset(11, reserved_field3Offset);
         fbb.addOffset(12, ucuniidOffset);
+        fbb.addInt64(13, object.syid);
+        fbb.addBool(14, object.synced);
         fbb.finish(fbb.endTable());
         return object.id;
       },
@@ -1991,6 +2499,18 @@ obx_int.ModelDefinition getObjectBoxModel() {
         final nameParam = const fb.StringReader(
           asciiOptimization: true,
         ).vTableGet(buffer, rootOffset, 6, '');
+        final syidParam = const fb.Int64Reader().vTableGet(
+          buffer,
+          rootOffset,
+          30,
+          0,
+        );
+        final syncedParam = const fb.BoolReader().vTableGet(
+          buffer,
+          rootOffset,
+          32,
+          false,
+        );
         final phoneParam = const fb.StringReader(
           asciiOptimization: true,
         ).vTableGet(buffer, rootOffset, 8, '');
@@ -2012,6 +2532,8 @@ obx_int.ModelDefinition getObjectBoxModel() {
         final object = udhariCustomer(
           ucuniid: ucuniidParam,
           name: nameParam,
+          syid: syidParam,
+          synced: syncedParam,
           phone: phoneParam,
           adreess: adreessParam,
           reserved_field: reserved_fieldParam,
@@ -2053,7 +2575,7 @@ obx_int.ModelDefinition getObjectBoxModel() {
         final reserved_field3Offset = object.reserved_field3 == null
             ? null
             : fbb.writeString(object.reserved_field3!);
-        fbb.startTable(16);
+        fbb.startTable(20);
         fbb.addInt64(0, object.id);
         fbb.addFloat64(1, object.amount);
         fbb.addInt64(2, object.date.millisecondsSinceEpoch);
@@ -2064,13 +2586,21 @@ obx_int.ModelDefinition getObjectBoxModel() {
         fbb.addOffset(11, reserved_field1Offset);
         fbb.addOffset(12, reserved_field2Offset);
         fbb.addOffset(13, reserved_field3Offset);
+        fbb.addInt64(15, object.dueDate?.millisecondsSinceEpoch);
+        fbb.addBool(16, object.reminderSent);
+        fbb.addInt64(17, object.syid);
+        fbb.addBool(18, object.synced);
         fbb.finish(fbb.endTable());
         return object.id;
       },
       objectFromFB: (obx.Store store, ByteData fbData) {
         final buffer = fb.BufferContext(fbData);
         final rootOffset = buffer.derefObject(0);
-
+        final dueDateValue = const fb.Int64Reader().vTableGetNullable(
+          buffer,
+          rootOffset,
+          34,
+        );
         final object = TransactionUdhari()
           ..id = const fb.Int64Reader().vTableGet(buffer, rootOffset, 4, 0)
           ..amount = const fb.Float64Reader().vTableGet(
@@ -2102,7 +2632,23 @@ obx_int.ModelDefinition getObjectBoxModel() {
           ).vTableGetNullable(buffer, rootOffset, 28)
           ..reserved_field3 = const fb.StringReader(
             asciiOptimization: true,
-          ).vTableGetNullable(buffer, rootOffset, 30);
+          ).vTableGetNullable(buffer, rootOffset, 30)
+          ..dueDate = dueDateValue == null
+              ? null
+              : DateTime.fromMillisecondsSinceEpoch(dueDateValue)
+          ..reminderSent = const fb.BoolReader().vTableGet(
+            buffer,
+            rootOffset,
+            36,
+            false,
+          )
+          ..syid = const fb.Int64Reader().vTableGet(buffer, rootOffset, 38, 0)
+          ..synced = const fb.BoolReader().vTableGet(
+            buffer,
+            rootOffset,
+            40,
+            false,
+          );
         object.customer.targetId = const fb.Int64Reader().vTableGet(
           buffer,
           rootOffset,
@@ -2141,7 +2687,7 @@ obx_int.ModelDefinition getObjectBoxModel() {
         final reserved_field5Offset = object.reserved_field5 == null
             ? null
             : fbb.writeString(object.reserved_field5!);
-        fbb.startTable(19);
+        fbb.startTable(21);
         fbb.addInt64(0, object.id);
         fbb.addInt64(1, object.quantity);
         fbb.addOffset(2, nameOffset);
@@ -2153,6 +2699,8 @@ obx_int.ModelDefinition getObjectBoxModel() {
         fbb.addOffset(15, reserved_field3Offset);
         fbb.addOffset(16, reserved_field4Offset);
         fbb.addOffset(17, reserved_field5Offset);
+        fbb.addInt64(18, object.syid);
+        fbb.addBool(19, object.synced);
         fbb.finish(fbb.endTable());
         return object.id;
       },
@@ -2167,6 +2715,18 @@ obx_int.ModelDefinition getObjectBoxModel() {
           rootOffset,
           10,
           0,
+        );
+        final syidParam = const fb.Int64Reader().vTableGet(
+          buffer,
+          rootOffset,
+          40,
+          0,
+        );
+        final syncedParam = const fb.BoolReader().vTableGet(
+          buffer,
+          rootOffset,
+          42,
+          false,
         );
         final quantityParam = const fb.Int64Reader().vTableGet(
           buffer,
@@ -2195,6 +2755,8 @@ obx_int.ModelDefinition getObjectBoxModel() {
         final object = CartItem(
           name: nameParam,
           price: priceParam,
+          syid: syidParam,
+          synced: syncedParam,
           quantity: quantityParam,
           reserved_field: reserved_fieldParam,
           reserved_field1: reserved_field1Param,
@@ -2241,7 +2803,7 @@ obx_int.ModelDefinition getObjectBoxModel() {
         final reserved_field5Offset = object.reserved_field5 == null
             ? null
             : fbb.writeString(object.reserved_field5!);
-        fbb.startTable(19);
+        fbb.startTable(21);
         fbb.addInt64(0, object.id);
         fbb.addOffset(1, nameOffset);
         fbb.addFloat64(3, object.price);
@@ -2253,6 +2815,8 @@ obx_int.ModelDefinition getObjectBoxModel() {
         fbb.addOffset(15, reserved_field3Offset);
         fbb.addOffset(16, reserved_field4Offset);
         fbb.addOffset(17, reserved_field5Offset);
+        fbb.addInt64(18, object.syid);
+        fbb.addBool(19, object.synced);
         fbb.finish(fbb.endTable());
         return object.id;
       },
@@ -2273,6 +2837,18 @@ obx_int.ModelDefinition getObjectBoxModel() {
           rootOffset,
           10,
           0,
+        );
+        final syidParam = const fb.Int64Reader().vTableGet(
+          buffer,
+          rootOffset,
+          40,
+          0,
+        );
+        final syncedParam = const fb.BoolReader().vTableGet(
+          buffer,
+          rootOffset,
+          42,
+          false,
         );
         final reserved_fieldParam = const fb.StringReader(
           asciiOptimization: true,
@@ -2296,6 +2872,8 @@ obx_int.ModelDefinition getObjectBoxModel() {
           name: nameParam,
           quantity: quantityParam,
           price: priceParam,
+          syid: syidParam,
+          synced: syncedParam,
           reserved_field: reserved_fieldParam,
           reserved_field1: reserved_field1Param,
           reserved_field2: reserved_field2Param,
@@ -2347,7 +2925,7 @@ obx_int.ModelDefinition getObjectBoxModel() {
         final reserved_field5Offset = object.reserved_field5 == null
             ? null
             : fbb.writeString(object.reserved_field5!);
-        fbb.startTable(17);
+        fbb.startTable(19);
         fbb.addInt64(0, object.id);
         fbb.addInt64(1, object.number);
         fbb.addFloat64(2, object.total);
@@ -2358,6 +2936,8 @@ obx_int.ModelDefinition getObjectBoxModel() {
         fbb.addOffset(13, reserved_field3Offset);
         fbb.addOffset(14, reserved_field4Offset);
         fbb.addOffset(15, reserved_field5Offset);
+        fbb.addInt64(16, object.syid);
+        fbb.addBool(17, object.synced);
         fbb.finish(fbb.endTable());
         return object.id;
       },
@@ -2369,6 +2949,18 @@ obx_int.ModelDefinition getObjectBoxModel() {
           rootOffset,
           6,
           0,
+        );
+        final syidParam = const fb.Int64Reader().vTableGet(
+          buffer,
+          rootOffset,
+          36,
+          0,
+        );
+        final syncedParam = const fb.BoolReader().vTableGet(
+          buffer,
+          rootOffset,
+          38,
+          false,
         );
         final totalParam = const fb.Float64Reader().vTableGet(
           buffer,
@@ -2399,6 +2991,8 @@ obx_int.ModelDefinition getObjectBoxModel() {
         ).vTableGetNullable(buffer, rootOffset, 34);
         final object = Active_Table_view(
           number: numberParam,
+          syid: syidParam,
+          synced: syncedParam,
           total: totalParam,
           paymentMethod: paymentMethodParam,
           reserved_field: reserved_fieldParam,
@@ -2448,7 +3042,7 @@ obx_int.ModelDefinition getObjectBoxModel() {
         final reserved_field5Offset = object.reserved_field5 == null
             ? null
             : fbb.writeString(object.reserved_field5!);
-        fbb.startTable(10);
+        fbb.startTable(12);
         fbb.addInt64(0, object.id);
         fbb.addInt64(1, object.tableNo);
         fbb.addOffset(2, tCartOffset);
@@ -2458,6 +3052,8 @@ obx_int.ModelDefinition getObjectBoxModel() {
         fbb.addOffset(6, reserved_field3Offset);
         fbb.addOffset(7, reserved_field4Offset);
         fbb.addOffset(8, reserved_field5Offset);
+        fbb.addInt64(9, object.syid);
+        fbb.addBool(10, object.synced);
         fbb.finish(fbb.endTable());
         return object.id;
       },
@@ -2473,6 +3069,18 @@ obx_int.ModelDefinition getObjectBoxModel() {
         final tCartParam = const fb.StringReader(
           asciiOptimization: true,
         ).vTableGet(buffer, rootOffset, 8, '');
+        final syidParam = const fb.Int64Reader().vTableGet(
+          buffer,
+          rootOffset,
+          22,
+          0,
+        );
+        final syncedParam = const fb.BoolReader().vTableGet(
+          buffer,
+          rootOffset,
+          24,
+          false,
+        );
         final reserved_fieldParam = const fb.StringReader(
           asciiOptimization: true,
         ).vTableGetNullable(buffer, rootOffset, 10);
@@ -2494,6 +3102,8 @@ obx_int.ModelDefinition getObjectBoxModel() {
         final object = tableCart(
           tableNo: tableNoParam,
           tCart: tCartParam,
+          syid: syidParam,
+          synced: syncedParam,
           reserved_field: reserved_fieldParam,
           reserved_field1: reserved_field1Param,
           reserved_field2: reserved_field2Param,
@@ -2533,7 +3143,7 @@ obx_int.ModelDefinition getObjectBoxModel() {
         final reserved_field5Offset = object.reserved_field5 == null
             ? null
             : fbb.writeString(object.reserved_field5!);
-        fbb.startTable(10);
+        fbb.startTable(12);
         fbb.addInt64(0, object.id);
         fbb.addInt64(1, object.createTime.millisecondsSinceEpoch);
         fbb.addOffset(2, expenceOffset);
@@ -2543,6 +3153,8 @@ obx_int.ModelDefinition getObjectBoxModel() {
         fbb.addOffset(6, reserved_field3Offset);
         fbb.addOffset(7, reserved_field4Offset);
         fbb.addOffset(8, reserved_field5Offset);
+        fbb.addInt64(9, object.syid);
+        fbb.addBool(10, object.synced);
         fbb.finish(fbb.endTable());
         return object.id;
       },
@@ -2552,6 +3164,18 @@ obx_int.ModelDefinition getObjectBoxModel() {
         final expenceParam = const fb.StringReader(
           asciiOptimization: true,
         ).vTableGet(buffer, rootOffset, 8, '');
+        final syidParam = const fb.Int64Reader().vTableGet(
+          buffer,
+          rootOffset,
+          22,
+          0,
+        );
+        final syncedParam = const fb.BoolReader().vTableGet(
+          buffer,
+          rootOffset,
+          24,
+          false,
+        );
         final reserved_fieldParam = const fb.StringReader(
           asciiOptimization: true,
         ).vTableGetNullable(buffer, rootOffset, 10);
@@ -2573,6 +3197,8 @@ obx_int.ModelDefinition getObjectBoxModel() {
         final object =
             expences(
                 expence: expenceParam,
+                syid: syidParam,
+                synced: syncedParam,
                 reserved_field: reserved_fieldParam,
                 reserved_field1: reserved_field1Param,
                 reserved_field2: reserved_field2Param,
@@ -2639,7 +3265,7 @@ obx_int.ModelDefinition getObjectBoxModel() {
         final visitingdayOffset = object.visitingday == null
             ? null
             : fbb.writeString(object.visitingday!);
-        fbb.startTable(25);
+        fbb.startTable(27);
         fbb.addInt64(0, object.id);
         fbb.addInt64(1, object.createTime.millisecondsSinceEpoch);
         fbb.addOffset(2, customernameOffset);
@@ -2661,6 +3287,8 @@ obx_int.ModelDefinition getObjectBoxModel() {
         fbb.addOffset(21, visitingdayOffset);
         fbb.addBool(22, object.isCompleted);
         fbb.addInt64(23, object.completionDate?.millisecondsSinceEpoch);
+        fbb.addInt64(24, object.syid);
+        fbb.addBool(25, object.synced);
         fbb.finish(fbb.endTable());
         return object.id;
       },
@@ -2676,6 +3304,18 @@ obx_int.ModelDefinition getObjectBoxModel() {
           buffer,
           rootOffset,
           50,
+        );
+        final syidParam = const fb.Int64Reader().vTableGet(
+          buffer,
+          rootOffset,
+          52,
+          0,
+        );
+        final syncedParam = const fb.BoolReader().vTableGet(
+          buffer,
+          rootOffset,
+          54,
+          false,
         );
         final customernameParam = const fb.StringReader(
           asciiOptimization: true,
@@ -2739,6 +3379,8 @@ obx_int.ModelDefinition getObjectBoxModel() {
         ).vTableGetNullable(buffer, rootOffset, 42);
         final object =
             Parties(
+                syid: syidParam,
+                synced: syncedParam,
                 customername: customernameParam,
                 suppliername: suppliernameParam,
                 mobilenumber: mobilenumberParam,
@@ -2778,11 +3420,33 @@ obx_int.ModelDefinition getObjectBoxModel() {
       objectToFB: (InventoryItem object, fb.Builder fbb) {
         final nameOffset = fbb.writeString(object.name);
         final unitOffset = fbb.writeString(object.unit);
-        fbb.startTable(5);
+        final categoryOffset = object.category == null
+            ? null
+            : fbb.writeString(object.category!);
+        final reserved_fieldOffset = object.reserved_field == null
+            ? null
+            : fbb.writeString(object.reserved_field!);
+        final reserved_field1Offset = object.reserved_field1 == null
+            ? null
+            : fbb.writeString(object.reserved_field1!);
+        final reserved_field2Offset = object.reserved_field2 == null
+            ? null
+            : fbb.writeString(object.reserved_field2!);
+        final reserved_field3Offset = object.reserved_field3 == null
+            ? null
+            : fbb.writeString(object.reserved_field3!);
+        fbb.startTable(12);
         fbb.addInt64(0, object.id);
         fbb.addOffset(1, nameOffset);
         fbb.addOffset(2, unitOffset);
         fbb.addFloat64(3, object.stockQuantity);
+        fbb.addOffset(4, categoryOffset);
+        fbb.addOffset(5, reserved_fieldOffset);
+        fbb.addOffset(6, reserved_field1Offset);
+        fbb.addOffset(7, reserved_field2Offset);
+        fbb.addOffset(8, reserved_field3Offset);
+        fbb.addInt64(9, object.syid);
+        fbb.addBool(10, object.synced);
         fbb.finish(fbb.endTable());
         return object.id;
       },
@@ -2795,16 +3459,50 @@ obx_int.ModelDefinition getObjectBoxModel() {
         final unitParam = const fb.StringReader(
           asciiOptimization: true,
         ).vTableGet(buffer, rootOffset, 8, '');
+        final syidParam = const fb.Int64Reader().vTableGet(
+          buffer,
+          rootOffset,
+          22,
+          0,
+        );
+        final syncedParam = const fb.BoolReader().vTableGet(
+          buffer,
+          rootOffset,
+          24,
+          false,
+        );
         final stockQuantityParam = const fb.Float64Reader().vTableGet(
           buffer,
           rootOffset,
           10,
           0,
         );
+        final categoryParam = const fb.StringReader(
+          asciiOptimization: true,
+        ).vTableGetNullable(buffer, rootOffset, 12);
+        final reserved_fieldParam = const fb.StringReader(
+          asciiOptimization: true,
+        ).vTableGetNullable(buffer, rootOffset, 14);
+        final reserved_field1Param = const fb.StringReader(
+          asciiOptimization: true,
+        ).vTableGetNullable(buffer, rootOffset, 16);
+        final reserved_field2Param = const fb.StringReader(
+          asciiOptimization: true,
+        ).vTableGetNullable(buffer, rootOffset, 18);
+        final reserved_field3Param = const fb.StringReader(
+          asciiOptimization: true,
+        ).vTableGetNullable(buffer, rootOffset, 20);
         final object = InventoryItem(
           name: nameParam,
           unit: unitParam,
+          syid: syidParam,
+          synced: syncedParam,
           stockQuantity: stockQuantityParam,
+          category: categoryParam,
+          reserved_field: reserved_fieldParam,
+          reserved_field1: reserved_field1Param,
+          reserved_field2: reserved_field2Param,
+          reserved_field3: reserved_field3Param,
         )..id = const fb.Int64Reader().vTableGet(buffer, rootOffset, 4, 0);
 
         return object;
@@ -2822,11 +3520,13 @@ obx_int.ModelDefinition getObjectBoxModel() {
         object.id = id;
       },
       objectToFB: (ItemConsumption object, fb.Builder fbb) {
-        fbb.startTable(5);
+        fbb.startTable(7);
         fbb.addInt64(0, object.id);
         fbb.addFloat64(1, object.quantityUsed);
         fbb.addInt64(2, object.menuItem.targetId);
         fbb.addInt64(3, object.inventoryItem.targetId);
+        fbb.addInt64(4, object.syid);
+        fbb.addBool(5, object.synced);
         fbb.finish(fbb.endTable());
         return object.id;
       },
@@ -2839,8 +3539,23 @@ obx_int.ModelDefinition getObjectBoxModel() {
           6,
           0,
         );
-        final object = ItemConsumption(quantityUsed: quantityUsedParam)
-          ..id = const fb.Int64Reader().vTableGet(buffer, rootOffset, 4, 0);
+        final syidParam = const fb.Int64Reader().vTableGet(
+          buffer,
+          rootOffset,
+          12,
+          0,
+        );
+        final syncedParam = const fb.BoolReader().vTableGet(
+          buffer,
+          rootOffset,
+          14,
+          false,
+        );
+        final object = ItemConsumption(
+          quantityUsed: quantityUsedParam,
+          syid: syidParam,
+          synced: syncedParam,
+        )..id = const fb.Int64Reader().vTableGet(buffer, rootOffset, 4, 0);
         object.menuItem.targetId = const fb.Int64Reader().vTableGet(
           buffer,
           rootOffset,
@@ -2855,6 +3570,384 @@ obx_int.ModelDefinition getObjectBoxModel() {
           0,
         );
         object.inventoryItem.attach(store);
+        return object;
+      },
+    ),
+    PurchaseInvoiceEntity: obx_int.EntityDefinition<PurchaseInvoiceEntity>(
+      model: _entities[13],
+      toOneRelations: (PurchaseInvoiceEntity object) => [],
+      toManyRelations: (PurchaseInvoiceEntity object) => {},
+      getId: (PurchaseInvoiceEntity object) => object.id,
+      setId: (PurchaseInvoiceEntity object, int id) {
+        object.id = id;
+      },
+      objectToFB: (PurchaseInvoiceEntity object, fb.Builder fbb) {
+        final invoiceDataOffset = fbb.writeString(object.invoiceData);
+        fbb.startTable(6);
+        fbb.addInt64(0, object.id);
+        fbb.addInt64(1, object.createdDate.millisecondsSinceEpoch);
+        fbb.addOffset(2, invoiceDataOffset);
+        fbb.addInt64(3, object.syid);
+        fbb.addBool(4, object.synced);
+        fbb.finish(fbb.endTable());
+        return object.id;
+      },
+      objectFromFB: (obx.Store store, ByteData fbData) {
+        final buffer = fb.BufferContext(fbData);
+        final rootOffset = buffer.derefObject(0);
+        final idParam = const fb.Int64Reader().vTableGet(
+          buffer,
+          rootOffset,
+          4,
+          0,
+        );
+        final syidParam = const fb.Int64Reader().vTableGet(
+          buffer,
+          rootOffset,
+          10,
+          0,
+        );
+        final syncedParam = const fb.BoolReader().vTableGet(
+          buffer,
+          rootOffset,
+          12,
+          false,
+        );
+        final invoiceDataParam = const fb.StringReader(
+          asciiOptimization: true,
+        ).vTableGet(buffer, rootOffset, 8, '');
+        final createdDateParam = DateTime.fromMillisecondsSinceEpoch(
+          const fb.Int64Reader().vTableGet(buffer, rootOffset, 6, 0),
+        );
+        final object = PurchaseInvoiceEntity(
+          id: idParam,
+          syid: syidParam,
+          synced: syncedParam,
+          invoiceData: invoiceDataParam,
+          createdDate: createdDateParam,
+        );
+
+        return object;
+      },
+    ),
+    Supplier: obx_int.EntityDefinition<Supplier>(
+      model: _entities[14],
+      toOneRelations: (Supplier object) => [],
+      toManyRelations: (Supplier object) => {},
+      getId: (Supplier object) => object.id,
+      setId: (Supplier object, int id) {
+        object.id = id;
+      },
+      objectToFB: (Supplier object, fb.Builder fbb) {
+        final supplierNameOffset = fbb.writeString(object.supplierName);
+        final mobileNumberOffset = object.mobileNumber == null
+            ? null
+            : fbb.writeString(object.mobileNumber!);
+        final addressOffset = object.address == null
+            ? null
+            : fbb.writeString(object.address!);
+        final gstNumberOffset = object.gstNumber == null
+            ? null
+            : fbb.writeString(object.gstNumber!);
+        final categoryOffset = object.category == null
+            ? null
+            : fbb.writeString(object.category!);
+        final paymentTermsOffset = object.paymentTerms == null
+            ? null
+            : fbb.writeString(object.paymentTerms!);
+        final reserved_fieldOffset = object.reserved_field == null
+            ? null
+            : fbb.writeString(object.reserved_field!);
+        final reserved_field1Offset = object.reserved_field1 == null
+            ? null
+            : fbb.writeString(object.reserved_field1!);
+        final reserved_field2Offset = object.reserved_field2 == null
+            ? null
+            : fbb.writeString(object.reserved_field2!);
+        final reserved_field3Offset = object.reserved_field3 == null
+            ? null
+            : fbb.writeString(object.reserved_field3!);
+        fbb.startTable(15);
+        fbb.addInt64(0, object.id);
+        fbb.addOffset(1, supplierNameOffset);
+        fbb.addOffset(2, mobileNumberOffset);
+        fbb.addOffset(3, addressOffset);
+        fbb.addOffset(4, gstNumberOffset);
+        fbb.addOffset(5, categoryOffset);
+        fbb.addOffset(6, paymentTermsOffset);
+        fbb.addInt64(7, object.createdDate?.millisecondsSinceEpoch);
+        fbb.addOffset(8, reserved_fieldOffset);
+        fbb.addOffset(9, reserved_field1Offset);
+        fbb.addOffset(10, reserved_field2Offset);
+        fbb.addOffset(11, reserved_field3Offset);
+        fbb.addInt64(12, object.syid);
+        fbb.addBool(13, object.synced);
+        fbb.finish(fbb.endTable());
+        return object.id;
+      },
+      objectFromFB: (obx.Store store, ByteData fbData) {
+        final buffer = fb.BufferContext(fbData);
+        final rootOffset = buffer.derefObject(0);
+        final createdDateValue = const fb.Int64Reader().vTableGetNullable(
+          buffer,
+          rootOffset,
+          18,
+        );
+        final supplierNameParam = const fb.StringReader(
+          asciiOptimization: true,
+        ).vTableGet(buffer, rootOffset, 6, '');
+        final syidParam = const fb.Int64Reader().vTableGet(
+          buffer,
+          rootOffset,
+          28,
+          0,
+        );
+        final syncedParam = const fb.BoolReader().vTableGet(
+          buffer,
+          rootOffset,
+          30,
+          false,
+        );
+        final mobileNumberParam = const fb.StringReader(
+          asciiOptimization: true,
+        ).vTableGetNullable(buffer, rootOffset, 8);
+        final addressParam = const fb.StringReader(
+          asciiOptimization: true,
+        ).vTableGetNullable(buffer, rootOffset, 10);
+        final gstNumberParam = const fb.StringReader(
+          asciiOptimization: true,
+        ).vTableGetNullable(buffer, rootOffset, 12);
+        final categoryParam = const fb.StringReader(
+          asciiOptimization: true,
+        ).vTableGetNullable(buffer, rootOffset, 14);
+        final paymentTermsParam = const fb.StringReader(
+          asciiOptimization: true,
+        ).vTableGetNullable(buffer, rootOffset, 16);
+        final createdDateParam = createdDateValue == null
+            ? null
+            : DateTime.fromMillisecondsSinceEpoch(createdDateValue);
+        final reserved_fieldParam = const fb.StringReader(
+          asciiOptimization: true,
+        ).vTableGetNullable(buffer, rootOffset, 20);
+        final reserved_field1Param = const fb.StringReader(
+          asciiOptimization: true,
+        ).vTableGetNullable(buffer, rootOffset, 22);
+        final reserved_field2Param = const fb.StringReader(
+          asciiOptimization: true,
+        ).vTableGetNullable(buffer, rootOffset, 24);
+        final reserved_field3Param = const fb.StringReader(
+          asciiOptimization: true,
+        ).vTableGetNullable(buffer, rootOffset, 26);
+        final object = Supplier(
+          supplierName: supplierNameParam,
+          syid: syidParam,
+          synced: syncedParam,
+          mobileNumber: mobileNumberParam,
+          address: addressParam,
+          gstNumber: gstNumberParam,
+          category: categoryParam,
+          paymentTerms: paymentTermsParam,
+          createdDate: createdDateParam,
+          reserved_field: reserved_fieldParam,
+          reserved_field1: reserved_field1Param,
+          reserved_field2: reserved_field2Param,
+          reserved_field3: reserved_field3Param,
+        )..id = const fb.Int64Reader().vTableGet(buffer, rootOffset, 4, 0);
+
+        return object;
+      },
+    ),
+    PurchaseOrderEntity: obx_int.EntityDefinition<PurchaseOrderEntity>(
+      model: _entities[15],
+      toOneRelations: (PurchaseOrderEntity object) => [],
+      toManyRelations: (PurchaseOrderEntity object) => {},
+      getId: (PurchaseOrderEntity object) => object.id,
+      setId: (PurchaseOrderEntity object, int id) {
+        object.id = id;
+      },
+      objectToFB: (PurchaseOrderEntity object, fb.Builder fbb) {
+        final orderDataOffset = fbb.writeString(object.orderData);
+        final pdfPathOffset = object.pdfPath == null
+            ? null
+            : fbb.writeString(object.pdfPath!);
+        final signaturePathOffset = object.signaturePath == null
+            ? null
+            : fbb.writeString(object.signaturePath!);
+        final orderNumberOffset = fbb.writeString(object.orderNumber);
+        final supplierNameOffset = fbb.writeString(object.supplierName);
+        fbb.startTable(12);
+        fbb.addInt64(0, object.id);
+        fbb.addInt64(1, object.createdAt.millisecondsSinceEpoch);
+        fbb.addOffset(2, orderDataOffset);
+        fbb.addOffset(3, pdfPathOffset);
+        fbb.addOffset(4, signaturePathOffset);
+        fbb.addOffset(5, orderNumberOffset);
+        fbb.addOffset(6, supplierNameOffset);
+        fbb.addInt64(7, object.statusIndex);
+        fbb.addInt64(8, object.orderDate.millisecondsSinceEpoch);
+        fbb.addInt64(9, object.syid);
+        fbb.addBool(10, object.synced);
+        fbb.finish(fbb.endTable());
+        return object.id;
+      },
+      objectFromFB: (obx.Store store, ByteData fbData) {
+        final buffer = fb.BufferContext(fbData);
+        final rootOffset = buffer.derefObject(0);
+        final orderDataParam = const fb.StringReader(
+          asciiOptimization: true,
+        ).vTableGet(buffer, rootOffset, 8, '');
+        final syidParam = const fb.Int64Reader().vTableGet(
+          buffer,
+          rootOffset,
+          22,
+          0,
+        );
+        final syncedParam = const fb.BoolReader().vTableGet(
+          buffer,
+          rootOffset,
+          24,
+          false,
+        );
+        final pdfPathParam = const fb.StringReader(
+          asciiOptimization: true,
+        ).vTableGetNullable(buffer, rootOffset, 10);
+        final signaturePathParam = const fb.StringReader(
+          asciiOptimization: true,
+        ).vTableGetNullable(buffer, rootOffset, 12);
+        final orderNumberParam = const fb.StringReader(
+          asciiOptimization: true,
+        ).vTableGet(buffer, rootOffset, 14, '');
+        final supplierNameParam = const fb.StringReader(
+          asciiOptimization: true,
+        ).vTableGet(buffer, rootOffset, 16, '');
+        final statusIndexParam = const fb.Int64Reader().vTableGet(
+          buffer,
+          rootOffset,
+          18,
+          0,
+        );
+        final orderDateParam = DateTime.fromMillisecondsSinceEpoch(
+          const fb.Int64Reader().vTableGet(buffer, rootOffset, 20, 0),
+        );
+        final object =
+            PurchaseOrderEntity(
+                orderData: orderDataParam,
+                syid: syidParam,
+                synced: syncedParam,
+                pdfPath: pdfPathParam,
+                signaturePath: signaturePathParam,
+                orderNumber: orderNumberParam,
+                supplierName: supplierNameParam,
+                statusIndex: statusIndexParam,
+                orderDate: orderDateParam,
+              )
+              ..id = const fb.Int64Reader().vTableGet(buffer, rootOffset, 4, 0)
+              ..createdAt = DateTime.fromMillisecondsSinceEpoch(
+                const fb.Int64Reader().vTableGet(buffer, rootOffset, 6, 0),
+              );
+
+        return object;
+      },
+    ),
+    QuotationEntity: obx_int.EntityDefinition<QuotationEntity>(
+      model: _entities[16],
+      toOneRelations: (QuotationEntity object) => [],
+      toManyRelations: (QuotationEntity object) => {},
+      getId: (QuotationEntity object) => object.id,
+      setId: (QuotationEntity object, int id) {
+        object.id = id;
+      },
+      objectToFB: (QuotationEntity object, fb.Builder fbb) {
+        final quotationDataOffset = fbb.writeString(object.quotationData);
+        final pdfPathOffset = object.pdfPath == null
+            ? null
+            : fbb.writeString(object.pdfPath!);
+        final signaturePathOffset = object.signaturePath == null
+            ? null
+            : fbb.writeString(object.signaturePath!);
+        final quotationNumberOffset = fbb.writeString(object.quotationNumber);
+        final partyNameOffset = fbb.writeString(object.partyName);
+        fbb.startTable(13);
+        fbb.addInt64(0, object.id);
+        fbb.addInt64(1, object.createdAt.millisecondsSinceEpoch);
+        fbb.addOffset(2, quotationDataOffset);
+        fbb.addOffset(3, pdfPathOffset);
+        fbb.addOffset(4, signaturePathOffset);
+        fbb.addOffset(5, quotationNumberOffset);
+        fbb.addOffset(6, partyNameOffset);
+        fbb.addInt64(7, object.statusIndex);
+        fbb.addInt64(8, object.quotationDate.millisecondsSinceEpoch);
+        fbb.addInt64(9, object.eventDate?.millisecondsSinceEpoch);
+        fbb.addInt64(10, object.syid);
+        fbb.addBool(11, object.synced);
+        fbb.finish(fbb.endTable());
+        return object.id;
+      },
+      objectFromFB: (obx.Store store, ByteData fbData) {
+        final buffer = fb.BufferContext(fbData);
+        final rootOffset = buffer.derefObject(0);
+        final eventDateValue = const fb.Int64Reader().vTableGetNullable(
+          buffer,
+          rootOffset,
+          22,
+        );
+        final quotationDataParam = const fb.StringReader(
+          asciiOptimization: true,
+        ).vTableGet(buffer, rootOffset, 8, '');
+        final syidParam = const fb.Int64Reader().vTableGet(
+          buffer,
+          rootOffset,
+          24,
+          0,
+        );
+        final syncedParam = const fb.BoolReader().vTableGet(
+          buffer,
+          rootOffset,
+          26,
+          false,
+        );
+        final pdfPathParam = const fb.StringReader(
+          asciiOptimization: true,
+        ).vTableGetNullable(buffer, rootOffset, 10);
+        final signaturePathParam = const fb.StringReader(
+          asciiOptimization: true,
+        ).vTableGetNullable(buffer, rootOffset, 12);
+        final quotationNumberParam = const fb.StringReader(
+          asciiOptimization: true,
+        ).vTableGet(buffer, rootOffset, 14, '');
+        final partyNameParam = const fb.StringReader(
+          asciiOptimization: true,
+        ).vTableGet(buffer, rootOffset, 16, '');
+        final statusIndexParam = const fb.Int64Reader().vTableGet(
+          buffer,
+          rootOffset,
+          18,
+          0,
+        );
+        final quotationDateParam = DateTime.fromMillisecondsSinceEpoch(
+          const fb.Int64Reader().vTableGet(buffer, rootOffset, 20, 0),
+        );
+        final eventDateParam = eventDateValue == null
+            ? null
+            : DateTime.fromMillisecondsSinceEpoch(eventDateValue);
+        final object =
+            QuotationEntity(
+                quotationData: quotationDataParam,
+                syid: syidParam,
+                synced: syncedParam,
+                pdfPath: pdfPathParam,
+                signaturePath: signaturePathParam,
+                quotationNumber: quotationNumberParam,
+                partyName: partyNameParam,
+                statusIndex: statusIndexParam,
+                quotationDate: quotationDateParam,
+                eventDate: eventDateParam,
+              )
+              ..id = const fb.Int64Reader().vTableGet(buffer, rootOffset, 4, 0)
+              ..createdAt = DateTime.fromMillisecondsSinceEpoch(
+                const fb.Int64Reader().vTableGet(buffer, rootOffset, 6, 0),
+              );
+
         return object;
       },
     ),
@@ -3107,6 +4200,16 @@ class MenuItem_ {
   static final reserved_field5 = obx.QueryStringProperty<MenuItem>(
     _entities[1].properties[39],
   );
+
+  /// See [MenuItem.syid].
+  static final syid = obx.QueryIntegerProperty<MenuItem>(
+    _entities[1].properties[40],
+  );
+
+  /// See [MenuItem.synced].
+  static final synced = obx.QueryBooleanProperty<MenuItem>(
+    _entities[1].properties[41],
+  );
 }
 
 /// [Transaction] entity fields to define ObjectBox queries.
@@ -3230,6 +4333,11 @@ class Transaction_ {
   static final upiamount = obx.QueryIntegerProperty<Transaction>(
     _entities[2].properties[23],
   );
+
+  /// See [Transaction.syid].
+  static final syid = obx.QueryIntegerProperty<Transaction>(
+    _entities[2].properties[24],
+  );
 }
 
 /// [udhariCustomer] entity fields to define ObjectBox queries.
@@ -3277,6 +4385,16 @@ class udhariCustomer_ {
   /// See [udhariCustomer.ucuniid].
   static final ucuniid = obx.QueryStringProperty<udhariCustomer>(
     _entities[3].properties[8],
+  );
+
+  /// See [udhariCustomer.syid].
+  static final syid = obx.QueryIntegerProperty<udhariCustomer>(
+    _entities[3].properties[9],
+  );
+
+  /// See [udhariCustomer.synced].
+  static final synced = obx.QueryBooleanProperty<udhariCustomer>(
+    _entities[3].properties[10],
   );
 
   /// see [udhariCustomer.transactions]
@@ -3338,6 +4456,26 @@ class TransactionUdhari_ {
   static final reserved_field3 = obx.QueryStringProperty<TransactionUdhari>(
     _entities[4].properties[9],
   );
+
+  /// See [TransactionUdhari.dueDate].
+  static final dueDate = obx.QueryDateProperty<TransactionUdhari>(
+    _entities[4].properties[10],
+  );
+
+  /// See [TransactionUdhari.reminderSent].
+  static final reminderSent = obx.QueryBooleanProperty<TransactionUdhari>(
+    _entities[4].properties[11],
+  );
+
+  /// See [TransactionUdhari.syid].
+  static final syid = obx.QueryIntegerProperty<TransactionUdhari>(
+    _entities[4].properties[12],
+  );
+
+  /// See [TransactionUdhari.synced].
+  static final synced = obx.QueryBooleanProperty<TransactionUdhari>(
+    _entities[4].properties[13],
+  );
 }
 
 /// [CartItem] entity fields to define ObjectBox queries.
@@ -3395,6 +4533,16 @@ class CartItem_ {
   /// See [CartItem.reserved_field5].
   static final reserved_field5 = obx.QueryStringProperty<CartItem>(
     _entities[5].properties[10],
+  );
+
+  /// See [CartItem.syid].
+  static final syid = obx.QueryIntegerProperty<CartItem>(
+    _entities[5].properties[11],
+  );
+
+  /// See [CartItem.synced].
+  static final synced = obx.QueryBooleanProperty<CartItem>(
+    _entities[5].properties[12],
   );
 }
 
@@ -3454,6 +4602,16 @@ class OrderItem_ {
   static final reserved_field5 = obx.QueryStringProperty<OrderItem>(
     _entities[6].properties[10],
   );
+
+  /// See [OrderItem.syid].
+  static final syid = obx.QueryIntegerProperty<OrderItem>(
+    _entities[6].properties[11],
+  );
+
+  /// See [OrderItem.synced].
+  static final synced = obx.QueryBooleanProperty<OrderItem>(
+    _entities[6].properties[12],
+  );
 }
 
 /// [Active_Table_view] entity fields to define ObjectBox queries.
@@ -3508,6 +4666,16 @@ class Active_Table_view_ {
     _entities[7].properties[9],
   );
 
+  /// See [Active_Table_view.syid].
+  static final syid = obx.QueryIntegerProperty<Active_Table_view>(
+    _entities[7].properties[10],
+  );
+
+  /// See [Active_Table_view.synced].
+  static final synced = obx.QueryBooleanProperty<Active_Table_view>(
+    _entities[7].properties[11],
+  );
+
   /// see [Active_Table_view.orders]
   static final orders = obx.QueryBacklinkToMany<OrderItem, Active_Table_view>(
     OrderItem_.table,
@@ -3560,6 +4728,16 @@ class tableCart_ {
   static final reserved_field5 = obx.QueryStringProperty<tableCart>(
     _entities[8].properties[8],
   );
+
+  /// See [tableCart.syid].
+  static final syid = obx.QueryIntegerProperty<tableCart>(
+    _entities[8].properties[9],
+  );
+
+  /// See [tableCart.synced].
+  static final synced = obx.QueryBooleanProperty<tableCart>(
+    _entities[8].properties[10],
+  );
 }
 
 /// [expences] entity fields to define ObjectBox queries.
@@ -3607,6 +4785,16 @@ class expences_ {
   /// See [expences.reserved_field5].
   static final reserved_field5 = obx.QueryStringProperty<expences>(
     _entities[9].properties[8],
+  );
+
+  /// See [expences.syid].
+  static final syid = obx.QueryIntegerProperty<expences>(
+    _entities[9].properties[9],
+  );
+
+  /// See [expences.synced].
+  static final synced = obx.QueryBooleanProperty<expences>(
+    _entities[9].properties[10],
   );
 }
 
@@ -3716,6 +4904,16 @@ class Parties_ {
   static final completionDate = obx.QueryDateProperty<Parties>(
     _entities[10].properties[20],
   );
+
+  /// See [Parties.syid].
+  static final syid = obx.QueryIntegerProperty<Parties>(
+    _entities[10].properties[21],
+  );
+
+  /// See [Parties.synced].
+  static final synced = obx.QueryBooleanProperty<Parties>(
+    _entities[10].properties[22],
+  );
 }
 
 /// [InventoryItem] entity fields to define ObjectBox queries.
@@ -3738,6 +4936,41 @@ class InventoryItem_ {
   /// See [InventoryItem.stockQuantity].
   static final stockQuantity = obx.QueryDoubleProperty<InventoryItem>(
     _entities[11].properties[3],
+  );
+
+  /// See [InventoryItem.category].
+  static final category = obx.QueryStringProperty<InventoryItem>(
+    _entities[11].properties[4],
+  );
+
+  /// See [InventoryItem.reserved_field].
+  static final reserved_field = obx.QueryStringProperty<InventoryItem>(
+    _entities[11].properties[5],
+  );
+
+  /// See [InventoryItem.reserved_field1].
+  static final reserved_field1 = obx.QueryStringProperty<InventoryItem>(
+    _entities[11].properties[6],
+  );
+
+  /// See [InventoryItem.reserved_field2].
+  static final reserved_field2 = obx.QueryStringProperty<InventoryItem>(
+    _entities[11].properties[7],
+  );
+
+  /// See [InventoryItem.reserved_field3].
+  static final reserved_field3 = obx.QueryStringProperty<InventoryItem>(
+    _entities[11].properties[8],
+  );
+
+  /// See [InventoryItem.syid].
+  static final syid = obx.QueryIntegerProperty<InventoryItem>(
+    _entities[11].properties[9],
+  );
+
+  /// See [InventoryItem.synced].
+  static final synced = obx.QueryBooleanProperty<InventoryItem>(
+    _entities[11].properties[10],
   );
 }
 
@@ -3763,4 +4996,236 @@ class ItemConsumption_ {
       obx.QueryRelationToOne<ItemConsumption, InventoryItem>(
         _entities[12].properties[3],
       );
+
+  /// See [ItemConsumption.syid].
+  static final syid = obx.QueryIntegerProperty<ItemConsumption>(
+    _entities[12].properties[4],
+  );
+
+  /// See [ItemConsumption.synced].
+  static final synced = obx.QueryBooleanProperty<ItemConsumption>(
+    _entities[12].properties[5],
+  );
+}
+
+/// [PurchaseInvoiceEntity] entity fields to define ObjectBox queries.
+class PurchaseInvoiceEntity_ {
+  /// See [PurchaseInvoiceEntity.id].
+  static final id = obx.QueryIntegerProperty<PurchaseInvoiceEntity>(
+    _entities[13].properties[0],
+  );
+
+  /// See [PurchaseInvoiceEntity.createdDate].
+  static final createdDate = obx.QueryDateProperty<PurchaseInvoiceEntity>(
+    _entities[13].properties[1],
+  );
+
+  /// See [PurchaseInvoiceEntity.invoiceData].
+  static final invoiceData = obx.QueryStringProperty<PurchaseInvoiceEntity>(
+    _entities[13].properties[2],
+  );
+
+  /// See [PurchaseInvoiceEntity.syid].
+  static final syid = obx.QueryIntegerProperty<PurchaseInvoiceEntity>(
+    _entities[13].properties[3],
+  );
+
+  /// See [PurchaseInvoiceEntity.synced].
+  static final synced = obx.QueryBooleanProperty<PurchaseInvoiceEntity>(
+    _entities[13].properties[4],
+  );
+}
+
+/// [Supplier] entity fields to define ObjectBox queries.
+class Supplier_ {
+  /// See [Supplier.id].
+  static final id = obx.QueryIntegerProperty<Supplier>(
+    _entities[14].properties[0],
+  );
+
+  /// See [Supplier.supplierName].
+  static final supplierName = obx.QueryStringProperty<Supplier>(
+    _entities[14].properties[1],
+  );
+
+  /// See [Supplier.mobileNumber].
+  static final mobileNumber = obx.QueryStringProperty<Supplier>(
+    _entities[14].properties[2],
+  );
+
+  /// See [Supplier.address].
+  static final address = obx.QueryStringProperty<Supplier>(
+    _entities[14].properties[3],
+  );
+
+  /// See [Supplier.gstNumber].
+  static final gstNumber = obx.QueryStringProperty<Supplier>(
+    _entities[14].properties[4],
+  );
+
+  /// See [Supplier.category].
+  static final category = obx.QueryStringProperty<Supplier>(
+    _entities[14].properties[5],
+  );
+
+  /// See [Supplier.paymentTerms].
+  static final paymentTerms = obx.QueryStringProperty<Supplier>(
+    _entities[14].properties[6],
+  );
+
+  /// See [Supplier.createdDate].
+  static final createdDate = obx.QueryDateProperty<Supplier>(
+    _entities[14].properties[7],
+  );
+
+  /// See [Supplier.reserved_field].
+  static final reserved_field = obx.QueryStringProperty<Supplier>(
+    _entities[14].properties[8],
+  );
+
+  /// See [Supplier.reserved_field1].
+  static final reserved_field1 = obx.QueryStringProperty<Supplier>(
+    _entities[14].properties[9],
+  );
+
+  /// See [Supplier.reserved_field2].
+  static final reserved_field2 = obx.QueryStringProperty<Supplier>(
+    _entities[14].properties[10],
+  );
+
+  /// See [Supplier.reserved_field3].
+  static final reserved_field3 = obx.QueryStringProperty<Supplier>(
+    _entities[14].properties[11],
+  );
+
+  /// See [Supplier.syid].
+  static final syid = obx.QueryIntegerProperty<Supplier>(
+    _entities[14].properties[12],
+  );
+
+  /// See [Supplier.synced].
+  static final synced = obx.QueryBooleanProperty<Supplier>(
+    _entities[14].properties[13],
+  );
+}
+
+/// [PurchaseOrderEntity] entity fields to define ObjectBox queries.
+class PurchaseOrderEntity_ {
+  /// See [PurchaseOrderEntity.id].
+  static final id = obx.QueryIntegerProperty<PurchaseOrderEntity>(
+    _entities[15].properties[0],
+  );
+
+  /// See [PurchaseOrderEntity.createdAt].
+  static final createdAt = obx.QueryDateProperty<PurchaseOrderEntity>(
+    _entities[15].properties[1],
+  );
+
+  /// See [PurchaseOrderEntity.orderData].
+  static final orderData = obx.QueryStringProperty<PurchaseOrderEntity>(
+    _entities[15].properties[2],
+  );
+
+  /// See [PurchaseOrderEntity.pdfPath].
+  static final pdfPath = obx.QueryStringProperty<PurchaseOrderEntity>(
+    _entities[15].properties[3],
+  );
+
+  /// See [PurchaseOrderEntity.signaturePath].
+  static final signaturePath = obx.QueryStringProperty<PurchaseOrderEntity>(
+    _entities[15].properties[4],
+  );
+
+  /// See [PurchaseOrderEntity.orderNumber].
+  static final orderNumber = obx.QueryStringProperty<PurchaseOrderEntity>(
+    _entities[15].properties[5],
+  );
+
+  /// See [PurchaseOrderEntity.supplierName].
+  static final supplierName = obx.QueryStringProperty<PurchaseOrderEntity>(
+    _entities[15].properties[6],
+  );
+
+  /// See [PurchaseOrderEntity.statusIndex].
+  static final statusIndex = obx.QueryIntegerProperty<PurchaseOrderEntity>(
+    _entities[15].properties[7],
+  );
+
+  /// See [PurchaseOrderEntity.orderDate].
+  static final orderDate = obx.QueryDateProperty<PurchaseOrderEntity>(
+    _entities[15].properties[8],
+  );
+
+  /// See [PurchaseOrderEntity.syid].
+  static final syid = obx.QueryIntegerProperty<PurchaseOrderEntity>(
+    _entities[15].properties[9],
+  );
+
+  /// See [PurchaseOrderEntity.synced].
+  static final synced = obx.QueryBooleanProperty<PurchaseOrderEntity>(
+    _entities[15].properties[10],
+  );
+}
+
+/// [QuotationEntity] entity fields to define ObjectBox queries.
+class QuotationEntity_ {
+  /// See [QuotationEntity.id].
+  static final id = obx.QueryIntegerProperty<QuotationEntity>(
+    _entities[16].properties[0],
+  );
+
+  /// See [QuotationEntity.createdAt].
+  static final createdAt = obx.QueryDateProperty<QuotationEntity>(
+    _entities[16].properties[1],
+  );
+
+  /// See [QuotationEntity.quotationData].
+  static final quotationData = obx.QueryStringProperty<QuotationEntity>(
+    _entities[16].properties[2],
+  );
+
+  /// See [QuotationEntity.pdfPath].
+  static final pdfPath = obx.QueryStringProperty<QuotationEntity>(
+    _entities[16].properties[3],
+  );
+
+  /// See [QuotationEntity.signaturePath].
+  static final signaturePath = obx.QueryStringProperty<QuotationEntity>(
+    _entities[16].properties[4],
+  );
+
+  /// See [QuotationEntity.quotationNumber].
+  static final quotationNumber = obx.QueryStringProperty<QuotationEntity>(
+    _entities[16].properties[5],
+  );
+
+  /// See [QuotationEntity.partyName].
+  static final partyName = obx.QueryStringProperty<QuotationEntity>(
+    _entities[16].properties[6],
+  );
+
+  /// See [QuotationEntity.statusIndex].
+  static final statusIndex = obx.QueryIntegerProperty<QuotationEntity>(
+    _entities[16].properties[7],
+  );
+
+  /// See [QuotationEntity.quotationDate].
+  static final quotationDate = obx.QueryDateProperty<QuotationEntity>(
+    _entities[16].properties[8],
+  );
+
+  /// See [QuotationEntity.eventDate].
+  static final eventDate = obx.QueryDateProperty<QuotationEntity>(
+    _entities[16].properties[9],
+  );
+
+  /// See [QuotationEntity.syid].
+  static final syid = obx.QueryIntegerProperty<QuotationEntity>(
+    _entities[16].properties[10],
+  );
+
+  /// See [QuotationEntity.synced].
+  static final synced = obx.QueryBooleanProperty<QuotationEntity>(
+    _entities[16].properties[11],
+  );
 }

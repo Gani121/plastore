@@ -54,7 +54,7 @@
     },
     {
       "id": "2:8114204961835078834",
-      "lastPropertyId": "47:8025367918054177096",
+      "lastPropertyId": "49:3111082863429707317",
       "name": "MenuItem",
       "properties": [
         {
@@ -257,13 +257,23 @@
           "id": "47:8025367918054177096",
           "name": "reserved_field5",
           "type": 9
+        },
+        {
+          "id": "48:2505853251114935714",
+          "name": "syid",
+          "type": 6
+        },
+        {
+          "id": "49:3111082863429707317",
+          "name": "synced",
+          "type": 1
         }
       ],
       "relations": []
     },
     {
       "id": "3:4469350567211994079",
-      "lastPropertyId": "31:537373968849050868",
+      "lastPropertyId": "32:658611132438731738",
       "name": "Transaction",
       "properties": [
         {
@@ -386,13 +396,18 @@
           "id": "31:537373968849050868",
           "name": "upiamount",
           "type": 6
+        },
+        {
+          "id": "32:658611132438731738",
+          "name": "syid",
+          "type": 6
         }
       ],
       "relations": []
     },
     {
       "id": "7:8243572385061020594",
-      "lastPropertyId": "13:2590552078034253499",
+      "lastPropertyId": "15:1611385746582746",
       "name": "udhariCustomer",
       "properties": [
         {
@@ -440,13 +455,23 @@
           "id": "13:2590552078034253499",
           "name": "ucuniid",
           "type": 9
+        },
+        {
+          "id": "14:7203235451108704840",
+          "name": "syid",
+          "type": 6
+        },
+        {
+          "id": "15:1611385746582746",
+          "name": "synced",
+          "type": 1
         }
       ],
       "relations": []
     },
     {
       "id": "8:1884757268945243640",
-      "lastPropertyId": "15:629919279716649099",
+      "lastPropertyId": "19:8953347660749874291",
       "name": "TransactionUdhari",
       "properties": [
         {
@@ -502,13 +527,33 @@
           "id": "14:5803474790427682343",
           "name": "reserved_field3",
           "type": 9
+        },
+        {
+          "id": "16:8870605394763773721",
+          "name": "dueDate",
+          "type": 10
+        },
+        {
+          "id": "17:5153424326186144658",
+          "name": "reminderSent",
+          "type": 1
+        },
+        {
+          "id": "18:6956161431755484610",
+          "name": "syid",
+          "type": 6
+        },
+        {
+          "id": "19:8953347660749874291",
+          "name": "synced",
+          "type": 1
         }
       ],
       "relations": []
     },
     {
       "id": "9:803850883550001508",
-      "lastPropertyId": "18:2326055945279238616",
+      "lastPropertyId": "20:1322947260243538747",
       "name": "CartItem",
       "properties": [
         {
@@ -569,13 +614,23 @@
           "id": "18:2326055945279238616",
           "name": "reserved_field5",
           "type": 9
+        },
+        {
+          "id": "19:7031459810043636804",
+          "name": "syid",
+          "type": 6
+        },
+        {
+          "id": "20:1322947260243538747",
+          "name": "synced",
+          "type": 1
         }
       ],
       "relations": []
     },
     {
       "id": "10:7003873532803288360",
-      "lastPropertyId": "18:3444315800088588529",
+      "lastPropertyId": "20:285205673583690157",
       "name": "OrderItem",
       "properties": [
         {
@@ -636,13 +691,23 @@
           "id": "18:3444315800088588529",
           "name": "reserved_field5",
           "type": 9
+        },
+        {
+          "id": "19:3927481171325759666",
+          "name": "syid",
+          "type": 6
+        },
+        {
+          "id": "20:285205673583690157",
+          "name": "synced",
+          "type": 1
         }
       ],
       "relations": []
     },
     {
       "id": "12:6667384983004949850",
-      "lastPropertyId": "16:3125477720319417828",
+      "lastPropertyId": "18:2831265446927798619",
       "name": "Active_Table_view",
       "properties": [
         {
@@ -697,13 +762,23 @@
           "id": "16:3125477720319417828",
           "name": "reserved_field5",
           "type": 9
+        },
+        {
+          "id": "17:1520365774520258361",
+          "name": "syid",
+          "type": 6
+        },
+        {
+          "id": "18:2831265446927798619",
+          "name": "synced",
+          "type": 1
         }
       ],
       "relations": []
     },
     {
       "id": "13:3969341799271811412",
-      "lastPropertyId": "9:8372211435384421080",
+      "lastPropertyId": "11:1927858818119958752",
       "name": "tableCart",
       "properties": [
         {
@@ -751,13 +826,23 @@
           "id": "9:8372211435384421080",
           "name": "reserved_field5",
           "type": 9
+        },
+        {
+          "id": "10:4508413639396916322",
+          "name": "syid",
+          "type": 6
+        },
+        {
+          "id": "11:1927858818119958752",
+          "name": "synced",
+          "type": 1
         }
       ],
       "relations": []
     },
     {
       "id": "14:2768773813359552193",
-      "lastPropertyId": "9:1635883901990268424",
+      "lastPropertyId": "11:1333389533984705924",
       "name": "expences",
       "properties": [
         {
@@ -805,13 +890,23 @@
           "id": "9:1635883901990268424",
           "name": "reserved_field5",
           "type": 9
+        },
+        {
+          "id": "10:4571762548610073842",
+          "name": "syid",
+          "type": 6
+        },
+        {
+          "id": "11:1333389533984705924",
+          "name": "synced",
+          "type": 1
         }
       ],
       "relations": []
     },
     {
       "id": "15:4201487541336974071",
-      "lastPropertyId": "24:9132185722945918360",
+      "lastPropertyId": "26:4819755331369326777",
       "name": "Parties",
       "properties": [
         {
@@ -919,13 +1014,23 @@
           "id": "24:9132185722945918360",
           "name": "completionDate",
           "type": 10
+        },
+        {
+          "id": "25:4469035305792609297",
+          "name": "syid",
+          "type": 6
+        },
+        {
+          "id": "26:4819755331369326777",
+          "name": "synced",
+          "type": 1
         }
       ],
       "relations": []
     },
     {
       "id": "16:5727313015559224984",
-      "lastPropertyId": "4:4170777672823309710",
+      "lastPropertyId": "11:9038910502171452702",
       "name": "InventoryItem",
       "properties": [
         {
@@ -948,13 +1053,48 @@
           "id": "4:4170777672823309710",
           "name": "stockQuantity",
           "type": 8
+        },
+        {
+          "id": "5:5645406025965306727",
+          "name": "category",
+          "type": 9
+        },
+        {
+          "id": "6:6008325476476244624",
+          "name": "reserved_field",
+          "type": 9
+        },
+        {
+          "id": "7:8858933880403906700",
+          "name": "reserved_field1",
+          "type": 9
+        },
+        {
+          "id": "8:683292763525954807",
+          "name": "reserved_field2",
+          "type": 9
+        },
+        {
+          "id": "9:8412269561799184683",
+          "name": "reserved_field3",
+          "type": 9
+        },
+        {
+          "id": "10:6199823192068857287",
+          "name": "syid",
+          "type": 6
+        },
+        {
+          "id": "11:9038910502171452702",
+          "name": "synced",
+          "type": 1
         }
       ],
       "relations": []
     },
     {
       "id": "17:8669011261676476061",
-      "lastPropertyId": "4:6498618532039859085",
+      "lastPropertyId": "6:1124917715939850600",
       "name": "ItemConsumption",
       "properties": [
         {
@@ -983,13 +1123,281 @@
           "type": 11,
           "flags": 520,
           "relationTarget": "InventoryItem"
+        },
+        {
+          "id": "5:3037402141345348283",
+          "name": "syid",
+          "type": 6
+        },
+        {
+          "id": "6:1124917715939850600",
+          "name": "synced",
+          "type": 1
+        }
+      ],
+      "relations": []
+    },
+    {
+      "id": "18:3646327834900425017",
+      "lastPropertyId": "5:4574475261507979469",
+      "name": "PurchaseInvoiceEntity",
+      "properties": [
+        {
+          "id": "1:6297575824586141163",
+          "name": "id",
+          "type": 6,
+          "flags": 1
+        },
+        {
+          "id": "2:4094565691589855627",
+          "name": "createdDate",
+          "type": 10
+        },
+        {
+          "id": "3:3263201401773016903",
+          "name": "invoiceData",
+          "type": 9
+        },
+        {
+          "id": "4:600419565060560289",
+          "name": "syid",
+          "type": 6
+        },
+        {
+          "id": "5:4574475261507979469",
+          "name": "synced",
+          "type": 1
+        }
+      ],
+      "relations": []
+    },
+    {
+      "id": "19:7845926616772917602",
+      "lastPropertyId": "14:6362725389168022675",
+      "name": "Supplier",
+      "properties": [
+        {
+          "id": "1:3565744782734047945",
+          "name": "id",
+          "type": 6,
+          "flags": 1
+        },
+        {
+          "id": "2:4680183037351690015",
+          "name": "supplierName",
+          "type": 9
+        },
+        {
+          "id": "3:954316052845861744",
+          "name": "mobileNumber",
+          "type": 9
+        },
+        {
+          "id": "4:3176761288988486716",
+          "name": "address",
+          "type": 9
+        },
+        {
+          "id": "5:345943896807138844",
+          "name": "gstNumber",
+          "type": 9
+        },
+        {
+          "id": "6:6557997277808284802",
+          "name": "category",
+          "type": 9
+        },
+        {
+          "id": "7:5422794324335940037",
+          "name": "paymentTerms",
+          "type": 9
+        },
+        {
+          "id": "8:3142144545700594859",
+          "name": "createdDate",
+          "type": 10
+        },
+        {
+          "id": "9:98872566440189549",
+          "name": "reserved_field",
+          "type": 9
+        },
+        {
+          "id": "10:268360144975099746",
+          "name": "reserved_field1",
+          "type": 9
+        },
+        {
+          "id": "11:6801362327673269183",
+          "name": "reserved_field2",
+          "type": 9
+        },
+        {
+          "id": "12:9195135151541543561",
+          "name": "reserved_field3",
+          "type": 9
+        },
+        {
+          "id": "13:7782323247671530884",
+          "name": "syid",
+          "type": 6
+        },
+        {
+          "id": "14:6362725389168022675",
+          "name": "synced",
+          "type": 1
+        }
+      ],
+      "relations": []
+    },
+    {
+      "id": "20:1135638778823892512",
+      "lastPropertyId": "11:5783639787049349607",
+      "name": "PurchaseOrderEntity",
+      "properties": [
+        {
+          "id": "1:5204289235979904984",
+          "name": "id",
+          "type": 6,
+          "flags": 1
+        },
+        {
+          "id": "2:4700776378823196934",
+          "name": "createdAt",
+          "type": 10
+        },
+        {
+          "id": "3:4773134575283562339",
+          "name": "orderData",
+          "type": 9
+        },
+        {
+          "id": "4:2025191832968988909",
+          "name": "pdfPath",
+          "type": 9
+        },
+        {
+          "id": "5:8630020050764803640",
+          "name": "signaturePath",
+          "type": 9
+        },
+        {
+          "id": "6:7474404830234994308",
+          "name": "orderNumber",
+          "indexId": "10:6595738836647985989",
+          "type": 9,
+          "flags": 2048
+        },
+        {
+          "id": "7:3719320499063610277",
+          "name": "supplierName",
+          "indexId": "11:5414468894383312252",
+          "type": 9,
+          "flags": 2048
+        },
+        {
+          "id": "8:8285754267674255452",
+          "name": "statusIndex",
+          "indexId": "12:3308414309763953271",
+          "type": 6,
+          "flags": 8
+        },
+        {
+          "id": "9:905358319370052252",
+          "name": "orderDate",
+          "type": 10
+        },
+        {
+          "id": "10:5146644578307828289",
+          "name": "syid",
+          "type": 6
+        },
+        {
+          "id": "11:5783639787049349607",
+          "name": "synced",
+          "type": 1
+        }
+      ],
+      "relations": []
+    },
+    {
+      "id": "21:1244000944143152839",
+      "lastPropertyId": "12:7911238566288039879",
+      "name": "QuotationEntity",
+      "properties": [
+        {
+          "id": "1:3253681086820098804",
+          "name": "id",
+          "type": 6,
+          "flags": 1
+        },
+        {
+          "id": "2:8950840843736018797",
+          "name": "createdAt",
+          "type": 10
+        },
+        {
+          "id": "3:6910688089986841158",
+          "name": "quotationData",
+          "type": 9
+        },
+        {
+          "id": "4:8064290415930138522",
+          "name": "pdfPath",
+          "type": 9
+        },
+        {
+          "id": "5:5592129955400365629",
+          "name": "signaturePath",
+          "type": 9
+        },
+        {
+          "id": "6:3162257691713824750",
+          "name": "quotationNumber",
+          "indexId": "13:8259563510771852113",
+          "type": 9,
+          "flags": 2048
+        },
+        {
+          "id": "7:6571230918483957359",
+          "name": "partyName",
+          "indexId": "14:1215266294446603832",
+          "type": 9,
+          "flags": 2048
+        },
+        {
+          "id": "8:4957289778215149555",
+          "name": "statusIndex",
+          "indexId": "15:3471036569950358510",
+          "type": 6,
+          "flags": 8
+        },
+        {
+          "id": "9:3832282921993973130",
+          "name": "quotationDate",
+          "type": 10
+        },
+        {
+          "id": "10:5036062148659813495",
+          "name": "eventDate",
+          "type": 10
+        },
+        {
+          "id": "11:7235571574381630631",
+          "name": "syid",
+          "type": 6
+        },
+        {
+          "id": "12:7911238566288039879",
+          "name": "synced",
+          "type": 1
         }
       ],
       "relations": []
     }
   ],
-  "lastEntityId": "17:8669011261676476061",
-  "lastIndexId": "9:8854451117807104129",
+  "lastEntityId": "21:1244000944143152839",
+  "lastIndexId": "15:3471036569950358510",
   "lastRelationId": "0:0",
   "lastSequenceId": "0:0",
   "modelVersion": 5,
