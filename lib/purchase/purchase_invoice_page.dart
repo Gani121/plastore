@@ -2042,6 +2042,7 @@ class _PurchaseInvoicePageState extends State<PurchaseInvoicePage> with SingleTi
         receivedAmount: receivedAmount,
         description: _descriptionController.text.isNotEmpty ? _descriptionController.text.trim() : null,
         expenseType: _expenseType,
+        hotelName: AppConstants.username,
       );
 
       // Update stock based on expense type
@@ -2175,6 +2176,7 @@ class _PurchaseInvoicePageState extends State<PurchaseInvoicePage> with SingleTi
       receivedAmount: receivedAmount,
       description: _descriptionController.text.isNotEmpty ? _descriptionController.text.trim() : null,
       expenseType: _expenseType,
+      hotelName:AppConstants.username,
     );
 
     // Update in list

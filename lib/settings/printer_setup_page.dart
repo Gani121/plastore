@@ -67,7 +67,9 @@ class _PrinterSetupPageState extends State<PrinterSetupPage> with WidgetsBinding
   final List<String> _fontSizess = ["fontA", "fontB"];
   late TextEditingController _footerController = TextEditingController();
   late TextEditingController _whatsapptextController = TextEditingController();
-
+  late TextEditingController _whatsapptearmsController = TextEditingController();
+  late TextEditingController _kotPrinterController = TextEditingController();
+  late TextEditingController _billPrinterController = TextEditingController();
   thermal.BlueThermalPrinter printer = thermal.BlueThermalPrinter.instance;
 
   List<UsbDevice> _usbDevices = [];
@@ -89,6 +91,9 @@ class _PrinterSetupPageState extends State<PrinterSetupPage> with WidgetsBinding
     _bluetoothStateSubscription?.cancel();
     _footerController.dispose();
     _whatsapptextController.dispose();
+    _whatsapptearmsController.dispose();
+    _billPrinterController.dispose();
+    _kotPrinterController.dispose();
     super.dispose();
   }
 
@@ -98,7 +103,7 @@ class _PrinterSetupPageState extends State<PrinterSetupPage> with WidgetsBinding
     try {
       _usbDevices = await UsbSerial.listDevices();
     } catch (e) {
-      print("USB Scan Error: $e");
+      print_log("USB Scan Error: $e");
     }
     setState(() => _usbDevices = _usbDevices);
     setState(() => _isUsbScanning = false);
@@ -159,7 +164,7 @@ class _PrinterSetupPageState extends State<PrinterSetupPage> with WidgetsBinding
         SnackBar(content: Text("🖨 USB Test print sent")),
       );
     } catch (e) {
-      print("USB Print Error: $e");
+      print_log("USB Print Error: $e");
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text("❌ USB Error: $e")),
       );
@@ -198,7 +203,7 @@ class _PrinterSetupPageState extends State<PrinterSetupPage> with WidgetsBinding
         await bl.FlutterBluePlus.turnOn();
       }
     } catch (e) {
-      print("❌ Error toggling Bluetooth: $e");
+      print_log_red("❌ Error toggling Bluetooth: $e");
       ScaffoldMessenger.of(
         context,
       ).showSnackBar(SnackBar(content: Text("❌ Error toggling Bluetooth: $e")));
@@ -230,7 +235,7 @@ class _PrinterSetupPageState extends State<PrinterSetupPage> with WidgetsBinding
     try {
       _devices = await printer.getBondedDevices();
     } catch (e) {
-      print("❌ Error getting devices: $e");
+      print_log_red("❌ Error getting devices: $e");
     }
 
     setState(() {
@@ -273,7 +278,7 @@ class _PrinterSetupPageState extends State<PrinterSetupPage> with WidgetsBinding
 
     await file.writeAsString(jsonEncode(data), flush: true);
 
-    print("📄 Printer saved in JSON: ${file.path}");
+    print_log("📄 Printer saved in JSON: ${file.path}");
     // ------------------------------------------
 
     setState(() {
@@ -317,7 +322,9 @@ class _PrinterSetupPageState extends State<PrinterSetupPage> with WidgetsBinding
       _logoheight =  prefs.getInt('logoheight')?? 200;
        _footerController = TextEditingController(text: prefs.getString('footerText')?? "** thank you **");
       _whatsapptextController = TextEditingController(text: prefs.getString('whatsapptext')?? "Thank you for your business!");
-
+      _whatsapptearmsController = TextEditingController(text: prefs.getString('whatsappterms')?? "Thank you for your business!");
+      _billPrinterController = TextEditingController(text: _savedDeviceName ?? "");
+      _kotPrinterController = TextEditingController(text: _savedKOTDeviceName ?? "");
       _selectedUUID = prefs.getString('selected_printer_uuid') ?? "49535343-8841-43f4-a8d4-ecbe34729bb3";
       _availableUUIDs = [_selectedUUID];
         });
@@ -377,6 +384,7 @@ class _PrinterSetupPageState extends State<PrinterSetupPage> with WidgetsBinding
     await prefs.setBool('pdf', _pdf);
     await prefs.setString('footerText', _footerController.text);
     await prefs.setString('whatsapptext', _whatsapptextController.text);
+    await prefs.setString('whatsappterms', _whatsapptearmsController.text);
     await prefs.setInt('logoWidth', _logoWidth);
     await prefs.setInt('chunkSize', _chunkSize);
     await prefs.setInt('logoheight', _logoheight);
@@ -513,7 +521,7 @@ Future<void> _connectKOTPrinter() async {
         context,
       ).showSnackBar(SnackBar(content: Text("🖨️ KOT Test print sent")));
     } catch (e) {
-      print("❌ Connection/Print error: $e");
+      print_log_red("❌ Connection/Print error: $e");
       ScaffoldMessenger.of(
         context,
       ).showSnackBar(SnackBar(content: Text("❌ Error: $e")));
@@ -787,6 +795,48 @@ Future<void> _connectKOTPrinter() async {
                   ),
                 );
               })
+            else if(Platform.isWindows)
+              Row(
+                children: [
+                  // Bill Printer Input
+                  Expanded(
+                    child: TextField(
+                      controller: _billPrinterController,
+                      keyboardType: TextInputType.text,
+                      decoration: const InputDecoration(
+                        labelText: "Bill Printer",
+                        hintText: "Enter printer name/IP",
+                        border: OutlineInputBorder(),
+                        isDense: true,
+                        prefixIcon: Icon(Icons.print, size: 20),
+                      ),
+                      onChanged: (val) async {
+                        final prefs = await SharedPreferences.getInstance();
+                        await prefs.setString('savedDeviceName', val ?? '');
+                      },
+                    ),
+                  ),
+                  const SizedBox(width: 16),
+                  // KOT Printer Input
+                  Expanded(
+                    child: TextField(
+                      controller: _kotPrinterController,
+                      keyboardType: TextInputType.text,
+                      decoration: const InputDecoration(
+                        labelText: "KOT Printer",
+                        hintText: "Enter printer name/IP",
+                        border: OutlineInputBorder(),
+                        isDense: true,
+                        prefixIcon: Icon(Icons.kitchen, size: 20),
+                      ),
+                      onChanged: (val) async{
+                        final prefs = await SharedPreferences.getInstance();
+                        await prefs.setString('savedKOTDeviceName', val ?? "" );
+                      },
+                    ),
+                  ),
+                ],
+              )
             else
               Card(
                 child: ListTile(
@@ -1383,6 +1433,41 @@ Future<void> _connectKOTPrinter() async {
                       onChanged: (val) {
                          // ✨ NEW: Auto-save on change for text field
                          _autoSaveSettings();
+                      },
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 12.0),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start, // important for multiline
+                children: [
+                  Expanded(
+                    child: Text(
+                      "3.20.1 PDF Terms",
+                      style: TextStyle(fontSize: 16.0),
+                    ),
+                  ),
+                  const SizedBox(width: 4.0),
+
+                  // Increase height + allow multiline
+                  SizedBox(
+                    width: 250.0,
+                    child: TextField(
+                      controller: _whatsapptearmsController,
+                      keyboardType: TextInputType.multiline,
+                      textAlign: TextAlign.left,
+                      maxLines: 10,     // 👈 allow 10 lines
+                      decoration: const InputDecoration(
+                        hintText: "Enter PDF terms here...",
+                        border: OutlineInputBorder(),
+                        isDense: true,
+                        contentPadding: EdgeInsets.all(12.0),
+                      ),
+                      onChanged: (val) {
+                        _autoSaveSettings();
                       },
                     ),
                   ),

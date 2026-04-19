@@ -230,6 +230,7 @@ class _AddEditExpensePageState extends State<AddEditExpensePage> {
       receivedAmount: receivedAmount,
       description: _descriptionController.text.isNotEmpty ? _descriptionController.text.trim() : null,
       expenseType: _expenseType,
+      hotelName:AppConstants.username,
     );
 
     try {

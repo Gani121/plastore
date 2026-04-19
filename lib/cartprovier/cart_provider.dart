@@ -2,6 +2,8 @@ import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:convert';
 
+import 'package:test1/utilities.dart';
+
 class CartProvider extends ChangeNotifier {
   List<Map<String, dynamic>> _cart = [];
 
@@ -58,7 +60,7 @@ class CartProvider extends ChangeNotifier {
     int? tableNo,
   }) {
     try {
-      final key = _getKey(tableNo);
+      // final key = _getKey(tableNo);
       // final prefs = await SharedPreferences.getInstance();
 
       // Create cart item
@@ -83,24 +85,6 @@ class CartProvider extends ChangeNotifier {
           'total': (item['qty'] ?? 1) * price,
         };
       }
-
-      // final String? existingCartJson = prefs.getString(key);
-      // List<Map<String, dynamic>> cartList = [];
-
-      // if (existingCartJson != null && existingCartJson.isNotEmpty) {
-      //   try {
-      //     final List<dynamic> decodedList = jsonDecode(existingCartJson);
-      //     cartList = decodedList.map<Map<String, dynamic>>((item) =>
-      //       Map<String, dynamic>.from(item)
-      //     ).toList();
-      //   } catch (e) {
-      //     if (kDebugMode) {
-      //       print('Error decoding cart: $e');
-      //     }
-      //     cartList = [];
-      //   }
-      // }
-
       // Check if item already exists in cart (same ID and portion)
       bool itemExists = false;
       // //debugPrint("cart item to set item is $cartItem");
@@ -145,20 +129,20 @@ class CartProvider extends ChangeNotifier {
           // If found, insert the new item right after the last one.
           _cart.insert(index +1, cartItem);
           if (kDebugMode) {
-            //debugPrint('Cart inserted successfully. Total items: ${_cart}');
+            print_log('Cart inserted successfully. Total items: ${_cart}');
           }
         } else {
           // //debugPrint("asdfghjkl add item");
           // Otherwise, add it to the end of the list.
           _cart.add(cartItem);
           if (kDebugMode) {
-            //debugPrint('Cart added successfully. Total items: ${_cart}');
+            print_log('Cart added successfully. Total items: ${_cart}');
           }
         }
       }
       // _cart.add(cartItem);
-
-      // //debugPrint("cart item to set item is $item");
+      print_log("cart item to set _cart is $_cart");
+      print_log("cart item to set item is $item");
 
       // Save updated cart
 
@@ -172,7 +156,7 @@ class CartProvider extends ChangeNotifier {
       
     } catch (e) {
       if (kDebugMode) {
-        //debugPrint('\x1B[31m Error saving cart: $e \x1B[0m');
+        print_log_red('\x1B[31m Error saving cart: $e \x1B[0m');
       }
     }
   }
@@ -414,7 +398,7 @@ class CartProvider extends ChangeNotifier {
               // Log a warning if an item in the list is not a map
               if (kDebugMode) {
                 final message = 'Warning: Non-map item found in cart data: $item';
-                //debugPrint('\x1B[31m $message \x1B[0m');
+                debugPrint('\x1B[31m $message \x1B[0m');
               }
               return null; // This item will be filtered out
             }
@@ -429,12 +413,12 @@ class CartProvider extends ChangeNotifier {
 
       if (kDebugMode) {
         final message = 'External cart data loaded. Items: ${_cart.length}';
-        //debugPrint('\x1B[31m $message \x1B[0m');
+        debugPrint('\x1B[31m $message \x1B[0m');
       }
     } catch (e) {
       if (kDebugMode) {
         final message = 'Error loading external cart: $e. Input: "$cartData"';
-        //debugPrint('\x1B[31m $message \x1B[0m');
+        debugPrint('\x1B[31m $message \x1B[0m');
       }
       // Optionally, reset the cart to a safe state
       // _cart = [];

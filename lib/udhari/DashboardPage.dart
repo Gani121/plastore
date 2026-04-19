@@ -52,7 +52,7 @@ class _DashboardPageState extends State<DashboardPage> {
     });
 
     // 3. Optional cloud sync
-    // _syncWithCloud(objectbox);
+    _syncWithCloud(objectbox);
   }
 
   @override

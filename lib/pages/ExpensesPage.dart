@@ -9,7 +9,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:test1/utilities.dart';
 import '../objectbox.g.dart';
 import 'package:provider/provider.dart';
-import '../database_Module/ObjectBoxService.dart';
+import 'package:test1/database_Module/ObjectBoxService.dart';
 import 'package:http/http.dart' as http;
 import '../purchase/purchase_invoice_page.dart';
 import 'package:test1/database_Module/supplier_database.dart';
@@ -90,8 +90,9 @@ class _ExpensesPageState extends State<ExpensesPage> {
       _loadExpenseTitles(); // Add this
       _loadInventoryItems(); // Add this
       _loadMenuItems(); // Add this
-      _loadExpenses().then((_) {
-        _saveExpenses();
+      _loadExpenses().then((_) async {
+      await _saveExpenses();
+      await fetchExpenses();
       });
 
 
@@ -409,7 +410,9 @@ Future<void> _loadMenuItems() async {
       final box = _store.box<expences>();
       final prefs = await SharedPreferences.getInstance();
       final hotelName = await prefs.getString(AppConstants.usernameKey) ?? "";
+
       http.Response? response = await apiCalls("ex_get", hotelName, {});
+
       if (response == null || response.statusCode != 200) return;
 
       final data = jsonDecode(response.body);
@@ -419,6 +422,7 @@ Future<void> _loadMenuItems() async {
           final map = jsonDecode(e.expence);
           return map['id'].toString(); 
         }).toSet();
+
       bool addedNew = false;
       for (var item in serverList) {
         final Map<String, dynamic> expenseMap = item['expense_json'];
@@ -441,7 +445,7 @@ Future<void> _loadMenuItems() async {
             final map = Map<String, dynamic>.from(jsonDecode(s.expence));
             loadedExpenses.add(Expense.fromMap(map));
           } catch (e) {
-            // print_log_red('Error parsing entity: $e');
+            print_log_red('Error parsing entity: $e');
           }
         }
 
@@ -455,7 +459,7 @@ Future<void> _loadMenuItems() async {
         });
       }
     } catch (e) {
-      // print_log_red('Error parsing entity: $e');
+      print_log_red('Error parsing entity: $e');
     }
   }
 
@@ -2947,6 +2951,7 @@ void _updateExpense(String expenseId) {
     receivedAmount: receivedAmount,
     description: _descriptionController.text.isNotEmpty ? _descriptionController.text.trim() : null,
     expenseType: _expenseType,
+    hotelName: AppConstants.username,
   );
 
   // Update in list
@@ -3220,6 +3225,7 @@ void _saveExpense() async {
       receivedAmount: receivedAmount,
       description: _descriptionController.text.isNotEmpty ? _descriptionController.text.trim() : null,
       expenseType: _expenseType,
+      hotelName: AppConstants.username,
     );
 
   

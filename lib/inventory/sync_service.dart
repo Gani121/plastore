@@ -35,6 +35,9 @@ Future<void> fetchFromServer(Store store) async {
     final consumptionBox = store.box<ItemConsumption>();
     final menuBox = store.box<MenuItem>();
 
+    await ApiCallPage(menuBox);
+
+
     // ---------------------------
     // 1️⃣ SYNC INVENTORY
     // ---------------------------
@@ -43,8 +46,10 @@ Future<void> fetchFromServer(Store store) async {
     // ---------------------------
     // 2️⃣ CLEAR OLD CONSUMPTION
     // ---------------------------
-    consumptionBox.removeAll();
-    print_log("Cleared old consumption data");
+    if(data['consumption'] != null){
+      consumptionBox.removeAll();
+      print_log("Cleared old consumption data");
+    }
 
     // ---------------------------
     // 3️⃣ SYNC MENU ITEMS
@@ -269,6 +274,7 @@ Future<void> _syncConsumption(
           if (!item.synced) {
             final payload = {
               "action": "add_inventory",
+              "syid": item.syid,
               "name": item.name,
               "unit": item.unit,
               "stock_quantity": item.stockQuantity,
@@ -355,6 +361,7 @@ Future<void> _syncConsumption(
             try {
               final payload = {
                 "action": "save_recipe",
+                "syid": item.syid,
                 "menu_item_name": menuItemName,
                 "items": itemsList,
               };
@@ -511,7 +518,7 @@ Future<void> sendStockToServer(InventoryItem item, double addedQuantity, String 
 }
 
 
-  Future<void> sendItemtoServer(MenuItem item) async {
+  Future<void> sendItemtoServer(MenuItem item, Box<MenuItem> _menuItemBox) async {
     final prefs = await SharedPreferences.getInstance();
     try {
       
@@ -528,10 +535,12 @@ Future<void> sendStockToServer(InventoryItem item, double addedQuantity, String 
       final payload = {
         'hotel_name': hotelName,
         'issingle': true,
+        'ovweridestock': true,
         'menuItems': [
           {
             // 'id': (item.id != 0 ? item.id : DateTime.now().millisecondsSinceEpoch),
-            'menu': item.category,
+            'syid':item.syid,
+            'menu': item.category, 
             'submenu': item.name,
             'h_price': double.tryParse(item.h_price ?? '0') ?? 0.0,
             'f_price': double.tryParse(item.f_price ?? '0') ?? 0.0,
@@ -560,9 +569,14 @@ Future<void> sendStockToServer(InventoryItem item, double addedQuantity, String 
       print_log("Payload to send to server: ${jsonEncode(payload)}");
 
       http.Response? response = await apiCalls("a", hotelName, payload);
-        if (response == null) {
-          return;
-        }
+      if (response == null) {
+        return;
+      }
+      if (response.statusCode == 200) {
+        item.synced = true;
+        _menuItemBox.put(item);
+        print_log("Server Response: ${response.body} ${_menuItemBox.get(item.id)}");
+      }
 
       print_log('Server Response: ${response.statusCode} ${response.body}');
     } catch (e) {
@@ -570,7 +584,80 @@ Future<void> sendStockToServer(InventoryItem item, double addedQuantity, String 
     }
   }
 
+Future<void> ApiCallPage(Box<MenuItem> menuBox) async {
 
+
+      // print("ApiCallPage started...");
+      final prefs = await SharedPreferences.getInstance();
+      final username = prefs.getString('username') ?? "";
+      final role = prefs.getString('role') ?? "";
+      var hotelName='';
+      if(role=="captain"){
+        hotelName = getHotelIdentifier(username);
+        // hotelName = username.split("_").sublist(0, username.split("_").length - 1).join("_");
+        print_log("hotelName $hotelName");
+      }else{
+         hotelName = username;
+         print_log("hotelName $hotelName");
+      }
+
+      try {
+        http.Response? response = await apiCalls("m",hotelName, {});
+
+        if (response == null) {
+          return;
+        }
+        if (response.statusCode == 200) {
+          final jsonData = jsonDecode(response.body);
+          final dataList = jsonData['data'];
+
+          print_log("server response $dataList");
+          if (dataList is List) {
+            List<MenuItem> menuItems = dataList.map((item) => MenuItem.fromJson(item)).toList();
+            // print_log("menuItems ${menuItems}");
+            saveMenuItemsReliably(menuItems,menuBox);
+            
+            print_log("✅ Menu loaded from server: ${menuItems.length} items");
+          } else {
+            print_log_red("Device Not Connected response.statusCode -  ${response.statusCode}");
+            // screen_massage(context, "$jsonData");
+          }
+        } else {
+          print_log_red('HTTP Error: ${response.statusCode}: ${response.reasonPhrase}');
+          // screen_massage(context, 'HTTP Error: ${response.statusCode}: ${response.reasonPhrase}');
+        }
+      } catch (error) {
+        print_log_red("Device Not Connected ${error}");
+        // screen_massage(context, "Device Not Connected ${error}");
+      }
+    
+  }
+
+ void saveMenuItemsReliably(List<MenuItem> menuItems, Box<MenuItem>? menuBox) {
+  if (menuBox == null) {
+    print_log("found menuItemBox is null in setting");
+    return;
+  }
+
+  for (var newItem in menuItems) {
+    // 1. Try to find the existing item by a unique property (syid or name)
+    // Using QueryBuilder to find a match
+    final query = menuBox.query(MenuItem_.name.equals(newItem.name)).build();
+    final MenuItem? existingItem = query.findFirst();
+    query.close(); // Always close your queries
+
+    if (existingItem != null) {
+      // ✅ UPDATE: Map the new data to the existing ID
+      // In ObjectBox, if the ID matches the one in the DB, it updates.
+      print_log("Updating existing menu item: ${newItem.id} with ID: ${existingItem.id}");
+      newItem.id = existingItem.id; 
+    } 
+    
+    // Set synced status and save (will insert if id is 0, update if id exists)
+    newItem.synced = true;
+    menuBox.put(newItem);
+  }
+}
 
   
 

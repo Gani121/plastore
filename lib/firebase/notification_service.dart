@@ -77,6 +77,7 @@ class NotificationService {
     final prefs = await SharedPreferences.getInstance();
     
     // Get device token
+    print_log("FCM going to create Token in NotificationService ");
     String? token = await FirebaseMessaging.instance.getToken();
     print_log("FCM Token: $token");
     await prefs.setString('device_id', token ?? "");
@@ -116,14 +117,15 @@ class NotificationService {
   }
 
   static void _onMessageOpened(RemoteMessage message) {
-    print_log('Notification opened: ${message.data}');
+    print_log('FCM Notification opened: ${message.data}');
   }
 
   @pragma('vm:entry-point')
   static Future<void> backgroundHandler(RemoteMessage message) async {
-    await Firebase.initializeApp();
-    await initialize();
-    await _showNotification(message);
+    print_log('FCM Notification recived in background: ${message.data}');
+    // await Firebase.initializeApp();
+    // await initialize();
+    // await _showNotification(message);
     
   }
 }

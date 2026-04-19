@@ -22,8 +22,9 @@ import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 import 'package:printing/printing.dart';
 import '../database_Module/cunsuption.dart';
+import './export_service.dart';
 
-
+enum ExportOption { excel, pdf }
 class SalesReportPage extends StatefulWidget {
   const SalesReportPage({super.key});
 
@@ -38,6 +39,8 @@ class _SalesReportPageState extends State<SalesReportPage> {
   double weekTotal = 0;
   double monthTotal = 0;
   double cashTotal = 0;
+  double _totalServiceCharge = 0;
+  double _totalDiscount = 0;
   double cardTotal = 0;
   double upiTotal = 0;
   double otherTotal = 0;
@@ -80,7 +83,7 @@ class _SalesReportPageState extends State<SalesReportPage> {
   double _totalCredit = 0;
   int _totalCreditTransactions = 0;
   double _totalPendingCredit = 0;
-
+  
   @override
   void initState() {
     super.initState();
@@ -250,6 +253,9 @@ class _SalesReportPageState extends State<SalesReportPage> {
 
       double tTotal = 0, wTotal = 0, mTotal = 0, _profit = 0, _sLastMonth = 0, _rangetotal = 0, _totalTransections = 0;
       double cash = 0, card = 0, upi = 0, pending = 0;
+      // Add these variables for discount and service charge totals
+      double totalDiscount = 0;
+      double totalServiceCharge = 0;
       Map<String, int> qtyMap = {};
       Map<String, double> priceMap = {};
       Map<String, int> cqtyMap = {};
@@ -333,7 +339,8 @@ class _SalesReportPageState extends State<SalesReportPage> {
         // Calculate Range/FILTERED Stats dates(Payment Mode, Range Total, Profit)
         if (tx.time.isAfter(from) && tx.time.isBefore(to)) {
           _rangetotal += transactionTotal;
-          
+          totalDiscount += tx.discount ?? 0.0;
+          totalServiceCharge += tx.serviceCharge ?? 0.0;
           
           // Payment Mode Breakdown (Only for selected range)
           switch (tx.payment_mode.toUpperCase()) {
@@ -369,10 +376,13 @@ class _SalesReportPageState extends State<SalesReportPage> {
 
 
         // Parse cart data*************************************
-        List<dynamic> cartItems = [];
+        List<Map<String, dynamic>> cartItems = [];
         try {
           if (tx.cartData != null && tx.cartData.isNotEmpty) {
-            cartItems = jsonDecode(tx.cartData);
+            final cartdata = jsonDecode(tx.cartData);
+            // final cartdata = jsonDecode(tx['cartData']);
+            final List<Map<String, dynamic>> cart = (cartdata as List).cast<Map<String, dynamic>>();
+            cartItems = cart.map((item) => Map<String, dynamic>.from(item)).toList();
           }
         } catch (e) {
           print_log_red('Error parsing cart data: $e');
@@ -455,7 +465,9 @@ class _SalesReportPageState extends State<SalesReportPage> {
           cardTotal = card;
           upiTotal = upi;
           otherTotal = pending;
-          print_log("UI rangetotal updated to: $_sLastMonth");
+          _totalDiscount = totalDiscount;
+          _totalServiceCharge = totalServiceCharge;
+          // print_log("UI rangetotal updated to: $_sLastMonth");
           sLastMonth = _sLastMonth;
           rangetotal = _rangetotal;
           profit = _profit;
@@ -515,7 +527,7 @@ class _SalesReportPageState extends State<SalesReportPage> {
       
       http.Response? response = await apiCalls('get_t', hotelname, {}, start:_fromDate, end:_toDate);
       
-      await loadtransections(response, prefs);
+      await loadtransections(response,prefs,store,context);
       
       // Reload local transactions to update UI
       await _loadTransactions();
@@ -536,153 +548,90 @@ class _SalesReportPageState extends State<SalesReportPage> {
     }
   }
 
-  Future<void> loadtransections(http.Response? response, SharedPreferences prefs) async {
-      final box = store.box<Transaction>();
-      final printer = BillPrinter();
-      try {
-        if (response == null) {
-          print_log_red("transection server response GOT NULL");
-          return;
-        }
-        if (response.statusCode == 200) {
-          final jsonData = jsonDecode(response.body);
-          // print_log_red("transection server response $jsonData");
-          final dataList = jsonData['data'];
-          if (dataList is List) {
-            final localTransactions = box.getAll();
-            final localBillNos = localTransactions.map((tx) => tx.billNo).toSet();
-            int newTransactionsCount = 0;
+  // Future<void> loadtransections(http.Response? response, SharedPreferences prefs) async {
+  //     final box = store.box<Transaction>();
+  //     final printer = BillPrinter();
+  //     try {
+  //       if (response == null) {
+  //         print_log_red("transection server response GOT NULL");
+  //         return;
+  //       }
+  //       if (response.statusCode == 200) {
+  //         final jsonData = jsonDecode(response.body);
+  //         final dataList = jsonData['data'];
+  //         if (dataList is List) {
+  //           final localTransactions = box.getAll();
+  //           final localBillNos = localTransactions.map((tx) => tx.billNo).toSet();
+  //           int newTransactionsCount = 0;
 
-            for (var serverTxData in dataList) {
-              try {
-                final serverTxMap = Map<String, dynamic>.from(serverTxData);
-                final transactionField = serverTxMap['transaction'];
-                Map<String, dynamic> transactionData;
-                // print_log_red("transection server response ${transactionField.runtimeType}");
-                if (transactionField is String) {
-                  final decoded = jsonDecode(transactionField);
-                  if (decoded is Map) {
-                    transactionData = Map<String, dynamic>.from(decoded);
-                  } else {
-                    print_log("❌ Decoded data is not a Map");
-                    continue;
-                  }
-                } else if (transactionField is Map) {
-                  transactionData = Map<String, dynamic>.from(transactionField);
-                } else {
-                  print_log("❌ Unexpected transaction field type $transactionField");
-                  continue;
-                }
+  //           for (var serverTxData in dataList) {
+  //             try {
+  //               final serverTxMap = Map<String, dynamic>.from(serverTxData);
+  //               final transactionField = serverTxMap['transaction'];
+  //               Map<String, dynamic> transactionData;
+  //               if (transactionField is String) {
+  //                 final decoded = jsonDecode(transactionField);
+  //                 if (decoded is Map) {
+  //                   transactionData = Map<String, dynamic>.from(decoded);
+  //                 } else {
+  //                   print_log("❌ Decoded data is not a Map");
+  //                   continue;
+  //                 }
+  //               } else if (transactionField is Map) {
+  //                 transactionData = Map<String, dynamic>.from(transactionField);
+  //               } else {
+  //                 print_log("❌ Unexpected transaction field type $transactionField");
+  //                 continue;
+  //               }
                 
-                // SAFELY parse all fields with proper null handling
-                final int serverBillNo = _safeParseInt(transactionData['billNo'], defaultValue: 0);
-                final int total = _safeParseInt(transactionData['total'], defaultValue: 0);
-                final int tableNo = _safeParseInt(transactionData['tableNo'], defaultValue: 0);
-                final int upiamount = _safeParseInt(transactionData['upiamount'], defaultValue: 0);
-                final int cashamount = _safeParseInt(transactionData['cashamount'], defaultValue: 0);
-                final double discount = _safeParseDouble(transactionData['discount'], defaultValue: 0.0);
-                final double serviceCharge = _safeParseDouble(transactionData['serviceCharge'], defaultValue: 0.0);
-                final double discountPercent = _safeParseDouble(transactionData['discountPercent'], defaultValue: 0.0);
                 
-                // Handle string fields with empty string as default
-                final String status = _safeParseString(transactionData['status'], defaultValue: 'settle');
-                final String paymentMode = _safeParseString(
-                  transactionData['payment_mode'] ?? serverTxMap['payment_mode'], 
-                  defaultValue: 'UNKNOWN'
-                );
-                final String mobileNo = _safeParseString(transactionData['mobileNo']);
-                final String reserved = _safeParseString(transactionData['reserved']);
-                final String orderType = _safeParseString(transactionData['orderType'], defaultValue: 'Dine-In');
-                final String customerName = _safeParseString(transactionData['customerName']);
-                final String reservedField = _safeParseString(transactionData['reserved_field']);
+  //               // SAFELY parse all fields with proper null handling
+  //               final int serverBillNo = _safeParseInt(transactionData['billNo'], defaultValue: 0);
                 
-                // Parse time
-                final DateTime time = _safeParseDateTime(
-                  transactionData['time'] ?? serverTxMap['transaction_time'],
-                  defaultValue: DateTime.now()
-                );
-                
-                // Handle cart data
-                String cartDataString = '[]';
-                if (transactionData.containsKey('cart')) {
-                  final cartValue = transactionData['cart'];
-                  if (cartValue is List) {
-                    cartDataString = jsonEncode(cartValue);
-                  } else if (cartValue is String) {
-                    try {
-                      jsonDecode(cartValue);
-                      cartDataString = cartValue;
-                    } catch (e) {
-                      cartDataString = '[]';
-                    }
-                  }
-                }
-                
-                if (serverBillNo != 0 && !localBillNos.contains(serverBillNo)) {
-                  final Map<String, dynamic> cleanTransactionData = {
-                    'id': serverBillNo,
-                    'billNo': serverBillNo,
-                    'time': time.toIso8601String(),
-                    'tableNo': tableNo,
-                    'total': total,
-                    'cartData': cartDataString,
-                    'payment_mode': paymentMode,
-                    'status': status,
-                    'synced': true,
-                    'discount': discount,
-                    'mobileNo': mobileNo,
-                    'reserved': reserved,
-                    'orderType': orderType,
-                    'upiamount': upiamount,
-                    'cashamount': cashamount,
-                    'customerName': customerName,
-                    'serviceCharge': serviceCharge,
-                    'reserved_field': reservedField,
-                    'discountPercent': discountPercent,
-                  };
+  //               if (serverBillNo != 0 && !localBillNos.contains(serverBillNo)) {
                   
-                  try {
-                    final transaction = Transaction.fromMap(cleanTransactionData);
-                    box.put(transaction);
-                    printer.setNextBillNo(context, cleanTransactionData['billNo']);
-                    newTransactionsCount++;
-                    print_log("✅ Added transaction: $serverBillNo");
-                  } catch (e) {
-                    print_log_red("❌ Error creating transaction: $e");
-                    print_log("Transaction data: $cleanTransactionData");
-                  }
-                }
+  //                 try {
+  //                   final transaction = Transaction.fromMap(transactionData);
+  //                   box.put(transaction);
+  //                   printer.setNextBillNo(context, transactionData['billNo']);
+  //                   newTransactionsCount++;
+  //                   print_log("✅ Added transaction: $serverBillNo");
+  //                 } catch (e) {
+  //                   print_log_red("❌ Error creating transaction: $e");
+  //                   print_log("Transaction data: $transactionData");
+  //                 }
+  //               }
                 
-              } catch (e) {
-                print_log_red("❌ Error processing transaction: $e");
-                continue;
-              }
-            }
-            if (newTransactionsCount > 0) {
-              print_log("✅ Synced $newTransactionsCount new transactions from server.");
-              if (mounted) {
-                 ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(content: Text("Synced $newTransactionsCount new transactions")),
-                );
-              }
-            } else {
-               if (mounted) {
-                 ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(content: Text("No new transactions found")),
-                );
-              }
-            }
-          } else {
-            print_log_red("❌ 'data' is not a list");
-          }
-        } else {
-          print_log_red('HTTP Error: ${response.statusCode}: ${response.reasonPhrase}');
-        }
-      } catch (error) {
-        screen_massage(context, "Error syncing transactions: $error");
-        print_log_red("❌ Error in loadtransections: $error");
-      }
-    }
+  //             } catch (e) {
+  //               print_log_red("❌ Error processing transaction: $e");
+  //               continue;
+  //             }
+  //           }
+  //           if (newTransactionsCount > 0) {
+  //             print_log("✅ Synced $newTransactionsCount new transactions from server.");
+  //             if (mounted) {
+  //                ScaffoldMessenger.of(context).showSnackBar(
+  //                 SnackBar(content: Text("Synced $newTransactionsCount new transactions")),
+  //               );
+  //             }
+  //           } else {
+  //              if (mounted) {
+  //                ScaffoldMessenger.of(context).showSnackBar(
+  //                 SnackBar(content: Text("No new transactions found")),
+  //               );
+  //             }
+  //           }
+  //         } else {
+  //           print_log_red("❌ 'data' is not a list");
+  //         }
+  //       } else {
+  //         print_log_red('HTTP Error: ${response.statusCode}: ${response.reasonPhrase}');
+  //       }
+  //     } catch (error) {
+  //       screen_massage(context, "Error syncing transactions: $error");
+  //       print_log_red("❌ Error in loadtransections: $error");
+  //     }
+  //   }
 
   int _safeParseInt(dynamic value, {int defaultValue = 0}) {
     if (value == null) return defaultValue;
@@ -1139,6 +1088,207 @@ double _getTodayExpenses() {
   }
 
 
+Future<void> _showExportDialog() async {
+  ExportPeriod selectedPeriod = ExportPeriod.today;
+  DateTimeRange? customRange;
+  
+  await showDialog(
+    context: context,
+    builder: (context) => StatefulBuilder(
+      builder: (context, setState) {
+        return AlertDialog(
+          title: const Text('Export Business Report'),
+          content: SizedBox(
+            width: 300,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Text('Select period:'),
+                const SizedBox(height: 16),
+                ...ExportPeriod.values.map((period) {
+                  if (period == ExportPeriod.custom) {
+                    return Column(
+                      children: [
+                        RadioListTile<ExportPeriod>(
+                          title: Text(period.displayName),
+                          value: period,
+                          groupValue: selectedPeriod,
+                          onChanged: (value) {
+                            setState(() {
+                              selectedPeriod = value!;
+                            });
+                            if (value == ExportPeriod.custom && customRange == null) {
+                              _selectCustomDateRange(context, (range) {
+                                setState(() {
+                                  customRange = range;
+                                });
+                              });
+                            }
+                          },
+                        ),
+                        if (selectedPeriod == ExportPeriod.custom && customRange != null)
+                          Padding(
+                            padding: const EdgeInsets.only(left: 32.0),
+                            child: Text(
+                              '${DateFormat('dd/MM/yyyy').format(customRange!.start)} - ${DateFormat('dd/MM/yyyy').format(customRange!.end)}',
+                              style: const TextStyle(fontSize: 12, color: Colors.grey),
+                            ),
+                          ),
+                      ],
+                    );
+                  }
+                  return RadioListTile<ExportPeriod>(
+                    title: Text(period.displayName),
+                    value: period,
+                    groupValue: selectedPeriod,
+                    onChanged: (value) {
+                      setState(() {
+                        selectedPeriod = value!;
+                      });
+                    },
+                  );
+                }).toList(),
+                const SizedBox(height: 16),
+                const Text('Export Format: PDF', style: TextStyle(fontWeight: FontWeight.bold)),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Cancel'),
+            ),
+            ElevatedButton(
+              onPressed: () async {
+                Navigator.pop(context);
+                await _performFullExport(selectedPeriod, customRange);
+              },
+              child: const Text('Export Report'),
+            ),
+          ],
+        );
+      },
+    ),
+  );
+}
+
+Future<void> _selectCustomDateRange(BuildContext context, Function(DateTimeRange) onSelected) async {
+  final picked = await showDateRangePicker(
+    context: context,
+    firstDate: DateTime(2020),
+    lastDate: DateTime.now(),
+    initialDateRange: DateTimeRange(
+      start: DateTime.now().subtract(const Duration(days: 7)),
+      end: DateTime.now(),
+    ),
+  );
+  if (picked != null) {
+    onSelected(picked);
+  }
+}
+
+Future<void> _performFullExport(ExportPeriod period, DateTimeRange? customRange) async {
+  DateTime startDate, endDate;
+  if (period == ExportPeriod.custom && customRange != null) {
+    startDate = customRange.start;
+    endDate = customRange.end;
+  } else {
+    final range = period.getDateRange();
+    startDate = range.$1;
+    endDate = range.$2;
+  }
+  
+  // Show loading indicator
+  showDialog(
+    context: context,
+    barrierDismissible: false,
+    builder: (context) => const Center(
+      child: CircularProgressIndicator(),
+    ),
+  );
+  
+  try {
+    await ExportService.exportFullReport(
+      period: period,
+      startDate: startDate,
+      endDate: endDate,
+      context: context,
+      store: store,
+    );
+  } catch (e) {
+    if (mounted) {
+      print_log_red('Export failed: $e');
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Export failed: $e'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
+  } finally {
+    if (mounted) {
+      Navigator.pop(context); // Close loading dialog
+    }
+  }
+}  
+
+
+Future<void> _performExport(ExportOption option, ExportPeriod period, DateTimeRange? customRange) async {
+  // Get date range
+  DateTime startDate, endDate;
+  if (period == ExportPeriod.custom && customRange != null) {
+    startDate = customRange.start;
+    endDate = customRange.end;
+  } else {
+    final range = period.getDateRange();
+    startDate = range.$1;
+    endDate = range.$2;
+  }
+
+  // Show loading indicator
+  showDialog(
+    context: context,
+    barrierDismissible: false,
+    builder: (context) => const Center(
+      child: CircularProgressIndicator(),
+    ),
+  );
+  
+  try {
+    if (option == ExportOption.excel) {
+      await ExportService.exportFullReport(
+        period: period,
+        startDate: startDate,
+        endDate: endDate,
+        context: context,
+        store:store,
+      );
+    } else {
+      await ExportService.exportFullReport(
+        period: period,
+        startDate: startDate,
+        endDate: endDate,
+        context: context,
+        store:store,
+      );
+    }
+  } catch (e) {
+    if (context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Export failed: $e'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
+  } finally {
+    if (context.mounted) {
+      Navigator.pop(context); // Close loading dialog
+    }
+  }
+}
+
+
 
 
   @override
@@ -1161,6 +1311,33 @@ double _getTodayExpenses() {
             icon: const Icon(Icons.share),
             onPressed: _shareReport,
             tooltip: 'Share Report',
+          ),
+          PopupMenuButton<ExportOption>(
+            icon: const Icon(Icons.ios_share),
+            tooltip: 'Export',
+            onSelected: (value) => _showExportDialog(),
+            itemBuilder: (context) => [
+              const PopupMenuItem(
+                value: ExportOption.excel,
+                child: Row(
+                  children: [
+                    Icon(Icons.table_chart, color: Colors.green),
+                    SizedBox(width: 8),
+                    Text('Export as Excel'),
+                  ],
+                ),
+              ),
+              const PopupMenuItem(
+                value: ExportOption.pdf,
+                child: Row(
+                  children: [
+                    Icon(Icons.picture_as_pdf, color: Colors.red),
+                    SizedBox(width: 8),
+                    Text('Export as PDF'),
+                  ],
+                ),
+              ),
+            ],
           ),
         ],
       ),
@@ -3024,6 +3201,18 @@ Widget _buildSummaryCard() {
                   // _buildMiniChip("💳 Card", cardTotal),
                   _buildMiniChip("📱 UPI", upiTotal),
                   _buildMiniChip("🕒 Pending", otherTotal),
+                ],
+              ),
+              const Divider(height: 24),
+              // --- Payment Modes (Grid Style) ---
+              const Text("Other Charges", style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.grey)),
+              const SizedBox(height: 8),
+              Wrap(
+                spacing: 10,
+                runSpacing: 10,
+                children: [
+                  _buildMiniChip("Total Discount", _totalDiscount), // Replace with your actual discount total
+                  _buildMiniChip("Total Service Charge", _totalServiceCharge),
                 ],
               ),
 

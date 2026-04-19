@@ -2,12 +2,40 @@
 import 'package:pdf/widgets.dart' as pw;
 import 'package:pdf/pdf.dart';
 import 'quotation_model.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
+
+String formatAddressWithLineLength(String address, {int wordsPerLine = 4}) {
+  if (address.isEmpty) return '';
+  
+  final words = address.split(" ");
+  if (words.length <= wordsPerLine) return address;
+  
+  final lines = <String>[];
+  for (int i = 0; i < words.length; i += wordsPerLine) {
+    final end = (i + wordsPerLine) < words.length ? i + wordsPerLine : words.length;
+    lines.add(words.sublist(i, end).join(" "));
+  }
+  
+  return lines.join("\n");
+}
 
 class QuotationPDF {
   static Future<pw.Document> generate(Quotation quotation) async {
     final pdf = pw.Document();
-
+    final prefs = await SharedPreferences.getInstance();
+    
+    final imagepath = await prefs.getString('imagePath');
+    final businessName =  await prefs.getString('businessName') ?? 'RESTAURANT NAME';
+    final contactName = await prefs.getString('contactName');
+    final contactPhone =await prefs.getString('contactPhone');
+    final contactEmail = await prefs.getString('contactEmail');
+    // Usage
+    final businessAddress = ((quotation.businessAddress?? '').isNotEmpty) ? quotation.businessAddress : await prefs.getString('businessAddress') ?? '';
+    final formattedAddress = formatAddressWithLineLength(businessAddress ?? "", wordsPerLine: 4);
+    final gst = await prefs.getString('gst');
+    final upi = await prefs.getString('upi');
+    
     pdf.addPage(
       pw.MultiPage(
         pageFormat: PdfPageFormat.a4,
@@ -22,17 +50,17 @@ class QuotationPDF {
                   crossAxisAlignment: pw.CrossAxisAlignment.start,
                   children: [
                     pw.Text(
-                      'RESTAURANT NAME',
+                      businessName ?? 'RESTAURANT NAME',
                       style: pw.TextStyle(
                         fontSize: 20,
                         fontWeight: pw.FontWeight.bold,
                         color: PdfColors.purple,
                       ),
                     ),
-                    pw.Text('Your Address Line 1'),
-                    pw.Text('City, State - PIN'),
-                    pw.Text('GST: XX-XXXXX'),
-                    pw.Text('Phone: +91 98765 43210'),
+                    pw.Text(formattedAddress),
+                    pw.Text('GST: ${gst ?? ''}'), 
+                    pw.Text('Phone: ${contactPhone}'),
+                    pw.Text('Email: ${contactEmail ?? ''}'), 
                   ],
                 ),
                 pw.Column(
@@ -55,9 +83,9 @@ class QuotationPDF {
               ],
             ),
             
-            pw.SizedBox(height: 20),
+            pw.SizedBox(height: 2),
             pw.Divider(),
-            pw.SizedBox(height: 20),
+            pw.SizedBox(height: 12),
 
             // Party Details
             pw.Container(
@@ -97,7 +125,7 @@ class QuotationPDF {
                           crossAxisAlignment: pw.CrossAxisAlignment.start,
                           children: [
                             if (quotation.partyAddress != null)
-                              pw.Text('Address: ${quotation.partyAddress}'),
+                              pw.Text('Address: ${_safe(quotation.partyAddress)}'),
                             if (quotation.partyGst != null)
                               pw.Text('GST: ${quotation.partyGst}'),
                           ],
@@ -110,57 +138,57 @@ class QuotationPDF {
             ),
 
             pw.SizedBox(height: 20),
-
-            // Event Details
-            pw.Container(
-              padding: const pw.EdgeInsets.all(12),
-              decoration: pw.BoxDecoration(
-                border: pw.Border.all(color: PdfColors.grey300),
-                borderRadius: const pw.BorderRadius.all(pw.Radius.circular(8)),
-              ),
-              child: pw.Column(
-                crossAxisAlignment: pw.CrossAxisAlignment.start,
-                children: [
-                  pw.Text(
-                    'Event Details',
-                    style: pw.TextStyle(
-                      fontSize: 14,
-                      fontWeight: pw.FontWeight.bold,
-                      color: PdfColors.purple,
+            if (quotation.eventName != null)
+              // Event Details
+              pw.Container(
+                padding: const pw.EdgeInsets.all(12),
+                decoration: pw.BoxDecoration(
+                  border: pw.Border.all(color: PdfColors.grey300),
+                  borderRadius: const pw.BorderRadius.all(pw.Radius.circular(8)),
+                ),
+                child: pw.Column(
+                  crossAxisAlignment: pw.CrossAxisAlignment.start,
+                  children: [
+                    pw.Text(
+                      'Event Details',
+                      style: pw.TextStyle(
+                        fontSize: 14,
+                        fontWeight: pw.FontWeight.bold,
+                        color: PdfColors.purple,
+                      ),
                     ),
-                  ),
-                  pw.SizedBox(height: 8),
-                  pw.Row(
-                    children: [
-                      pw.Expanded(
-                        child: pw.Column(
-                          crossAxisAlignment: pw.CrossAxisAlignment.start,
-                          children: [
-                            if (quotation.eventName != null)
-                              pw.Text('Event: ${quotation.eventName}'),
-                            if (quotation.eventDate != null)
-                              pw.Text('Date: ${quotation.formattedEventDate}'),
-                          ],
+                    pw.SizedBox(height: 8),
+                    pw.Row(
+                      children: [
+                        pw.Expanded(
+                          child: pw.Column(
+                            crossAxisAlignment: pw.CrossAxisAlignment.start,
+                            children: [
+                              if (quotation.eventName != null)
+                                pw.Text('Event: ${quotation.eventName}'),
+                              if (quotation.eventDate != null)
+                                pw.Text('Date: ${quotation.formattedEventDate}'),
+                            ],
+                          ),
                         ),
-                      ),
-                      pw.Expanded(
-                        child: pw.Column(
-                          crossAxisAlignment: pw.CrossAxisAlignment.start,
-                          children: [
-                            if (quotation.eventVenue != null)
-                              pw.Text('Venue: ${quotation.eventVenue}'),
-                            if (quotation.expectedGuests != null)
-                              pw.Text('Expected Guests: ${quotation.expectedGuests}'),
-                          ],
+                        pw.Expanded(
+                          child: pw.Column(
+                            crossAxisAlignment: pw.CrossAxisAlignment.start,
+                            children: [
+                              if (quotation.eventVenue != null)
+                                pw.Text('Venue: ${quotation.eventVenue}'),
+                              if (quotation.expectedGuests != null)
+                                pw.Text('Expected Guests: ${quotation.expectedGuests}'),
+                            ],
+                          ),
                         ),
-                      ),
-                    ],
-                  ),
-                ],
+                      ],
+                    ),
+                  ],
+                ),
               ),
-            ),
 
-            pw.SizedBox(height: 20),
+              pw.SizedBox(height: 20),
 
             // Plates Section
             if (quotation.plates.isNotEmpty) ...[
@@ -279,11 +307,11 @@ class QuotationPDF {
               pw.TableHelper.fromTextArray(
                 headers: ['Item', 'Hours', 'Rate', 'Total'],
                 data: quotation.banquetItems.map((item) => [
-                  item.name,
-                  '${item.hours} hrs',
-                  item.formattedPrice,
-                  item.formattedTotal,
-                ]).toList(),
+                _safe(item.name), // Clean the item name
+                '${item.hours} hrs',
+                'Rs. ${item.price.toStringAsFixed(2)}', // Use Rs. instead of item.formattedPrice if it contains ₹
+                'Rs. ${item.total.toStringAsFixed(2)}',
+              ]).toList(),
                 border: pw.TableBorder.all(color: PdfColors.grey300),
                 headerStyle: pw.TextStyle(fontWeight: pw.FontWeight.bold),
                 headerDecoration: const pw.BoxDecoration(color: PdfColors.grey200),
@@ -381,7 +409,7 @@ class QuotationPDF {
               ),
             ),
 
-            pw.SizedBox(height: 20),
+            pw.SizedBox(height: 10),
 
             // Terms & Conditions
             if (quotation.termsAndConditions != null) ...[
@@ -425,7 +453,7 @@ class QuotationPDF {
               pw.Text(quotation.specialInstructions!),
             ],
 
-            pw.SizedBox(height: 30),
+            pw.SizedBox(height: 20),
 
             // Signature
             pw.Row(
@@ -435,10 +463,10 @@ class QuotationPDF {
                   crossAxisAlignment: pw.CrossAxisAlignment.start,
                   children: [
                     pw.Text('Authorized Signatory'),
-                    pw.SizedBox(height: 40),
+                    pw.SizedBox(height: 20),
                     pw.Container(
                       width: 200,
-                      child: pw.Divider(),
+                      // child: pw.Divider(),
                     ),
                   ],
                 ),
@@ -446,10 +474,10 @@ class QuotationPDF {
                   crossAxisAlignment: pw.CrossAxisAlignment.start,
                   children: [
                     pw.Text('Customer Signature'),
-                    pw.SizedBox(height: 40),
+                    pw.SizedBox(height: 20),
                     pw.Container(
                       width: 200,
-                      child: pw.Divider(),
+                      // child: pw.Divider(),
                     ),
                   ],
                 ),
@@ -457,16 +485,16 @@ class QuotationPDF {
             ),
 
             // Footer
-            pw.SizedBox(height: 20),
+            pw.SizedBox(height: 10),
             pw.Divider(),
             pw.SizedBox(height: 8),
             pw.Text(
-              'This is a computer generated quotation. Valid until ${quotation.formattedValidUntil}.',
+              'This is a computer generated quotation. Valid until ${quotation.formattedValidUntil}.\n Powerd ORBIPAY by Nextorbitals',
               style: pw.TextStyle(
                 fontSize: 10,
                 color: PdfColors.grey,
               ),
-              textAlign: pw.TextAlign.center,
+              textAlign: pw.TextAlign.left,
             ),
           ];
         },
@@ -476,36 +504,43 @@ class QuotationPDF {
     return pdf;
   }
 
-  static pw.Widget _buildSummaryRow(String label, double amount, 
-      {bool isBold = false, bool isNegative = false, PdfColor? color}) {
-    return pw.Row(
-      mainAxisSize: pw.MainAxisSize.min,
-      children: [
-        pw.SizedBox(
-          width: 150,
-          child: pw.Text(
-            label,
-            style: pw.TextStyle(
-              fontWeight: isBold ? pw.FontWeight.bold : pw.FontWeight.normal,
-            ),
-            textAlign: pw.TextAlign.right,
-          ),
-        ),
-        pw.SizedBox(width: 20),
-        pw.SizedBox(
-          width: 100,
-          child: pw.Text(
-            '${isNegative ? '-' : ''}₹ ${amount.abs().toStringAsFixed(2)}',
-            style: pw.TextStyle(
-              fontWeight: isBold ? pw.FontWeight.bold : pw.FontWeight.normal,
-              color: color ?? (isNegative ? PdfColors.red : null),
-            ),
-            textAlign: pw.TextAlign.right,
-          ),
-        ),
-      ],
-    );
+  static String _safe(String? text) {
+    if (text == null) return '';
+    // Replace Rupee symbol and remove any non-ASCII characters that cause crashes
+    return text.replaceAll('₹', 'Rs.').replaceAll(RegExp(r'[^\x00-\x7F]'), '');
   }
+
+static pw.Widget _buildSummaryRow(String label, double amount, 
+    {bool isBold = false, bool isNegative = false, PdfColor? color}) {
+  
+  return pw.Row(
+    mainAxisSize: pw.MainAxisSize.min,
+    children: [
+      pw.SizedBox(
+        width: 150,
+        child: pw.Text(
+          _safe(label), // Use helper
+          style: pw.TextStyle(
+            // font: font, // Explicitly use default font
+          ),
+          textAlign: pw.TextAlign.right,
+        ),
+      ),
+      pw.SizedBox(width: 20),
+      pw.SizedBox(
+        width: 100,
+        child: pw.Text(
+          '${isNegative ? '-' : ''} Rs. ${amount.abs().toStringAsFixed(2)}',
+          style: pw.TextStyle(
+            // font: font, // Explicitly use default font
+            color: color ?? (isNegative ? PdfColors.red : null),
+          ),
+          textAlign: pw.TextAlign.right,
+        ),
+      ),
+    ],
+  );
+}
 
   static PdfColor _getPlateColor(PlateType type) {
     switch (type) {

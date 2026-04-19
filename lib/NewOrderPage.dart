@@ -8,11 +8,10 @@ import 'database_Module/menu_item.dart';
 import 'cartprovier/cart_provider.dart';
 import 'package:provider/provider.dart';
 import 'database_Module/ObjectBoxService.dart';
-import 'dart:convert';
 import 'package:flutter/scheduler.dart';
 import 'dart:io';
-import './cartprovier/cartProvider.dart';
 import '../utilities.dart';
+import 'package:test1/theme_setting/theme_provider.dart';
 
 
 int imageHeight = 92;
@@ -24,7 +23,7 @@ List<String> categories = [];
 String? selectedCategory = "ALL";
 bool _isVoiceSelected = false;
 Box<MenuItem>? menuItemBox;
-CartProvider? cartProvider;
+CartProvider? _cartProvider;
 late List<MenuItem> _items;
 late List<MenuItem> items_all;
 late List<Map<String, dynamic>> items = [];
@@ -228,8 +227,8 @@ class _NewOrderPageState extends State<NewOrderPage> with AutomaticKeepAliveClie
       // Future.delayed(Duration(milliseconds: 15), () => _loadItems(items_all));
       
       _loadItems(items_all);
-      cartProvider = Provider.of<CartProvider>(context, listen: false);
-      cartProvider?.addListener(_handleCartChange);
+      _cartProvider = Provider.of<CartProvider>(context, listen: false);
+      _cartProvider?.addListener(_handleCartChange);
       Future.delayed(const Duration(milliseconds: 300), () {
         _loadItems_cart(items_all, widget.cart1); // update selected items
         _filterItems(category: selectedCategory); // ✅ filter by selected category
@@ -321,11 +320,11 @@ class _NewOrderPageState extends State<NewOrderPage> with AutomaticKeepAliveClie
   }
 
   void _loadCartData() {
-    final cartProvider = Provider.of<CartProvider>(context, listen: false);
-    ////debugPrint("set cart to the provider to the in neworderpage ${cartProvider.cart.isEmpty} ${cartProvider.cart}");
-    if (cartProvider.cart.isEmpty){
-      ////debugPrint("set cart to the provider to the in neworderpage ${cartProvider.cart.isEmpty} ${cartProvider.cart}");
-      cartProvider.setCart(widget.cart1 ?? []);
+    final _cartProvider = Provider.of<CartProvider>(context, listen: false);
+    ////debugPrint("set cart to the provider to the in neworderpage ${_cartProvider.cart.isEmpty} ${_cartProvider.cart}");
+    if (_cartProvider.cart.isEmpty){
+      ////debugPrint("set cart to the provider to the in neworderpage ${_cartProvider.cart.isEmpty} ${_cartProvider.cart}");
+      _cartProvider.setCart(widget.cart1 ?? []);
     }
   }
 
@@ -652,7 +651,7 @@ class _NewOrderPageState extends State<NewOrderPage> with AutomaticKeepAliveClie
                                       setState(() {
                                         if (item['h_qty'] > 0) {
                                           item['h_qty'] -= 1;
-                                          cartProvider?.addToCart(item,'half',hPrice);
+                                          _cartProvider?.addToCart(item,'half',hPrice);
                                           if (item['h_qty'] == 0 && (item['qty'] == 0)) {
                                               item['selected'] = false;
                                           }
@@ -708,7 +707,7 @@ class _NewOrderPageState extends State<NewOrderPage> with AutomaticKeepAliveClie
                                       setState(() {
                                         item['h_qty'] += 1;
                                         item['selected'] = true;
-                                        cartProvider?.addToCart(item,'half',hPrice);
+                                        _cartProvider?.addToCart(item,'half',hPrice);
                                       });
                                       // ////debugPrint("added item is ${item}");
                                     },
@@ -784,7 +783,7 @@ class _NewOrderPageState extends State<NewOrderPage> with AutomaticKeepAliveClie
                                         if (item['h_qty'] == 0 && (item['qty'] == 0)) {
                                             item['selected'] = false;
                                         }
-                                        cartProvider?.addToCart(item,'Full',fPrice);
+                                        _cartProvider?.addToCart(item,'Full',fPrice);
                                       }
                                     });
                                   },
@@ -837,7 +836,7 @@ class _NewOrderPageState extends State<NewOrderPage> with AutomaticKeepAliveClie
                                     setState(() {
                                       item['qty'] += 1;
                                       item['selected'] = true;
-                                      cartProvider?.addToCart(item,'Full',fPrice);
+                                      _cartProvider?.addToCart(item,'Full',fPrice);
                                     });
                                   },
                                   child: Container(
@@ -886,8 +885,8 @@ class _NewOrderPageState extends State<NewOrderPage> with AutomaticKeepAliveClie
                       item['qty'] = 0;
                       item['h_qty'] = 0;
                       item['selectedPortion'] = null;
-                      cartProvider?.removeFromCart(item['name'],'half');
-                      cartProvider?.removeFromCart(item['name'],'full');
+                      _cartProvider?.removeFromCart(item['name'],'half');
+                      _cartProvider?.removeFromCart(item['name'],'full');
                     });
                   },
                   child: Container(
@@ -995,7 +994,7 @@ class _NewOrderPageState extends State<NewOrderPage> with AutomaticKeepAliveClie
           setState(() {
           item['qty'] += 1;
           item['selected'] = true;
-          cartProvider?.addToCart(item,'Full', double.tryParse(price.toString()) ?? 0.0);
+          _cartProvider?.addToCart(item,'Full', double.tryParse(price.toString()) ?? 0.0);
         });
       },
       child: Container(
@@ -1064,7 +1063,7 @@ class _NewOrderPageState extends State<NewOrderPage> with AutomaticKeepAliveClie
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  _buildQuantitySelector(item,cartProvider,price),
+                  _buildQuantitySelector(item,_cartProvider,price),
                   _buildPriceTag(item, price.toString()),
                 ],
               ),
@@ -1162,7 +1161,7 @@ class _NewOrderPageState extends State<NewOrderPage> with AutomaticKeepAliveClie
   }
  
   Widget _buildQuantitySelector(
-    Map<String, dynamic> item, CartProvider? cartProvider, double fprice, {
+    Map<String, dynamic> item, CartProvider? _cartProvider, double fprice, {
     double fontSize = 14,
   }) {
     return GestureDetector(
@@ -1201,7 +1200,7 @@ class _NewOrderPageState extends State<NewOrderPage> with AutomaticKeepAliveClie
             int newQty = int.tryParse(newQuantity) ?? 0;
             item['qty'] = newQty;
             item['selected'] = item['qty'] > 0; // Update selected state
-            cartProvider?.updateQuantity(item['id'], newQty, fprice ,item['name'],'full');
+            _cartProvider?.updateQuantity(item['id'], newQty, fprice ,item['name'],'full');
             // updateCart(item); // Update the cart with new quantity
           });
         }
@@ -1349,7 +1348,7 @@ class _NewOrderPageState extends State<NewOrderPage> with AutomaticKeepAliveClie
         //   // Always increment quantity when item is tapped, whether selected or not
         //   item['h_qty'] = (item['h_qty'] ?? 0) + 1;
         //   item['selected'] = true; // Mark as selected
-        //   cartProvider?.addToCart(item, 'full', price);
+        //   _cartProvider?.addToCart(item, 'full', price);
         //   // updateCart(item);
         // });
       },
@@ -1377,8 +1376,8 @@ class _NewOrderPageState extends State<NewOrderPage> with AutomaticKeepAliveClie
                     item['selected'] = false;
                     item['qty'] = 0;
                     item['h_qty'] = 0;
-                    cartProvider?.removeFromCart(item['name'], 'full');
-                    cartProvider?.removeFromCart(item['name'], 'half');
+                    _cartProvider?.removeFromCart(item['name'], 'full');
+                    _cartProvider?.removeFromCart(item['name'], 'half');
                     // updateCart(item);
                   });
                 },
@@ -1455,7 +1454,7 @@ class _NewOrderPageState extends State<NewOrderPage> with AutomaticKeepAliveClie
   //               // Always increment quantity when item is tapped, whether selected or not
   //               item['h_qty'] = (item['h_qty'] ?? 0) + 1;
   //               item['selected'] = true; // Mark as selected
-  //               cartProvider?.addToCart(item, 'full', double.tryParse(price) ?? 0.0);
+  //               _cartProvider?.addToCart(item, 'full', double.tryParse(price) ?? 0.0);
   //             });
   //           },
   //           borderRadius: BorderRadius.circular(8),
@@ -1483,7 +1482,7 @@ class _NewOrderPageState extends State<NewOrderPage> with AutomaticKeepAliveClie
   //               // Always increment quantity when item is tapped, whether selected or not
   //               item['h_qty'] = (item['h_qty'] ?? 0) + 1;
   //               item['selected'] = true; // Mark as selected
-  //               cartProvider?.addToCart(item, 'full', double.tryParse(price) ?? 0.0);
+  //               _cartProvider?.addToCart(item, 'full', double.tryParse(price) ?? 0.0);
   //             });
   //           },
   //           child: Container(
@@ -1603,7 +1602,7 @@ class _NewOrderPageState extends State<NewOrderPage> with AutomaticKeepAliveClie
                 // --- 3. FIXED LOGIC TO ADD 'half' ITEM ---
                 item['h_qty'] = (item['h_qty'] ?? 0) + 1; // Use half quantity
                 item['selected'] = true; // Mark as selected
-                cartProvider?.addToCart(item, 'half', hPrice); // Use 'half' and hPrice
+                _cartProvider?.addToCart(item, 'half', hPrice); // Use 'half' and hPrice
               });
             }
           },
@@ -1643,7 +1642,7 @@ class _NewOrderPageState extends State<NewOrderPage> with AutomaticKeepAliveClie
                   // --- 5. FIXED LOGIC TO ADD 'full' ITEM ---
                   item['qty'] = (item['qty'] ?? 0) + 1; // Use 'qty' (full quantity)
                   item['selected'] = true; // Mark as selected
-                  cartProvider?.addToCart(item, 'full', fPrice); // Use 'full' and fPrice
+                  _cartProvider?.addToCart(item, 'full', fPrice); // Use 'full' and fPrice
                 });
               },
               child: Column(
@@ -1681,7 +1680,7 @@ class _NewOrderPageState extends State<NewOrderPage> with AutomaticKeepAliveClie
                         Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            _half_buildQuantitySelector(item, cartProvider, hPrice, fontSize: qtyFontSize),
+                            _half_buildQuantitySelector(item, _cartProvider, hPrice, fontSize: qtyFontSize),
                             SizedBox(width: 8),
                             _half_buildPriceTag(item, hprice, fontSize: priceFontSize),
                           ],
@@ -1706,7 +1705,7 @@ class _NewOrderPageState extends State<NewOrderPage> with AutomaticKeepAliveClie
                       Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          _buildQuantitySelector(item, cartProvider, hPrice,fontSize: qtyFontSize),
+                          _buildQuantitySelector(item, _cartProvider, hPrice,fontSize: qtyFontSize),
                           SizedBox(width: 8),
                           _buildPriceTag(item, price, fontSize: priceFontSize),
                         ],
@@ -1723,7 +1722,7 @@ class _NewOrderPageState extends State<NewOrderPage> with AutomaticKeepAliveClie
   }
 
      
-  Widget _half_buildQuantitySelector( Map<String, dynamic> item, CartProvider? cartProvider, double hprice, {double fontSize = 14,}) {
+  Widget _half_buildQuantitySelector( Map<String, dynamic> item, CartProvider? _cartProvider, double hprice, {double fontSize = 14,}) {
     return GestureDetector(
       onTap: () async {
         TextEditingController controller = TextEditingController(
@@ -1760,7 +1759,7 @@ class _NewOrderPageState extends State<NewOrderPage> with AutomaticKeepAliveClie
             int newQty = int.tryParse(newQuantity) ?? 0; 
             item['h_qty'] = newQty;
             item['selected'] = item['h_qty'] > 0; // Update selected state
-            cartProvider?.updateQuantity(item['id'], newQty, hprice, item['name'], 'half');
+            _cartProvider?.updateQuantity(item['id'], newQty, hprice, item['name'], 'half');
             // updateCart(item); // Update the cart with new quantity
           });
         }
@@ -1837,12 +1836,12 @@ class _NewOrderPageState extends State<NewOrderPage> with AutomaticKeepAliveClie
         itemCount: filteredItems.length,
         itemBuilder: (context, index) {
         final item = filteredItems[index];
-        if (cartProvider == null) {
+        if (_cartProvider == null) {
           return const SizedBox.shrink(); // or show an error widget
         }
         return ListViewHalfFull(
           item: item,
-          cartProvider: cartProvider!,
+          cartProvider: _cartProvider!,
           imageHeight: imageHeight,
           billingType: billingType,
         );
@@ -1931,7 +1930,7 @@ class _NewOrderPageState extends State<NewOrderPage> with AutomaticKeepAliveClie
   void _handleCartChange() {
     if (!mounted) return;
 
-    if (cartProvider!.cart.isEmpty) {
+    if (_cartProvider!.cart.isEmpty) {
       if (mounted) {
         setState(() {
           for (var item in items) {
@@ -1999,8 +1998,8 @@ class _NewOrderPageState extends State<NewOrderPage> with AutomaticKeepAliveClie
   }
 
   void showCartItems() {
-    final cartProvider = Provider.of<CartProvider>(context, listen: false);
-    final cart = cartProvider.cart;
+    final _cartProvider = Provider.of<CartProvider>(context, listen: false);
+    final cart = _cartProvider.cart;
   }
 
   /// A reusable widget to build category buttons.
@@ -2011,6 +2010,7 @@ class _NewOrderPageState extends State<NewOrderPage> with AutomaticKeepAliveClie
   }) {
     // ////debugPrint("selectedCategory == categoryIdentifier , $selectedCategory == $categoryIdentifier");
     final isSelected = selectedCategory == categoryIdentifier;
+    final themeProvider = Provider.of<ThemeProvider>(context);
 
     return GestureDetector(
       onTap: () {
@@ -2025,7 +2025,7 @@ class _NewOrderPageState extends State<NewOrderPage> with AutomaticKeepAliveClie
         width: 90,
         height: 53,
         decoration: BoxDecoration(
-          color: isSelected ? Colors.green[300] : Colors.white,
+          color: isSelected ? themeProvider.primaryColor : Colors.white,
           border: Border.all(color: Colors.black12),
           borderRadius: BorderRadius.circular(8),
           boxShadow: [
@@ -2089,16 +2089,16 @@ class _NewOrderPageState extends State<NewOrderPage> with AutomaticKeepAliveClie
     final cartProviderOld = Provider.of<CartProvider>(context, listen: false);
     cartProviderOld.removeZeroQTYFromCart();
     await Navigator.push(context, MaterialPageRoute(builder: (context) => DetailPage(hideadd: widget.hideadd)));
-    final cartProvider = Provider.of<CartProvider>(context, listen: false);
-    final cart = cartProvider.cart;
+    final _cartProvider = Provider.of<CartProvider>(context, listen: false);
+    final cart = _cartProvider.cart;
     _loadItems_cart(items_all,cart);
     _filterItems(category:selectedCategory);
   }
 
 
   void _addItemsinTable() {
-    final cartProvider = Provider.of<CartProvider>(context, listen: false);
-    final cart = cartProvider.cart;
+    final _cartProvider = Provider.of<CartProvider>(context, listen: false);
+    final cart = _cartProvider.cart;
     ////debugPrint("Save button tapped! $cart ");
     // To go back to the very first screen (the "home" screen)
     Navigator.of(context).popUntil((route) => route.isFirst);
@@ -2642,14 +2642,14 @@ class _ListViewHalfFullState extends State<ListViewHalfFull> {
               // print_log("half qty less than 1 ${item['h_qty']}");
               if (item['h_qty'] > 0) {
                 item['h_qty'] -= 1;
-                cartProvider?.addToCart(item, 'half', price);
+                _cartProvider?.addToCart(item, 'half', price);
                 if (item['h_qty'] == 0 && (item['qty'] == 0)) {
                   item['selected'] = false;
                 }
               }
               if(item['qty'] < 1){
                 // print_log("half qty less than 0 ${item['h_qty']}");
-                cartProvider?.removeFromCart("${item['name']} (Half)", 'Half');
+                _cartProvider?.removeFromCart("${item['name']} (Half)", 'Half');
               }
             });
           },
@@ -2702,7 +2702,7 @@ class _ListViewHalfFullState extends State<ListViewHalfFull> {
             setState(() {
               item['h_qty'] += 1;
               item['selected'] = true;
-              cartProvider?.addToCart(item, 'half', price);
+              _cartProvider?.addToCart(item, 'half', price);
             });
             // ////debugPrint("added item is ${item}");
           },
@@ -2746,10 +2746,10 @@ class _ListViewHalfFullState extends State<ListViewHalfFull> {
                 if (item['h_qty'] == 0 && (item['qty'] == 0)) {
                   item['selected'] = false;
                 }
-                cartProvider?.addToCart(item, 'Full', price);
+                _cartProvider?.addToCart(item, 'Full', price);
               }
               if(item['qty'] < 1){
-                cartProvider?.removeFromCart("${item['name']}", 'Full');
+                _cartProvider?.removeFromCart("${item['name']}", 'Full');
               }
             });
           },
@@ -2802,7 +2802,7 @@ class _ListViewHalfFullState extends State<ListViewHalfFull> {
             setState(() {
               item['qty'] += 1;
               item['selected'] = true;
-              cartProvider?.addToCart(item, 'Full', price);
+              _cartProvider?.addToCart(item, 'Full', price);
             });
           },
           child: Container(
@@ -2874,8 +2874,8 @@ class _ListViewHalfFullState extends State<ListViewHalfFull> {
                     item['selected'] = false;
                     item['qty'] = 0;
                     item['h_qty'] = 0;
-                    cartProvider?.removeFromCart("${item['name']} (Half)", 'half');
-                    cartProvider?.removeFromCart(item['name'], 'full');
+                    _cartProvider?.removeFromCart("${item['name']} (Half)", 'half');
+                    _cartProvider?.removeFromCart(item['name'], 'full');
                     // updateCart(item);
                   });
                 },

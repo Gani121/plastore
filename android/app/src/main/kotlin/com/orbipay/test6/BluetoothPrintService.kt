@@ -1,4 +1,4 @@
-package com.orbipay.test6
+package com.orbipay.test8
 
 import android.app.Notification
 import android.app.NotificationChannel
@@ -52,9 +52,11 @@ class BluetoothPrintService : Service() {
 
         val data = intent.extras
         val printDataJson = data?.getString("printData") ?: "[]"
+        val replaceData = data?.getString("replaceData") ?: ""  // Get replaceData
         val total = data?.getDouble("total") ?: 0.0
 
-        Log.d(TAG, "Received print data: $printDataJson")
+        Log.d(TAG, "Received print data printDataJson: $printDataJson")
+        Log.d(TAG, "Received print data replaceDataJson: $replaceData")
 
         // Create persistent notification
         val notification = createNotification("Preparing to print...")
@@ -62,16 +64,18 @@ class BluetoothPrintService : Service() {
 
         Thread {
             try {
-                // Save KOT first
-                saveKOTToFile(printDataJson)
-
                 // Check for settle command
                 if (printDataJson.startsWith("settle-")) {
                     Log.d(TAG, "Settle received, no print required")
+                    saveSettleToFile(printDataJson)
                     stopSelf()
                     return@Thread
                 }
+                // Save KOT first
+                val replaceDataJson = if (replaceData.isNotEmpty()) replaceData else printDataJson
+                saveKOTToFile(replaceDataJson)
 
+                
                 val jsonArray = JSONArray(printDataJson)
                 if (jsonArray.length() == 0) {
                     Log.d(TAG, "Empty data array, stopping")
@@ -81,8 +85,8 @@ class BluetoothPrintService : Service() {
 
                 val firstItem = jsonArray.getJSONObject(0)
                 val dataFor = firstItem.optString("datafor", "")
-
-                if (dataFor == "captain") {
+                val isprint = firstItem.optBoolean("isprint", false) // Use optBoolean instead of optString
+                if (dataFor == "captain" || isprint) {
                     Log.d(TAG, "Captain FCM received, no print required")
                     stopSelf()
                     return@Thread
@@ -157,45 +161,57 @@ class BluetoothPrintService : Service() {
     private fun saveKOTToFile(rawJson: String) {
         try {
             val file = File(filesDir, "pending_kot.json")
-            val existing = if (file.exists()) file.readText() else "[]"
-            val jsonArray = JSONArray(existing)
-            Log.d(TAG, "Existing KOTs: ${jsonArray.length()}")
-
-            if (rawJson.startsWith("settle-")) {
-                saveSettleToFile(rawJson)
-                return
-            }
-
-            if (rawJson.isEmpty()) {
-                Log.w(TAG, "Received empty KOT JSON, skipping save.")
-                return
-            }
-
-            val newKot = JSONObject().apply {
-                put("items", JSONArray(rawJson))
-                put("timestamp", System.currentTimeMillis())
-            }
-
-            // Prevent duplicates
-            var isDuplicate = false
-            for (i in 0 until jsonArray.length()) {
-                val existingKot = jsonArray.getJSONObject(i)
-                if (existingKot.toString() == newKot.toString()) {
-                    isDuplicate = true
-                    break
+            
+            // Parse incoming data as JSONObject
+            val incomingData = JSONObject(rawJson)
+            
+            // Load existing data
+            val existingData = if (file.exists()) {
+                try {
+                    JSONObject(file.readText())
+                } catch (e: Exception) {
+                    JSONObject()
                 }
-            }
-
-            if (!isDuplicate) {
-                jsonArray.put(newKot)
-                file.writeText(jsonArray.toString())
-                Log.d(TAG, "KOT saved successfully")
             } else {
-                Log.d(TAG, "Duplicate KOT skipped")
+                JSONObject()
             }
-
+            
+            Log.d(TAG, "Existing tables: ${existingData}")
+            
+            // Process each table
+            val keys = incomingData.keys()
+            while (keys.hasNext()) {
+                val tableNo = keys.next()
+                val tableValue = incomingData.get(tableNo)
+                
+                // Get the items array (handle both array and object formats)
+                val itemsArray = when (tableValue) {
+                    is JSONArray -> tableValue
+                    is JSONObject -> {
+                        if (tableValue.has("items")) {
+                            tableValue.getJSONArray("items")
+                        } else {
+                            Log.e(TAG, "Table $tableNo: no items array found")
+                            continue
+                        }
+                    }
+                    else -> {
+                        Log.e(TAG, "Table $tableNo: unexpected type ${tableValue.javaClass}")
+                        continue
+                    }
+                }
+                
+                // Replace or add the table data
+                existingData.put(tableNo, itemsArray)
+                Log.d(TAG, "Saved table $tableNo with ${itemsArray} items")
+            }
+            
+            // Save to file
+            file.writeText(existingData.toString())
+            Log.d(TAG, "Successfully saved ${existingData} tables to ${file.absolutePath}")
+            
         } catch (e: Exception) {
-            Log.e(TAG, "Error saving KOT: ${e.message}")
+            Log.e(TAG, "Error saving KOT: ${e.message}", e)
         }
     }
 
@@ -259,9 +275,12 @@ class BluetoothPrintService : Service() {
 
     private fun generateBillFromJson(printData: String, total: Double): String {
         val sb = StringBuilder()
-        val lineWidth = 36
+        val lineWidth = 50
 
         // ESC/POS commands
+        fun setStyle(n: Int) = sb.append("\u001B\u0021").append(n.toChar())
+        fun boldBig() = setStyle(0x08 or 0x10 or 0x20) // bold + double height + double width [web:4]
+        fun normal() = setStyle(0x00)
         fun boldOn() = sb.append("\u001B\u0045\u0001")
         fun boldOff() = sb.append("\u001B\u0045\u0000")
         fun center() = sb.append("\u001B\u0061\u0001")
@@ -309,7 +328,6 @@ class BluetoothPrintService : Service() {
             boldOn()
             addLine("QTY x Item        Note")
             addLine("--------------------------------")
-            boldOff()
 
             // ITEMS
             for (i in 0 until items.length()) {
@@ -319,6 +337,7 @@ class BluetoothPrintService : Service() {
                 val note = item.optString("note", "")
 
                 // Add item with quantity
+                boldOn()
                 addLine("$qty x $name")
                 
                 // Add note if present
@@ -331,13 +350,9 @@ class BluetoothPrintService : Service() {
                     addLine("")
                 }
             }
-
+            boldOff()
             addLine("--------------------------------")
-            // addLine("Total: ₹$total")
-            // addLine("--------------------------------")
             
-            // Add some blank lines and cut paper
-            // sb.append("\n")
             sb.append("\u001D\u0056\u0000") // Full cut
             
         } catch (e: Exception) {

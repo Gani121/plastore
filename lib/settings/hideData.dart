@@ -10,8 +10,9 @@ const Map<String, String> switchPreferenceKeys = {
 "5. Hide Expence": "hide_expence",
 "6. Hide Cash Sale": "hide_cash_sale",
 "7. Hide UPI Sale": "hide_upi_sell",
-"8. Hide1": "hide1",
-"9. Hide2": "hide2",
+"8. Hide Edit": "hide_edit",
+"9. ModifyHistory": "modifyHistory",
+"10. Hide2": "hide2",
 };
 
 class hideData extends StatefulWidget {
@@ -48,7 +49,11 @@ class _hideDataState extends State<hideData> {
     for (var title in switchPreferenceKeys.keys) {
       final key = switchPreferenceKeys[title];
       if (key != null) {
-        values[title] = prefs.getBool(key) ?? false;
+        if(["hide_edit"].contains(key)){
+          values[title] = prefs.getBool(key) ?? true;
+        }else{
+          values[title] = prefs.getBool(key) ?? false;
+        }
       }
     }
 
@@ -110,8 +115,9 @@ class _hideDataState extends State<hideData> {
           toggleTile("5. Hide Expence", ""),
           toggleTile("6. Hide Cash Sale", ""),
           toggleTile("7. Hide UPI Sale", ""),
-          toggleTile("8. Hide", ""),
-          toggleTile("9. Hide2", ""),
+          toggleTile("8. Hide Edit", "After Print NOt Able to Edit print"),
+          toggleTile("9. ModifyHistory","After Print NOt Able to modify history"),
+          toggleTile("10. Hide", ""),
           const SizedBox(height: 24),
         ],
       ),
@@ -263,7 +269,7 @@ Widget buildInlineInputTile(String label, String hint, String key) {
             onChanged: (value) async {
               final prefs = await SharedPreferences.getInstance();
               await prefs.setString(key, value);
-              print("key $key  value $value");
+              print_log("key $key  value $value");
             },
           ),
         ),

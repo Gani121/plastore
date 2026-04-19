@@ -257,7 +257,7 @@ class _AddItemPageState extends State<AddItemPage> {
         }
       });
 
-      print("✅ Image saved at: ${savedImage.path}");
+      print_log("✅ Image saved at: ${savedImage.path}");
     }
   }
 
@@ -272,8 +272,7 @@ class _AddItemPageState extends State<AddItemPage> {
       MenuItem menuItem;
       if(isEditing){
         menuItem = MenuItem(
-        id: widget.item!.id,
-        syid:ganarateID(), 
+        syid:widget.item!.syid, 
         name: nameController.text.trim(),
         sellPrice: sellPriceController.text.trim(),
         sellPriceType: sellPriceType.trim(),
@@ -342,7 +341,7 @@ class _AddItemPageState extends State<AddItemPage> {
       final id = _menuItemBox.put(menuItem); // ✅ get actual ID from ObjectBox
       final updatedItem = await _menuItemBox.get(id,) ?? menuItem; // ✅ fetch saved version from disk
       print_log("payload updatedItem $updatedItem");
-      await sync.sendItemtoServer(updatedItem);
+      await sync.sendItemtoServer(updatedItem,_menuItemBox);
 
       if (mounted) {
         screen_massage(context, '✅ Item Saved');

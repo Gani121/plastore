@@ -14,6 +14,9 @@ import 'add_edit_purchase_order_page.dart';
 import 'purchase_order_pdf.dart';
 import 'dart:io';
 import 'package:test1/utilities.dart';
+import 'package:printing/printing.dart';
+import 'package:test1/theme_setting/theme_provider.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class PurchaseOrderPage extends StatefulWidget {
   const PurchaseOrderPage({super.key});
@@ -52,7 +55,7 @@ class _PurchaseOrderPageState extends State<PurchaseOrderPage> {
           final map = Map<String, dynamic>.from(jsonDecode(entity.orderData));
           orders.add(PurchaseOrder.fromMap(map));
         } catch (e) {
-          print('Error parsing order: $e');
+          print_log_red('Error parsing order: $e');
         }
       }
 
@@ -61,7 +64,7 @@ class _PurchaseOrderPageState extends State<PurchaseOrderPage> {
         _applyFiltersAndSort();
       });
     } catch (e) {
-      print('Error loading orders: $e');
+      print_log_red('Error loading orders: $e');
     } finally {
       setState(() => _isLoading = false);
     }
@@ -156,45 +159,19 @@ class _PurchaseOrderPageState extends State<PurchaseOrderPage> {
           );
         }
       } catch (e) {
-        print('Error deleting order: $e');
+        print_log_red('Error deleting order: $e');
       }
     }
   }
 
-  Future<void> _shareOrder(PurchaseOrder order) async {
-    try {
-    final pdf = await PurchaseOrderPDF.generate(order);
-    final bytes = await pdf.save();
-
-    final directory = await getTemporaryDirectory();
-    final filePath = '${directory.path}/PO_${order.orderNumber}.pdf';
-
-    final file = File(filePath);
-    await file.writeAsBytes(bytes);
-  
-    await SharePlus.instance.share(
-      ShareParams(
-        text: 'Purchase Order: ${order.orderNumber}',
-        subject: 'Purchase Order PDF',
-        files: [XFile(filePath)],
-      ),
-    );
-    } catch (e) {
-      print('Error sharing order: $e');
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error sharing: $e'), backgroundColor: Colors.red),
-        );
-      }
-    }
-  }
 
   @override
   Widget build(BuildContext context) {
+    final themeProvider = Provider.of<ThemeProvider>(context);
     return Scaffold(
       appBar: AppBar(
         title: const Text('Purchase Orders'),
-        backgroundColor: Colors.teal.shade800,
+        backgroundColor: themeProvider.primaryColor,
         foregroundColor: Colors.white,
         actions: [
           // Filter by status
@@ -346,11 +323,269 @@ class _PurchaseOrderPageState extends State<PurchaseOrderPage> {
                 ),
       floatingActionButton: FloatingActionButton(
         onPressed: _navigateToAddOrder,
-        backgroundColor: Colors.teal.shade800,
+        backgroundColor: themeProvider.primaryColor,
+        foregroundColor: Colors.white,
+        tooltip: 'Create Order',
         child: const Icon(Icons.add, color: Colors.white),
       ),
     );
   }
+
+
+Future<void> _copyPurchaseOrder(PurchaseOrder originalOrder) async {
+  // Show options dialog for copy
+  final options = await showDialog<Map<String, dynamic>>(
+    context: context,
+    builder: (context) => AlertDialog(
+      title: const Text('Copy Purchase Order Options'),
+      content: StatefulBuilder(
+        builder: (context, setDialogState) {
+          bool keepDeliveryDate = true;
+          bool keepSignature = true;
+          bool resetStatus = true;
+          
+          return Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              CheckboxListTile(
+                title: const Text('Keep Expected Delivery Date'),
+                value: keepDeliveryDate,
+                onChanged: (value) {
+                  setDialogState(() {
+                    keepDeliveryDate = value ?? true;
+                  });
+                },
+              ),
+              CheckboxListTile(
+                title: const Text('Keep Signature'),
+                value: keepSignature,
+                onChanged: (value) {
+                  setDialogState(() {
+                    keepSignature = value ?? true;
+                  });
+                },
+              ),
+              CheckboxListTile(
+                title: const Text('Reset Status to Draft'),
+                value: resetStatus,
+                onChanged: (value) {
+                  setDialogState(() {
+                    resetStatus = value ?? true;
+                  });
+                },
+              ),
+            ],
+          );
+        },
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context, null),
+          child: const Text('Cancel'),
+        ),
+        ElevatedButton(
+          onPressed: () => Navigator.pop(context, {
+            'keepDeliveryDate': true,
+            'keepSignature': true,
+            'resetStatus': true,
+          }),
+          style: ElevatedButton.styleFrom(
+            backgroundColor: Colors.purple.shade800,
+          ),
+          child: const Text('Copy'),
+        ),
+      ],
+    ),
+  );
+
+  if (options == null) return;
+
+  setState(() => _isLoading = true);
+
+  try {
+    // Generate new purchase order number
+    final prefs = await SharedPreferences.getInstance();
+    int counter = prefs.getInt('po_counter') ?? 1000;
+    counter++;
+    await prefs.setInt('po_counter', counter);
+    final newOrderNumber = 'PO-${DateFormat('yyyyMM').format(DateTime.now())}-$counter';
+    final int _syid = ganarateID();
+
+    // Create copy based on options
+    final copiedPurchaseOrder = PurchaseOrder(
+      syid: _syid,
+      synced: false,
+      id: DateTime.now().millisecondsSinceEpoch.toString(),
+      orderNumber: newOrderNumber,
+      orderDate: DateTime.now(),
+      expectedDeliveryDate: options['keepDeliveryDate'] 
+          ? originalOrder.expectedDeliveryDate 
+          : null,
+      supplierId: originalOrder.supplierId,
+      supplierName: originalOrder.supplierName,
+      supplierMobile: originalOrder.supplierMobile,
+      supplierAddress: originalOrder.supplierAddress,
+      supplierGst: originalOrder.supplierGst,
+      items: _copyPurchaseOrderItems(originalOrder.items),
+      subtotal: originalOrder.subtotal,
+      taxAmount: originalOrder.taxAmount,
+      discountAmount: originalOrder.discountAmount,
+      shippingAmount: originalOrder.shippingAmount,
+      totalAmount: originalOrder.totalAmount,
+      status: options['resetStatus'] 
+          ? PurchaseOrderStatus.draft 
+          : originalOrder.status,
+      notes: originalOrder.notes,
+      termsAndConditions: originalOrder.termsAndConditions,
+      paymentTerms: originalOrder.paymentTerms,
+      dueDate: originalOrder.dueDate,
+      createdAt: DateTime.now(),
+      updatedAt: DateTime.now(),
+      createdBy: originalOrder.createdBy ?? 'current_user',
+      pdfPath: null,
+      signaturePath: options['keepSignature'] 
+          ? originalOrder.signaturePath 
+          : null,
+    );
+
+    // Save to database
+    final box = _store.box<PurchaseOrderEntity>();
+    final entity = PurchaseOrderEntity(
+      syid: _syid,
+      orderData: jsonEncode(copiedPurchaseOrder.toMap()),
+      signaturePath: copiedPurchaseOrder.signaturePath,
+      orderNumber: copiedPurchaseOrder.orderNumber,
+      supplierName: copiedPurchaseOrder.supplierName,
+      statusIndex: copiedPurchaseOrder.status.index,
+      orderDate: copiedPurchaseOrder.orderDate,
+    );
+    
+    await box.put(entity);
+
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Purchase Order copied successfully: ${copiedPurchaseOrder.orderNumber}'),
+          backgroundColor: Colors.green,
+        ),
+      );
+      await _loadOrders();
+    }
+  } catch (e) {
+    print_log('Error copying purchase order: $e');
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Error copying purchase order: $e'), 
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
+  } finally {
+    if (mounted) {
+      setState(() => _isLoading = false);
+    }
+  }
+}
+
+// Helper method to copy items with new IDs
+List<PurchaseOrderItem> _copyPurchaseOrderItems(List<PurchaseOrderItem> originalItems) {
+  return originalItems.map((item) {
+    return PurchaseOrderItem(
+      id: ganarateID().toString(),
+      name: item.name,
+      description: item.description,
+      quantity: item.quantity,
+      unit: item.unit,
+      unitPrice: item.unitPrice,
+      discount: item.discount,
+      tax: item.tax,
+      total: item.total,
+      sourceId: item.sourceId,
+      sourceType: item.sourceType,
+      currentStock: item.currentStock,
+      minimumStock: item.minimumStock,
+      discountAmount: item.discountAmount,
+      taxAmount: item.taxAmount,
+      subtotal: item.subtotal,
+    );
+  }).toList();
+}
+
+
+
+
+  Future<void> _saveAndShareQuotation(PurchaseOrder order) async {
+  try {
+    // Show options dialog
+    final action = await showDialog<String>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Quotation Actions'),
+        content: const Text('What would you like to do with this quotation?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, 'share'),
+            child: const Text('Share'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(context, 'save'),
+            child: const Text('Save to Device'),
+          ),
+        ],
+      ),
+    );
+    
+    if (action == null) return;
+    
+    // Show loading
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Processing PDF...'),
+        ),
+      );
+    }
+    
+    // Generate PDF
+    final pdf = await PurchaseOrderPDF.generate(order);
+    final bytes = await pdf.save();
+    
+    // Handle different actions
+    if (action == 'share') {
+      final tempDir = await getTemporaryDirectory();
+      final fileName = 'PO_${order.orderNumber}.pdf';
+      final filePath = '${tempDir.path}/$fileName';
+      
+      final file = File(filePath);
+      await file.writeAsBytes(bytes);
+
+      final p = ShareParams(
+        text: 'Purchase Order: ${order.orderNumber}',
+        subject: 'Purchase Order PDF',
+        files: [XFile(filePath)],
+      );
+      await SharePlus.instance.share(p);
+    }
+    
+    if (action == 'save') {
+      await Printing.layoutPdf(
+        onLayout: (format) async => bytes,
+        name: '${order.orderNumber}',
+      );
+    }
+  } catch (e) {
+    print_log('Error processing quotation: $e');
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Error: ${e.toString()}'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
+  }
+}
 
   Widget _buildOrderCard(PurchaseOrder order) {
     return Card(
@@ -491,8 +726,13 @@ class _PurchaseOrderPageState extends State<PurchaseOrderPage> {
                   Row(
                     children: [
                       IconButton(
+                        icon: const Icon(Icons.copy_all, color: Colors.red),
+                        onPressed: () => _copyPurchaseOrder(order),
+                        tooltip: 'Create Copy',
+                      ),
+                      IconButton(
                         icon: const Icon(Icons.picture_as_pdf, color: Colors.red),
-                        onPressed: () => _shareOrder(order),
+                        onPressed: () => _saveAndShareQuotation(order),
                         tooltip: 'Share PDF',
                       ),
                       IconButton(

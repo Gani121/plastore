@@ -10,11 +10,26 @@ import 'package:path/path.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'dart:typed_data';
 import 'package:flutter/services.dart';
-// import 'package:external_path/external_path.dart';
-// import 'package:permission_handler/permission_handler.dart';
 import 'package:path/path.dart' as p;
 import 'package:http/http.dart' as http;
+
+import 'package:test1/database_Module/expensDB.dart';
+import 'package:test1/database_Module/ObjectBoxService.dart';
+import 'package:test1/database_Module/transaction.dart';
 import 'package:test1/database_Module/menu_item.dart';
+import 'package:test1/database_Module/cunsuption.dart';
+import 'package:test1/database_Module/BillCounter.dart';
+import 'package:test1/database_Module/party_database.dart';
+import 'package:test1/database_Module/purchase_invoice_DB.dart';
+import 'package:test1/database_Module/purchase_order_database.dart';
+import 'package:test1/database_Module/quotation_database.dart';
+import 'package:test1/database_Module/supplier_database.dart';
+import 'package:test1/database_Module/tableCart.dart';
+import 'package:test1/database_Module/tabledata.dart';
+import 'package:test1/database_Module/udharicustomer.dart';
+import 'package:test1/database_Module/video_model.dart';
+import 'package:test1/bill_printer.dart'; 
+
 
 
 enum keys {
@@ -299,7 +314,7 @@ Future<http.Response?> apiCalls(
     bool demo = prefs.getBool('demo') ?? false;   
 
     if (apicall.toLowerCase().contains("no") || demo) {
-      print_log("❌ in settel transection adminPanel not yes so Not send transection to the sever $apicall");
+      print_log("in settel transection adminPanel not yes so Not send transection to the sever $apicall");
       switch(apiCalls){
         case "get_t":
           final response = await http.get(
@@ -328,12 +343,31 @@ Future<http.Response?> apiCalls(
           ).timeout(Duration(seconds: 900));
           return response;
         case "l":
-        final response = await http.post(
-          Uri.parse("https://api2.nextorbitals.in/api/login.php"),
-          headers: {"Content-Type": "application/json"},
-          body: jsonEncode(payload),
-        ).timeout(Duration(seconds: 900));
-        return response;
+          final response = await http.post(
+            Uri.parse("https://api2.nextorbitals.in/api/login.php"),
+            headers: {"Content-Type": "application/json"},
+            body: jsonEncode(payload),
+          ).timeout(Duration(seconds: 900));
+          return response;
+        case "gv":
+          final response = await http.get(
+                Uri.parse("https://api2.nextorbitals.in/api/get_videos.php"),
+                headers: {'Content-Type': 'application/json'},
+              ).timeout(Duration(seconds: 900));
+          return response;
+        case "gs":
+          final response = await http.get(
+                Uri.parse("https://api2.nextorbitals.in/api/get_service.php"),
+                headers: {'Content-Type': 'application/json'},
+              ).timeout(Duration(seconds: 900));
+          return response;
+        case "gsp":
+          final response = await http.post(
+                Uri.parse("https://api2.nextorbitals.in/api/get_service.php"),
+                headers: {'Content-Type': 'application/json'},
+                body : jsonEncode(payload),
+              ).timeout(Duration(seconds: 900));
+          return response;
         default:
           return null;
       }
@@ -482,6 +516,25 @@ Future<http.Response?> apiCalls(
               body: json.encode(payload),
             ).timeout(Duration(seconds: 900));
         return response;
+      case "gv":
+        final response = await http.get(
+              Uri.parse("https://api2.nextorbitals.in/api/get_videos.php"),
+              headers: {'Content-Type': 'application/json'},
+            ).timeout(Duration(seconds: 900));
+        return response;
+      case "gs":
+        final response = await http.get(
+              Uri.parse("https://api2.nextorbitals.in/api/get_service.php"),
+              headers: {'Content-Type': 'application/json'},
+            ).timeout(Duration(seconds: 900));
+        return response;
+      case "gsp":
+          final response = await http.post(
+                Uri.parse("https://api2.nextorbitals.in/api/get_service.php"),
+                headers: {'Content-Type': 'application/json'},
+                body : jsonEncode(payload),
+              ).timeout(Duration(seconds: 900));
+          return response;
       default:
         return null;
     }
@@ -493,11 +546,11 @@ Future<http.Response?> apiCalls(
 /// 
 /// businessDateKey - 'businessDate' dd/mm/yyy hh;mm;ss.sss
 /// 
-Future<DateTime> getBussinessDateStorage() async {
+Future<DateTime> getBussinessDateStorage(String date) async {
   final prefs = await SharedPreferences.getInstance();
   final businessDateString = prefs.getString(AppConstants.businessDateKey) ?? DateTime.now().toString();
   final now = DateTime.now();
-  final businessDatePart = DateTime.parse(businessDateString);
+  final businessDatePart = DateTime.parse(date);
   final fullDateTime = DateTime(
         businessDatePart.year,
         businessDatePart.month,
@@ -639,7 +692,7 @@ Map<String, Map<String, dynamic>> getmenyBycart(List<Map<String, dynamic>> cart1
 ///     ]
 /// }
 
-Future<void> sendStockToServer(MenuItem item, int addValue, {bool? isOverride}) async {
+Future<bool> sendStockToServer(MenuItem item, int addValue, {bool? isOverride}) async {
   try {
     print_log('✅ No stock change needed #$addValue# $item');
     final prefs = await SharedPreferences.getInstance();
@@ -678,7 +731,7 @@ Future<void> sendStockToServer(MenuItem item, int addValue, {bool? isOverride}) 
       } else {
         // No change (addValue == 0)
         print_log('✅ No stock change needed');
-        return;
+        return true;
       }
     // }
 
@@ -698,7 +751,7 @@ Future<void> sendStockToServer(MenuItem item, int addValue, {bool? isOverride}) 
 
     http.Response? response = await apiCalls("addStock", hotelName, requestBody);
       if (response == null) {
-        return;
+        return false;
       }
 
     if (response.statusCode == 200 || response.statusCode == 207) {
@@ -710,6 +763,7 @@ Future<void> sendStockToServer(MenuItem item, int addValue, {bool? isOverride}) 
         // Update local item with server response data if needed
         if (responseData['updated_items'] != null && responseData['updated_items'].isNotEmpty) {
           final updatedItem = responseData['updated_items'][0];
+          return true;
           // You can update any additional fields from server if needed
         }
       } else {
@@ -727,7 +781,140 @@ Future<void> sendStockToServer(MenuItem item, int addValue, {bool? isOverride}) 
   } catch (e) {
     print_log_red('❌ Error sending stock to server: $e');
   }
+  return false;
 }
+
+  Future<void> loadtransections(http.Response? response, SharedPreferences prefs,Store store,BuildContext context) async {
+      final box = store.box<Transaction>();
+      final printer = BillPrinter();
+      try {
+        if (response == null) {
+          print_log_red("transection server response GOT NULL");
+          return;
+        }
+        if (response.statusCode == 200) {
+          final jsonData = jsonDecode(response.body);
+          final dataList = jsonData['data'];
+          if (dataList is List) {
+            final localTransactions = box.getAll();
+            final localBillNos = localTransactions.map((tx) => tx.billNo).toSet();
+            int newTransactionsCount = 0;
+
+            for (var serverTxData in dataList) {
+              try {
+                final serverTxMap = Map<String, dynamic>.from(serverTxData);
+                final transactionField = serverTxMap['transaction'];
+                Map<String, dynamic> transactionData;
+                if (transactionField is String) {
+                  final decoded = jsonDecode(transactionField);
+                  if (decoded is Map) {
+                    transactionData = Map<String, dynamic>.from(decoded);
+                  } else {
+                    print_log("❌ Decoded data is not a Map");
+                    continue;
+                  }
+                } else if (transactionField is Map) {
+                  transactionData = Map<String, dynamic>.from(transactionField);
+                } else {
+                  print_log("❌ Unexpected transaction field type $transactionField");
+                  continue;
+                }
+                
+                
+                // SAFELY parse all fields with proper null handling
+                final int serverBillNo = _safeParseInt(transactionData['billNo'], defaultValue: 0);
+                
+                if (serverBillNo != 0) {
+                  
+                  try {
+                    if (localBillNos.contains(serverBillNo)) {
+                      final transaction = Transaction.fromMap(transactionData);
+                      final tableCart_query = box.query(Transaction_.billNo.equals(serverBillNo)).build();
+                      Transaction? existingTx = tableCart_query.findFirst();
+                      tableCart_query.close();
+                      
+                      if (existingTx != null) {
+                        existingTx.syid = transaction.syid;
+                        existingTx.time = transaction.time;
+                        existingTx.total = transaction.total;
+                        existingTx.cartData = transaction.cartData; // This should be the current cart
+                        existingTx.payment_mode = transaction.payment_mode; // This should be the new payment mode
+                        existingTx.status = transaction.status;
+                        existingTx.synced = transaction.synced; // Mark as unsynced after modification
+                        existingTx.serviceCharge = transaction.serviceCharge; // 1.0
+                        existingTx.discount = transaction.discount; // 10.0
+                        existingTx.discountPercent = transaction.discountPercent;
+                        existingTx.customerName = transaction.customerName; // '28282'
+                        existingTx.mobileNo =transaction.mobileNo; // '386838'
+                        existingTx.reserved = transaction.reserved;
+                        existingTx.orderType = transaction.orderType;
+                        existingTx.cashamount = transaction.cashamount;
+                        existingTx.upiamount = transaction.upiamount;
+                        existingTx.modificationsHistory = transaction.modificationsHistory;
+                        existingTx.hotelName = transaction.hotelName;
+                        existingTx.reserved_field = transaction.reserved_field;
+                        existingTx.reserved_field1 = transaction.reserved_field1;
+                        existingTx.reserved_field2 = transaction.reserved_field2;
+                        existingTx.reserved_field3 = transaction.reserved_field3;
+                        existingTx.reserved_field4 = transaction.reserved_field4;
+                        existingTx.reserved_field5 = transaction.reserved_field5;
+
+                        box.put(existingTx);
+                        print_log("✅ updated transaction: $serverBillNo");
+                      }
+
+                    }else{
+                      final transaction = Transaction.fromMap(transactionData);
+                      box.put(transaction);
+                      printer.setNextBillNo(context, transactionData['billNo']);
+                      newTransactionsCount++;
+                      print_log("✅ Added transaction: $serverBillNo");
+                    }
+                  } catch (e) {
+                    print_log_red("❌ Error creating transaction: $e");
+                    print_log("Transaction data: $transactionData");
+                  }
+                  
+                }
+                
+              } catch (e) {
+                print_log_red("❌ Error processing transaction: $e");
+                continue;
+              }
+            }
+            if (newTransactionsCount > 0) {
+              print_log("✅ Synced $newTransactionsCount new transactions from server.");
+              
+            } else {
+              print_log("No new transactions found");
+            }
+          } else {
+            print_log_red("❌ 'data' is not a list");
+          }
+        } else {
+          print_log_red('HTTP Error: ${response.statusCode}: ${response.reasonPhrase}');
+        }
+      } catch (error) {
+        screen_massage(context, "Error syncing transactions: $error");
+        print_log_red("❌ Error in loadtransections: $error");
+      }
+    }
+
+  int _safeParseInt(dynamic value, {int defaultValue = 0}) {
+    if (value == null) return defaultValue;
+    if (value is int) return value;
+    if (value is double) return value.toInt();
+    if (value is String) {
+      if (value.isEmpty) return defaultValue;
+      return int.tryParse(value) ?? defaultValue;
+    }
+    if (value is num) return value.toInt();
+    return defaultValue;
+  }
+
+
+
+
   
 
 

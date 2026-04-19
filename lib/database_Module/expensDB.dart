@@ -61,7 +61,8 @@ class Expense {
   final DateTime date;
   final String category;
   final String? photoPath;
-  
+  final String hotelName;
+
   // New fields
   final String? supplierName;
   final double? quantity;
@@ -77,6 +78,7 @@ class Expense {
     required this.amount,
     required this.date,
     required this.category,
+    required this.hotelName,
     this.photoPath,
     this.supplierName,
     this.quantity,
@@ -116,6 +118,7 @@ class Expense {
       'receivedAmount': receivedAmount,
       'description': description,
       'expenseType': expenseType,
+      'hotelName': hotelName,
     };
   }
 
@@ -135,6 +138,7 @@ class Expense {
       receivedAmount: map['receivedAmount'] != null ? double.tryParse(map['receivedAmount'].toString()) : null,
       description: map['description']?.toString(),
       expenseType: map['expenseType']?.toString(),
+      hotelName: map['hotelName']?.toString() ?? '',
     );
   }
 
@@ -150,6 +154,7 @@ class Expense {
     String? paymentMethod,
     double? receivedAmount,
     String? description,
+    String? hotelName,
     String? expenseType,
   }) {
     return Expense(
@@ -166,6 +171,7 @@ class Expense {
       receivedAmount: receivedAmount ?? this.receivedAmount,
       description: description ?? this.description,
       expenseType: expenseType ?? this.expenseType,
+      hotelName: hotelName ?? this.hotelName,
     );
   }
 }

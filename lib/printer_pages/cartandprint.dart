@@ -12,6 +12,7 @@ import 'package:path_provider/path_provider.dart';
 import 'package:image/image.dart' as img;
 import 'package:qr_flutter/qr_flutter.dart';
 import 'package:flutter/services.dart' show rootBundle;
+import 'package:test1/utilities.dart';
 
 
 // The constructor no longer needs the 'stuffs' parameter
@@ -40,12 +41,12 @@ class _PrinterPreviewWidgetState extends State<PrinterPreviewWidget> {
     super.initState();
     _testCart = buildReceiptList();
     _scanSubscription = FlutterBluePlus.scanResults.listen((results) {
-      print(" in the printpreview $_scanSubscription ");
+      print_log(" in the printpreview $_scanSubscription ");
       if (mounted) {
         setState(() {
           _scanResults = results.where((r) => r.device.platformName.isNotEmpty).toList();
           
-          print(" in the _showPreviewAndPrint $_scanResults ");
+          print_log(" in the _showPreviewAndPrint $_scanResults ");
         });
       }
     });
@@ -90,7 +91,7 @@ Future<void> _saveImage(ui.Image image) async {
     final file = File(filePath);
     await file.writeAsBytes(pngBytes);
     
-    print('✅ Image saved successfully at: $filePath');
+    print_log('✅ Image saved successfully at: $filePath');
     
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -99,7 +100,7 @@ Future<void> _saveImage(ui.Image image) async {
     }
     
   } catch (e) {
-    print('❌ Error saving image: $e');
+    print_log_red('❌ Error saving image: $e');
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Error saving image: $e')),
@@ -139,7 +140,7 @@ List<Map<String, dynamic>> buildReceiptList(
   } else {
     // Fallback: If no divider is found, you could add items at the end
     // or handle it as an error, depending on your app's needs.
-    print("Warning: 'isDivider' not found in receipt layout.");
+    print_log("Warning: 'isDivider' not found in receipt layout.");
   }
 
   // 4. Return the newly created and combined list.
@@ -177,23 +178,23 @@ Future<void> _captureAndPrint() async {
       //     //debugPrint("d remoteId ${d.remoteId} ");
       //     if (d.remoteId.toString() == _targetPrinterAddress) {
       //         device = d;
-      //         print("✅ Printer found among connected devices.");
+      //         print_log("✅ Printer found among connected devices.");
       //         break;
       //     }
       // }
 
       // 2. If not found, start scanning to find the printer
-        print("Printer not connected. Starting scan...");
+        print_log("Printer not connected. Starting scan...");
         await FlutterBluePlus.startScan(timeout: const Duration(seconds: 5));
 
         // Listen to scan results
         await for (List<ScanResult> results in FlutterBluePlus.scanResults) {
-          print("✅ Printer found via scan.$results");
+          print_log("✅ Printer found via scan.$results");
             for (ScanResult r in results) {
-              print("✅ Printer found via scan. $r");
+              print_log("✅ Printer found via scan. $r");
                 if (r.device.remoteId.toString() == _targetPrinterAddress) {
                     device = r.device;
-                    print("✅ Printer found via scan.");
+                    print_log("✅ Printer found via scan.");
                     break; // Exit inner loop
                 }
             }
@@ -231,9 +232,9 @@ Future<void> _captureAndPrint() async {
     setState(() {});
     
     
-    print('Original image: ${image.width}x${image.height}');
-    print('RGBA bytes length: ${byteData.lengthInBytes}');
-    print('Expected printer width: 384 pixels');
+    print_log('Original image: ${image.width}x${image.height}');
+    print_log('RGBA bytes length: ${byteData.lengthInBytes}');
+    print_log('Expected printer width: 384 pixels');
 
     // Process image for 2-inch thermal printer (384 pixels wide)
     final int printerWidth = 384;
@@ -244,8 +245,8 @@ Future<void> _captureAndPrint() async {
       printerWidth
     );
 
-    print('Processed bitmap length: ${processedBitmap.length}');
-    print('Expected length: ${image.height * (image.width ~/ 8)}');
+    print_log('Processed bitmap length: ${processedBitmap.length}');
+    print_log('Expected length: ${image.height * (image.width ~/ 8)}');
 
     final pitch = printerWidth ~/ 8; // 384 / 8 = 48 bytes per line
         // Define chunk size and delay. YOU CAN TUNE THESE VALUES.
@@ -303,7 +304,7 @@ Future<void> _captureAndPrint() async {
   } catch (e) {
     _printStatus = "Error: ${e.toString()}";
     setState(() {});
-    print("Printing error: $e");
+    print_log("Printing error: $e");
   } finally {
     await Future.delayed(const Duration(seconds: 2));
     _connectedDevice?.disconnect();

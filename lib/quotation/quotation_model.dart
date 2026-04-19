@@ -18,10 +18,15 @@ enum PlateType {
 }
 
 class Quotation {
+  int syid;
+  bool synced;
   final String id;
   final String quotationNumber;
   final DateTime quotationDate;
   final DateTime? validUntil;
+
+  // RESTAURANT details
+  final String? businessAddress;
   
   // Party/Customer details
   final String partyId;
@@ -78,12 +83,15 @@ class Quotation {
   final String? signaturePath;
 
   Quotation({
+    required this.syid,
+    this.synced = false,
     required this.id,
     required this.quotationNumber,
     required this.quotationDate,
     this.validUntil,
     required this.partyId,
     required this.partyName,
+    this.businessAddress,
     this.partyMobile,
     this.partyEmail,
     this.partyAddress,
@@ -118,7 +126,10 @@ class Quotation {
 
   Map<String, dynamic> toMap() {
     return {
+      'syid': syid,  // ADD THIS
+      'synced': synced,  // ADD THIS
       'id': id,
+      'businessAddress': businessAddress,
       'quotationNumber': quotationNumber,
       'quotationDate': quotationDate.toIso8601String(),
       'validUntil': validUntil?.toIso8601String(),
@@ -159,12 +170,17 @@ class Quotation {
 
   factory Quotation.fromMap(Map<String, dynamic> map) {
     return Quotation(
-      id: map['id'],
-      quotationNumber: map['quotationNumber'],
-      quotationDate: DateTime.parse(map['quotationDate']),
+      syid: map['syid'] ?? 0,  // Provide default value if null
+      synced: map['synced'] ?? false,  // Provide default value if null
+      id: map['id'] ?? '',
+      quotationNumber: map['quotationNumber'] ?? '',
+      quotationDate: map['quotationDate'] != null 
+          ? DateTime.parse(map['quotationDate']) 
+          : DateTime.now(),
       validUntil: map['validUntil'] != null ? DateTime.parse(map['validUntil']) : null,
-      partyId: map['partyId'],
-      partyName: map['partyName'],
+      businessAddress: map['businessAddress'],
+      partyId: map['partyId'] ?? '',
+      partyName: map['partyName'] ?? '',
       partyMobile: map['partyMobile'],
       partyEmail: map['partyEmail'],
       partyAddress: map['partyAddress'],
@@ -173,24 +189,28 @@ class Quotation {
       eventDate: map['eventDate'] != null ? DateTime.parse(map['eventDate']) : null,
       eventVenue: map['eventVenue'],
       expectedGuests: map['expectedGuests'],
-      plates: (map['plates'] as List).map((p) => PlateQuotation.fromMap(p)).toList(),
-      banquetItems: (map['banquetItems'] as List).map((b) => BanquetQuotation.fromMap(b)).toList(),
-      additionalItems: (map['additionalItems'] as List).map((a) => AdditionalQuotationItem.fromMap(a)).toList(),
-      platesSubtotal: map['platesSubtotal'],
-      banquetSubtotal: map['banquetSubtotal'],
-      additionalSubtotal: map['additionalSubtotal'],
-      discountAmount: map['discountAmount'],
-      taxAmount: map['taxAmount'],
-      totalAmount: map['totalAmount'],
+      plates: (map['plates'] as List?)?.map((p) => PlateQuotation.fromMap(p)).toList() ?? [],
+      banquetItems: (map['banquetItems'] as List?)?.map((b) => BanquetQuotation.fromMap(b)).toList() ?? [],
+      additionalItems: (map['additionalItems'] as List?)?.map((a) => AdditionalQuotationItem.fromMap(a)).toList() ?? [],
+      platesSubtotal: (map['platesSubtotal'] ?? 0).toDouble(),
+      banquetSubtotal: (map['banquetSubtotal'] ?? 0).toDouble(),
+      additionalSubtotal: (map['additionalSubtotal'] ?? 0).toDouble(),
+      discountAmount: (map['discountAmount'] ?? 0).toDouble(),
+      taxAmount: (map['taxAmount'] ?? 0).toDouble(),
+      totalAmount: (map['totalAmount'] ?? 0).toDouble(),
       serviceCharge: map['serviceCharge']?.toDouble(),
       packagingCharge: map['packagingCharge']?.toDouble(),
       deliveryCharge: map['deliveryCharge']?.toDouble(),
-      status: QuotationStatus.values[map['status']],
+      status: map['status'] != null 
+          ? QuotationStatus.values[map['status']] 
+          : QuotationStatus.draft,
       termsAndConditions: map['termsAndConditions'],
       cancellationPolicy: map['cancellationPolicy'],
       paymentTerms: map['paymentTerms'],
       specialInstructions: map['specialInstructions'],
-      createdAt: DateTime.parse(map['createdAt']),
+      createdAt: map['createdAt'] != null 
+          ? DateTime.parse(map['createdAt']) 
+          : DateTime.now(),
       updatedAt: map['updatedAt'] != null ? DateTime.parse(map['updatedAt']) : null,
       createdBy: map['createdBy'],
       pdfPath: map['pdfPath'],
@@ -204,8 +224,8 @@ class Quotation {
   String get formattedQuotationDate => DateFormat('dd/MM/yyyy').format(quotationDate);
   String get formattedValidUntil => validUntil != null ? DateFormat('dd/MM/yyyy').format(validUntil!) : 'Not specified';
   String get formattedEventDate => eventDate != null ? DateFormat('dd/MM/yyyy').format(eventDate!) : 'Not specified';
-  String get formattedTotal => '₹ ${totalAmount.toStringAsFixed(2)}';
-  String get formattedGrandTotal => '₹ ${grandTotal.toStringAsFixed(2)}';
+  String get formattedTotal => 'Rs. ${totalAmount.toStringAsFixed(2)}';
+  String get formattedGrandTotal => 'Rs.  ${grandTotal.toStringAsFixed(2)}';
   
   int get totalItems => plates.length + banquetItems.length + additionalItems.length;
   
@@ -295,8 +315,8 @@ class PlateQuotation {
     }
   }
 
-  String get formattedPrice => '₹ ${pricePerPlate.toStringAsFixed(2)}';
-  String get formattedTotal => '₹ ${total.toStringAsFixed(2)}';
+  String get formattedPrice => 'Rs.  ${pricePerPlate.toStringAsFixed(2)}';
+  String get formattedTotal => 'Rs.  ${total.toStringAsFixed(2)}';
 }
 
 class PlateMenuItem {
@@ -374,9 +394,9 @@ class BanquetQuotation {
     );
   }
 
-  String get formattedPrice => '₹ ${price.toStringAsFixed(2)}';
-  String get formattedTotal => '₹ ${total.toStringAsFixed(2)}';
-  String get hourlyRate => '₹ ${(price / hours).toStringAsFixed(2)}/hour';
+  String get formattedPrice => 'Rs.  ${price.toStringAsFixed(2)}';
+  String get formattedTotal => 'Rs.  ${total.toStringAsFixed(2)}';
+  String get hourlyRate => 'Rs.  ${(price / hours).toStringAsFixed(2)}/hour';
 }
 
 class AdditionalQuotationItem {
@@ -422,7 +442,7 @@ class AdditionalQuotationItem {
     );
   }
 
-  String get formattedPrice => '₹ ${price.toStringAsFixed(2)}';
-  String get formattedTotal => '₹ ${total.toStringAsFixed(2)}';
+  String get formattedPrice => 'Rs.  ${price.toStringAsFixed(2)}';
+  String get formattedTotal => 'Rs.  ${total.toStringAsFixed(2)}';
   String get formattedQuantity => '$quantity ${unit ?? ''}';
 }

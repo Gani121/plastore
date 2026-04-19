@@ -25,6 +25,8 @@ import 'package:test1/bill_printer.dart';
 import 'package:appinio_social_share/appinio_social_share.dart'as share;
 import 'package:whatsapp_share_plus/whatsapp_share_plus.dart' as whatsapp;
 import 'package:printing/printing.dart';
+import 'package:test1/database_Module/transaction.dart';
+import 'package:test1/theme_setting/theme_provider.dart';
 
 class DetailPage extends StatefulWidget {
   final List<Map<String, dynamic>>? cart1;
@@ -33,13 +35,14 @@ class DetailPage extends StatefulWidget {
   final Map<String, dynamic>? table;
   final int? hideadd;
   
-  
 
   DetailPage({this.cart1,this.mode,this.transaction,this.table,this.hideadd,super.key,});
 
   @override
   _DetailPageState createState() => _DetailPageState();
 }
+
+
 
 class _DetailPageState extends State<DetailPage> {
   //late List<Map<String, dynamic>> cart;
@@ -81,6 +84,15 @@ class _DetailPageState extends State<DetailPage> {
   late Store _store;
   final share.AppinioSocialShare _appinioSocialShare = share.AppinioSocialShare();
 
+
+  // Add these variables at the top with other state variables
+  List<ModificationRecord> _modificationsList = [];
+  int initialTotal = 0;
+
+  // 1. Declare a controller and the current date (put these in your State class)
+  TextEditingController _dateController = TextEditingController();
+  late DateTime _selectedDate;
+
   
 
   @override
@@ -89,7 +101,11 @@ class _DetailPageState extends State<DetailPage> {
     loadSelectedStyle();
     loadSetting();
     existingcart = (widget.cart1 ?? []).map((item) => Map<String, dynamic>.from(item)).toList();
-
+    DateTime initialDate = getBusinessDate();
+    _selectedDate = initialDate; 
+    _dateController = TextEditingController(
+      text: DateFormat('dd/MMM/yyyy').format(initialDate)
+    );
     // //debugPrint("oldCartMap.containsKey(key) ${existingcart}");
     void _updateCalculations() {
     if (!mounted) return;
@@ -113,15 +129,17 @@ class _DetailPageState extends State<DetailPage> {
       billCounterBox = _store.box<BillCounter>();
 
       // 1. First, load the cart so the subtotal is available
+      print_log("in edit bill the mode is ${widget.mode}");
       if (widget.mode == "edit") {
         cartProvider.cart.clear();
-        //debugPrint("set cart to the provider to the in neworderpage ${cartProvider.cart.isEmpty} ${cartProvider.cart}");
+        print_log("Controller text set to: set cart to the provider to the in neworderpage ${cartProvider.cart.isEmpty} ${cartProvider.cart}");
         cartProvider.setCart(widget.cart1 ?? []);
-        //debugPrint("set cart to the provider to the in neworderpage ${cartProvider.cart.isEmpty} ${cartProvider.cart}");
+        print_log("Controller text set to: set cart to the provider to the in neworderpage ${cartProvider.cart.isEmpty} ${cartProvider.cart}");
         // //debugPrint("cartProvider.cart in editbill ${cartProvider.cart}");
-        //debugPrint("transaction in editbill ${widget.transaction}");
+        print_log("Controller text set to: transaction in editbill ${widget.transaction}");
         if (widget.transaction != null && (widget.transaction ?? {}).isNotEmpty) {
           transaction = widget.transaction ?? {};
+          print_log("Controller text set to: modificationsHistory in edit bill ${transaction['modificationsHistory']}");
 
           // 2. Now, populate all the text fields
           final discount = (transaction['discount'] as num?)?.toDouble() ?? 0.0;
@@ -157,17 +175,81 @@ class _DetailPageState extends State<DetailPage> {
             });
           });
 
+          
+
+                  // Parse modifications history from transaction
+          if (transaction['modificationsHistory'] != null) {
+            print_log("modificationsHistory in edit bill ${transaction['modificationsHistory']}");
+            try {
+              // If it's already a list of maps
+              if (transaction['modificationsHistory'] is List) {
+                _modificationsList = (transaction['modificationsHistory'] as List).map((item) => ModificationRecord.fromMap(item)).toList();
+              } 
+              // If it's a JSON string
+              else if (transaction['modificationsHistory'] is String) {
+                print_log("modificationsHistory in edit bill ${transaction['modificationsHistory']}");
+                String historyString = transaction['modificationsHistory'];
+                if (historyString.isNotEmpty && historyString != '[]') {
+                  List<Map<String, dynamic>> decoded = jsonDecode(transaction['modificationsHistory']);
+                  print_log("modificationsHistory in edit bill $decoded");
+                  _modificationsList = decoded.map((item) => ModificationRecord.fromMap(item)).toList();
+
+                } else {
+                  _modificationsList = [];
+                }
+              }
+            } catch (e) {
+              print_log_red("Error parsing modifications history: $e");
+              _modificationsList = [];
+            }
+          } else {
+            _modificationsList = [];
+          }
+
+        
+          // Calculate initial total
+          setState(() {
+            initialTotal = transaction['total'] ?? cartProvider.total;
+            print_log("modificationsHistory in edit bill ${initialTotal}");
+          });
+          
+          setState(() {
+            _selectedDate = transaction['time'] is DateTime  ? transaction['time'] : DateTime.tryParse(transaction['time'].toString()) ?? DateTime.now();
+            
+            _dateController.text = DateFormat('dd/MMM/yyyy').format(_selectedDate);
+          });
+
         } else {
           // Logic for a new bill
           billNo = getNextBillNo();
           fetchData(_billNoController, billNo.toString());
           transaction['billNo'] = billNo;
+
+          DateTime initialDate = getBusinessDate();
+
+          // UI displays this: 09/Apr/2026
+          _dateController.text = DateFormat('dd/MMM/yyyy').format(initialDate);
+          _selectedDate = initialDate;
+          print_log("initialDate.toIso8601String() ${initialDate.toIso8601String()} ${_selectedDate}");
+          // This is the format DateTime.parse(date) REQUIRES (e.g., 2026-04-09 19:42:00)
+          transaction['time'] = initialDate.toIso8601String();
+          print_log("initialDate.toIso8601String() ${transaction['time']} ${_selectedDate}");
         }
       } else {
           // Logic for a new bill
           billNo = getNextBillNo();
           fetchData(_billNoController, billNo.toString());
           transaction['billNo'] = billNo;
+
+          DateTime initialDate = getBusinessDate();
+
+          // UI displays this: 09/Apr/2026
+          _dateController.text = DateFormat('dd/MMM/yyyy').format(initialDate);
+          _selectedDate = initialDate;
+          print_log("initialDate.toIso8601String() ${initialDate.toIso8601String()} ${_selectedDate}");
+          // This is the format DateTime.parse(date) REQUIRES (e.g., 2026-04-09 19:42:00)
+          transaction['time'] = initialDate.toIso8601String();
+          print_log("initialDate.toIso8601String() ${transaction['time']} ${_selectedDate}");
         }
 
       // 3. ✅ Finally, run the complete calculation once everything is loaded.
@@ -192,6 +274,33 @@ class _DetailPageState extends State<DetailPage> {
     super.dispose();
   }
 
+
+
+
+Future<void> _selectDate(BuildContext context) async {
+  final DateTime? picked = await showDatePicker(
+    context: context,
+    initialDate: _selectedDate,
+    // Set firstDate to a past date to allow back-dated bills
+    firstDate: DateTime(2000), 
+    // Set lastDate to today or a future business date
+    lastDate: DateTime(2101),
+  );
+
+  if (picked != null) {
+    setState(() {
+      _selectedDate = picked;
+      
+      // Update the UI Controller (Friendly format)
+      _dateController.text = DateFormat('dd/MMM/yyyy').format(picked);
+      
+      // Update the Map (ISO format for getBussinessDateStorage)
+      transaction['time'] = picked.toIso8601String(); 
+    });
+  }
+}
+
+
   void fetchData(TextEditingController key, String value) {
     // Simulate fetching data from an API or database
     Future.delayed(const Duration(milliseconds: 4), () {
@@ -199,7 +308,7 @@ class _DetailPageState extends State<DetailPage> {
         someValueFromServer = value; // New value received
         // 3. Update the controller's text. The UI will update automatically.
         key.text = someValueFromServer; 
-        //debugPrint("Controller text set to: ${key.text}");
+        print_log("Controller text set to: ${key.text} value ${someValueFromServer}");
       });
     });
   }
@@ -366,8 +475,6 @@ class _DetailPageState extends State<DetailPage> {
     final cart = cartProvider.cart;
     print_log("cart items _buildItemCards $cart");
     
-    // addtablecart(cartProvider);
-    
     return Center(
       child: Container(
         width: 320,
@@ -391,6 +498,7 @@ class _DetailPageState extends State<DetailPage> {
               )
             else
               ...cart.map((item) {
+                print_log("update cart $item");
                 final qty = int.tryParse((item['qty'] ?? 0).toString()) ?? 0;
                 final price = double.tryParse((item['sellPrice'] ?? 0).toString()) ?? 0.0;
                 final portion = item['portion'] ?? '  Full';
@@ -525,10 +633,10 @@ class _DetailPageState extends State<DetailPage> {
                                 double newPrice = double.tryParse(val) ?? price;
                                 if (newPrice > 0 && newPrice != price) {
                                   cartProvider.updatePricePortion(name, newPrice, portion);
-                                  addtablecart(cartProvider);
+                                  // addtablecart(cartProvider);
                                 } else if( newPrice < 1 || newPrice.toString().isEmpty){
                                     cartProvider.removeFromCart(name, portion);
-                                    addtablecart(cartProvider);
+                                    // addtablecart(cartProvider);
                                     setState(() { });
                                   }
                               },
@@ -543,6 +651,7 @@ class _DetailPageState extends State<DetailPage> {
                                 color: Colors.blueGrey,
                                 onPressed: qty > 1
                                     ? () {
+                                        print_log("update cart $id $name $qty $price $portion");
                                         cartProvider.updateQuantity(
                                           id,
                                           qty - 1,
@@ -550,7 +659,7 @@ class _DetailPageState extends State<DetailPage> {
                                           name,
                                           portion,
                                         );
-                                        addtablecart(cartProvider);
+                                        // addtablecart(cartProvider);
                                         setState(() { });
                                       }
                                     : null,
@@ -570,11 +679,11 @@ class _DetailPageState extends State<DetailPage> {
                                       final newQty = int.tryParse(val) ?? qty;
                                       if (newQty > 0 && newQty != qty) {
                                         cartProvider.updateQuantity(id, newQty, price, name, portion);
-                                        addtablecart(cartProvider);
+                                        // addtablecart(cartProvider);
                                         setState(() { });
                                       } else if( newQty < 1 || newQty.toString().isEmpty){
                                         cartProvider.removeFromCart(name, portion);
-                                        addtablecart(cartProvider);
+                                        // addtablecart(cartProvider);
                                         setState(() { });
                                       }
                                       
@@ -616,6 +725,7 @@ class _DetailPageState extends State<DetailPage> {
                                 icon: const Icon(Icons.add_circle_outline),
                                 color: Colors.blueGrey,
                                 onPressed: () {
+                                  print_log("update cart $id $name $qty $price $portion");
                                   cartProvider.updateQuantity(
                                     id,
                                     qty + 1,
@@ -623,7 +733,7 @@ class _DetailPageState extends State<DetailPage> {
                                     name,
                                     portion,
                                   );
-                                  addtablecart(cartProvider);
+                                  // addtablecart(cartProvider);
                                   setState(() { });
                                 },
                               ),
@@ -686,7 +796,7 @@ class _DetailPageState extends State<DetailPage> {
   void _deleteItem(String name,String portion) {
     final cartProvider = Provider.of<CartProvider>(context, listen: false);
     cartProvider.removeFromCart(name, portion); // Make sure this method exists in your provider
-    addtablecart(cartProvider);
+    // addtablecart(cartProvider);
     _calculateSubtotal();
     setState(() { });                 
     // No need for setState if you're using Provider's notifyListeners
@@ -867,42 +977,58 @@ class _DetailPageState extends State<DetailPage> {
     return digitsOnly;
   }
 
+  // /// Launches WhatsApp with a pre-filled message.
+  // Future<void> _saveBill(CartProvider cartProvider,BuildContext context) async {
+  //   final total = cartProvider.total;
+  //   final wcart = cartProvider.cart;
+  //   final tableno = (widget.table ?? {"kot":0})['kot'];
+  //   Uint8List? pdfBytes =await printer.generateReceiptPdfToShare( cart1: wcart, total: total, billNo: billNo, transactionData: transaction, tableno: tableno, context: context);
+
+  //   if(pdfBytes!=null){
+  //     final String folderPath = AppConstants.folderPath;
+  //     final directory = Directory(folderPath);
+  //     if (!await directory.exists()) await directory.create(recursive: true);
+  //     DateTime now = DateTime.now();
+  //     String formattedDate = DateFormat('dd/MM/yyyy').format(now);
+  //     final String filePath = "$folderPath/Orbipay_bill_${billNo}_${formattedDate}.pdf";
+  //     final File file = File(filePath);
+  //     try{
+  //       await file.writeAsBytes(pdfBytes);
+  //     } catch (e) {
+  //       print_log_red("Error generating PDF: $e");
+  //     }
+  //   }
+  // }
+
   /// Launches WhatsApp with a pre-filled message.
-  Future<void> _saveBill(CartProvider cartProvider,BuildContext context) async {
-    final total = cartProvider.total;
-    final wcart = cartProvider.cart;
-    final tableno = (widget.table ?? {"kot":0})['kot'];
-    // final prefs = await SharedPreferences.getInstance();
-    // String businessName = prefs.getString('businessName') ?? 'Hotel Test';
-    // String contactPhone = prefs.getString('contactPhone') ?? '';
-    // String businessAddress = prefs.getString('businessAddress') ?? '';
-    // String _myUpiId = prefs.getString('upi') ?? '';
+Future<void> _saveBill(CartProvider cartProvider, BuildContext context) async {
+  final total = cartProvider.total;
+  final wcart = cartProvider.cart;
+  final tableno = (widget.table ?? {"kot": 0})['kot'];
+  
+  Uint8List? pdfBytes = await printer.generateReceiptPdfToShare(
+    cart1: wcart, 
+    total: total, 
+    billNo: billNo, 
+    transactionData: transaction, 
+    tableno: tableno, 
+    context: context
+  );
 
-    // 1. Generate Image
-    // Uint8List? imageBytes = await printer.generateReceiptImageToShare(cart1: wcart, total: total, billNo: billNo, transactionData: transaction, tableno: tableno);
-    Uint8List? pdfBytes =await printer.generateReceiptPdfToShare( cart1: wcart, total: total, billNo: billNo, transactionData: transaction, tableno: tableno, context: context);
-
-    if(pdfBytes!=null){
-      // 4. Save Logic
-      final String folderPath = AppConstants.folderPath;
-      final directory = Directory(folderPath);
-      if (!await directory.exists()) await directory.create(recursive: true);
+  if (pdfBytes != null) {
+    try {
       DateTime now = DateTime.now();
-
-      // Format it
-      String formattedDate = DateFormat('dd/MM/yyyy').format(now);
-
-      final String filePath = "$folderPath/Orbipay_bill_${billNo}_${formattedDate}.pdf";
-      final File file = File(filePath);
+      // Optional: Show print preview
+      await Printing.layoutPdf(
+        onLayout: (format) async => pdfBytes,
+        name :'Orbipay_bill_${billNo}_${dateformat(now)}.pdf'
+      );
       
-      try{
-        await file.writeAsBytes(pdfBytes);
-      } catch (e) {
-        print_log_red("Error generating PDF: $e");
-      }
+    } catch (e) {
+      print_log_red("Error saving PDF: $e");
     }
   }
-  
+}
 
 
   /// Launches WhatsApp with a pre-filled message.
@@ -1079,6 +1205,7 @@ DateTime getBusinessDate({int cutoffHour = 4}) {
 
   @override
   Widget build(BuildContext context) {
+    final themeProvider = Provider.of<ThemeProvider>(context);
     final cartProvider = context.watch<CartProvider>();
     if(cartProvider.cart.isEmpty && widget.table != null){
       cartProvider.loadCartIfEmpty("table${widget.table!['kot']}");
@@ -1087,7 +1214,8 @@ DateTime getBusinessDate({int cutoffHour = 4}) {
     return Scaffold(
       appBar: AppBar(
         title: const Text("Edit Bill"),
-        backgroundColor: Colors.purple,
+        backgroundColor:themeProvider.primaryColor,
+        foregroundColor: Colors.white,
         actions: [
           IconButton(icon: const Icon(Icons.search), onPressed: () {}),
           IconButton(icon: const Icon(Icons.more_vert), onPressed: () {}),
@@ -1135,7 +1263,21 @@ DateTime getBusinessDate({int cutoffHour = 4}) {
                       ),
                     ],
                   ),
-                  _buildTextFieldNormal("Bill Date",DateFormat('dd/MMM/yyyy').format(getBusinessDate()),),
+                  // 2. The Widget
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: 12),
+                    child: TextFormField(
+                      controller: _dateController,
+                      readOnly: true, // Prevents the keyboard from appearing
+                      onTap: () => _selectDate(context), // Opens the picker on tap
+                      decoration: InputDecoration(
+                        labelText: "Bill Date",
+                        suffixIcon: const Icon(Icons.calendar_today),
+                        border: const OutlineInputBorder(),
+                      ),
+                    ),
+                  ),
+                  // _buildTextFieldNormal("Bill Date",DateFormat('dd/MMM/yyyy').format(getBusinessDate()),),
                   // _buildDropdown("Billing Term"),
                   // _buildTextFieldNormal("Bill Due Date", ""),
                   // _buildTextFieldNormal("Customer/Supplier Name", "Cash Sale"),
@@ -1355,9 +1497,9 @@ DateTime getBusinessDate({int cutoffHour = 4}) {
                               // cartProvider.clearCart();
                               // cartProvider.setCart(result);
                               _calculateSubtotal();
-                              if (widget.table != null){
-                                addtablecart(cartProvider);
-                              }
+                              // if (widget.table != null){
+                              //   addtablecart(cartProvider);
+                              // }
                             }
                           }
                         },
@@ -1399,7 +1541,9 @@ DateTime getBusinessDate({int cutoffHour = 4}) {
             addtablecart:addtablecart,
             isRetail:isRetail,
             ordertype:ordertype,
-            printer:printer
+            printer:printer,
+            modificationsList:_modificationsList,
+            initialTotal: initialTotal,
           );
         }
       ),
@@ -1602,6 +1746,9 @@ class _BottomBar extends StatefulWidget {
   final bool isRetail;
   final String ordertype;
   final BillPrinter printer;
+  final List<ModificationRecord> modificationsList;
+  final int initialTotal;
+
 
 
   const _BottomBar({
@@ -1626,6 +1773,8 @@ class _BottomBar extends StatefulWidget {
     required this.isRetail,
     required this.ordertype,
     required this.printer,
+    required this.modificationsList,
+    required this.initialTotal,
   });
 
   @override
@@ -1647,6 +1796,8 @@ class __BottomBarState extends State<_BottomBar> {
   // final _telephonySMS = TelephonySMS();
   int totalItems = 0;
   late bool isprintenBillEnable = false;
+  int _initialTotal = 0;
+  List<ModificationRecord> _modificationsList = [];
   
   
   @override
@@ -1658,6 +1809,8 @@ class __BottomBarState extends State<_BottomBar> {
     _customermobile = widget.mobileNo ?? "";
     _cusomername = widget.name ?? "";
     _customeradd = widget.adreess ?? "";
+    _modificationsList= widget.modificationsList;
+    _initialTotal = widget.initialTotal; // Remove ?? 0
     print_log("orderType Controller text set to:- $_orderType  / ${widget.ordertype} _customermobile _cusomername _customeradd $_customermobile $_cusomername $_customeradd");
     if(mounted){
        _store = Provider.of<ObjectBoxService>(context, listen: false).store;
@@ -1691,7 +1844,21 @@ class __BottomBarState extends State<_BottomBar> {
         _cusomername = widget.name ?? "";
         _customeradd = widget.adreess?? "";
       });
-      print_log("Bottom _orderType updated via parent to:- ${_cusomername} $_customermobile $_customeradd");
+      print_log("Bottom _orderType updated via parent to:- ${_cusomername} $_customermobile $_customeradd $_initialTotal $_modificationsList");
+    }
+    
+    // IMPORTANT: Update initialTotal when it changes
+    if (widget.initialTotal != oldWidget.initialTotal) {
+      setState(() {
+        _initialTotal = widget.initialTotal;
+        print_log("BottomBar didUpdateWidget - initialTotal updated to: $_initialTotal");
+      });
+    }
+    
+    if (widget.modificationsList != oldWidget.modificationsList) {
+      setState(() {
+        _modificationsList = widget.modificationsList;
+      });
     }
     if(widget.printer != oldWidget.printer){
       setState(() {
@@ -1701,6 +1868,171 @@ class __BottomBarState extends State<_BottomBar> {
   }
   // ---------------------------------------------------
 
+  String _buildCartChangeDetailsCompact(List<Map<String, dynamic>> oldCart,List<Map<String, dynamic>> newCart,CartProvider cartProvider) {
+    StringBuffer details = StringBuffer();
+    
+    // Create maps for comparison
+    Map<String, Map<String, dynamic>> oldMap = {};
+    for (var item in oldCart) {
+      String key = "${item['id']}-${item['portion']}";
+      oldMap[key] = item;
+    }
+    
+    Map<String, Map<String, dynamic>> newMap = {};
+    for (var item in newCart) {
+      String key = "${item['id']}-${item['portion']}";
+      newMap[key] = item;
+    }
+    
+    List<String> removedList = [];
+    List<String> addedList = [];
+    List<String> modifiedList = [];
+    
+    // Find removed items
+    for (String key in oldMap.keys) {
+      if (!newMap.containsKey(key)) {
+        var item = oldMap[key]!;
+        removedList.add("${item['name']} (${item['qty']} ${item['portion']})");
+      }
+    }
+    
+    // Find added items
+    for (String key in newMap.keys) {
+      if (!oldMap.containsKey(key)) {
+        var item = newMap[key]!;
+        addedList.add("${item['name']} (${item['qty']} ${item['portion']}) @ ₹${item['sellPrice']}");
+      }
+    }
+    
+    // Find modified items
+    for (String key in oldMap.keys) {
+      if (newMap.containsKey(key)) {
+        var oldItem = oldMap[key]!;
+        var newItem = newMap[key]!;
+        
+        if (oldItem['qty'] != newItem['qty']) {
+          modifiedList.add("${newItem['name']} (${newItem['portion']}): ${oldItem['qty']} → ${newItem['qty']}");
+        }
+      }
+    }
+    
+    // Build compact string
+    if (removedList.isNotEmpty) {
+      details.writeln("Removed: ${removedList.join(', ')}");
+    }
+    
+    if (addedList.isNotEmpty) {
+      if (details.isNotEmpty) details.writeln();
+      details.writeln("Added: ${addedList.join(', ')}");
+    }
+    
+    if (modifiedList.isNotEmpty) {
+      if (details.isNotEmpty) details.writeln();
+      details.writeln("Modified: ${modifiedList.join(', ')}");
+    }
+    
+    if (_initialTotal != cartProvider!.total) {
+      if (details.isNotEmpty) details.writeln();
+      details.writeln("Total: ₹$_initialTotal → ₹${cartProvider.total}");
+    }
+    
+    return details.toString();
+  }
+
+
+  Future<void> _createModificationRecords(CartProvider cartProvider, String reason,String status) async {
+    final prefs = await SharedPreferences.getInstance();
+    final contactNameController = prefs.getString('contactName') ?? "User";
+    
+    // Get original cart from stored value
+    final List<Map<String, dynamic>> originalCart = widget.existingcart;
+    final List<Map<String, dynamic>> currentCart = cartProvider.cart;
+    // print_log("old $originalCart and new $currentCart");
+    
+    // Build detailed change description
+    String changeDetails = _buildCartChangeDetailsCompact(originalCart, currentCart,cartProvider);
+
+    // Create the full description
+    String fullDescription = """
+    $changeDetails
+    $status Reason: $reason
+    """;
+    
+    ModificationRecord newRecord = ModificationRecord(
+      timestamp: DateTime.now(),
+      description: fullDescription.trim(),
+      fieldChanged: "cart_and_total",
+      oldValue: _initialTotal,
+      newValue: cartProvider.total,
+      changedBy: contactNameController,
+    );
+    
+    setState(() {
+      _modificationsList.add(newRecord);
+    });
+    
+    print_log("Created modification record: ${newRecord.toMap()}");
+  }
+
+  Future<String?> _showModificationReasonDialog(String status) async {
+    TextEditingController reasonController = TextEditingController();
+    
+    return showDialog<String>(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) {
+        return AlertDialog(
+          title: Text("Bill Modification"),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                "Changes detected: $status",
+                style: TextStyle(fontWeight: FontWeight.bold),
+              ),
+              SizedBox(height: 16),
+              Text(
+                "Reason for modification:",
+                style: TextStyle(fontWeight: FontWeight.bold),
+              ),
+              SizedBox(height: 8),
+              TextField(
+                controller: reasonController,
+                decoration: InputDecoration(
+                  hintText: "Enter reason (e.g., customer request, wrong item, price correction)",
+                  border: OutlineInputBorder(),
+                ),
+                maxLines: 3,
+                autofocus: true,
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () {
+                Navigator.pop(context, null);
+              },
+              child: Text("Cancel"),
+            ),
+            ElevatedButton(
+              onPressed: () {
+                if (reasonController.text.trim().isEmpty) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text("Please enter a reason")),
+                  );
+                  return;
+                }
+                _createModificationRecords(widget.cartProvider!, reasonController.text.trim(),status);
+                Navigator.pop(context, reasonController.text.trim());
+              },
+              child: Text("Save"),
+            ),
+          ],
+        );
+      },
+    );
+  }
 
   void loadordertype() async{
     final prefs = await SharedPreferences.getInstance();
@@ -1871,13 +2203,13 @@ class __BottomBarState extends State<_BottomBar> {
     );
   }
 
-  List<Map<String, dynamic>> getNewKotItems({
+  Map<String, dynamic> getNewKotItems({
     required List<Map<String, dynamic>> oldCart,
     required List<Map<String, dynamic>> newCart,
   }) {
     
     final List<Map<String, dynamic>> kotItems = [];
-
+    bool p1 = false;
     // 1. Create a Map of the old cart for fast lookup.
     // The key is a unique identifier: "id-portion"
     // The value is the quantity.
@@ -1886,16 +2218,16 @@ class __BottomBarState extends State<_BottomBar> {
       String key = "${item['id']}-${item['portion']}";
       oldCartMap[key] = item['qty'] as int;
     }
-    // //debugPrint("oldCartMap.containsKey(key) ${oldCart}");
+    // debugPrint("cart for KOT ${oldCart}");
     // //debugPrint("oldCartMap.containsKey(key) ${newCart}");
     // 2. Loop through the new cart and compare against the old map.
     for (var newItem in newCart) {
       String key = "${newItem['id']}-${newItem['portion']}";
       int newQty = newItem['qty'] as int;
-      
       if (oldCartMap.containsKey(key)) {
         // Item existed before. Check if quantity increased.
         int oldQty = oldCartMap[key]!;
+        
         // //debugPrint("oldCartMap.containsKey(key) $newQty > $oldQty ${newQty > oldQty}");
         if (newQty > oldQty) {
           // Quantity increased. Send the difference to the KOT.
@@ -1912,17 +2244,23 @@ class __BottomBarState extends State<_BottomBar> {
           kotItem['total'] = (double.tryParse(kotItem['sellPrice'].toString()) ?? 0.0) * qtyToSend;
           // //debugPrint("oldCartMap.containsKey(key) ${kotItem}");
           kotItems.add(kotItem);
+          p1 = true;
         }
-        // If newQty <= oldQty, do nothing (item was not added or was removed)
-        
       } else {
         // This is a brand new item (key didn't exist in old map).
         // Add the full item as-is.
         kotItems.add(Map.from(newItem));
       }
     }
-
-    return (kotItems.isEmpty) ? oldCart : kotItems;
+    bool p = false;
+    // print_log("cart for KOT ${oldCart.isNotEmpty} ${!p1} ");
+    if(oldCart.isNotEmpty && !p1){
+      p = true;
+    }
+    final finalCart = (kotItems.isEmpty) ? oldCart : kotItems;
+    final data = {"cart": finalCart, 'print':  p};
+    // print_log("cart for KOT $data");
+    return data;
   }
 
   udhariCustomer _findOrCreateCustomer(Box<udhariCustomer> customerBox, String name, String phone,String adreess) {
@@ -2076,6 +2414,8 @@ class __BottomBarState extends State<_BottomBar> {
   
   Future<void> _sendFcmNotification(
     List<Map<String, dynamic>> cartItems,
+     List<Map<String, dynamic>> saveData,
+     bool isprint,
   ) async {
     try {
       // // Generate order ID
@@ -2097,7 +2437,7 @@ class __BottomBarState extends State<_BottomBar> {
       final hotelname = prefs.getString("username") ?? '';
 
       if (hotelname == '') {
-        //debugPrint("Fail to sent ");
+        debugPrint("Fail to sent ");
         return;
       }
 
@@ -2117,18 +2457,21 @@ class __BottomBarState extends State<_BottomBar> {
           "sender_device": deviceId, // 🔥 ADD sender device ID
           "captain_name": captain_name,
           "type": order_tpe,
+          "isprint":isprint,
         };
       }).toList();
 
+      Map<String, dynamic> updatedreplaceCart = {"$tableName": saveData };
       // Prepare the request data
       Map<String, dynamic> requestData = {
         "hotel": getHotelIdentifier(hotelname),
         "data": {
           "printData": json.encode(updatedCart), // Convert cart items to JSON string
+          "replaceData":json.encode(updatedreplaceCart),
         },
       };
 
-      //debugPrint("Sending FCM notification: ${json.encode(requestData)}");
+      print_log("Sending FCM notification: ${json.encode(requestData)}");
 
       // Make API call
       final response = await apiCalls('s',hotelname,requestData);
@@ -2188,7 +2531,10 @@ class __BottomBarState extends State<_BottomBar> {
     final transactiondata = widget.transaction;
     final bool _forudhari = (!_isChecked && ( (_customermobile).isEmpty || (_cusomername).isEmpty));
     //debugPrint("!_isChecked $_forudhari ${!_isChecked}-${(_customermobile.isEmpty)}-${(_cusomername.isEmpty)}");
-
+    // Add null safety checks for transactiondata
+    if (transactiondata == null) {
+      return Container(); // Or return a loading indicator
+    }
 
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 1, vertical: 8),
@@ -2358,29 +2704,52 @@ class __BottomBarState extends State<_BottomBar> {
                                 ),
                                 // ✅ 1. Disable the button when printing
                                 onPressed: _isPrinting ? null : () async {
-                                  List<Map<String, dynamic>> newItemsForKot = getNewKotItems(oldCart: widget.existingcart,newCart: widget.cart,);
+                                  Map<String, dynamic> newcartdata = getNewKotItems(oldCart: widget.existingcart,newCart: widget.cart,);
+                                  List<Map<String, dynamic>> newItemsForKot = newcartdata['cart'];
+                                  final prefs = await SharedPreferences.getInstance();
+                                  
+                                  
                                   // Map<String, dynamic> editbillMap = {'ordertype':_orderType};
                                   transactiondata['orderType'] = _orderType;
                                   
                                   setState(() {
                                     _isPrinting = true;
                                   });
+                                  final bool modifyHistory = prefs.getBool('modifyHistory') ?? false;
+                                  print_log("modificationsHistory in edit bill ${_initialTotal} ${total.toInt()} ${(transactiondata['payment_mode'])}");
+                                  if(_initialTotal > total.toInt() && modifyHistory){
+                                    final save_data = await _showModificationReasonDialog("kot");
+                                    if(save_data == null){
+                                      setState(() {
+                                      _isPrinting = false;
+                                    });
+                                      return;
+                                    }else{
+                                      transactiondata['modificationsHistory'] = jsonEncode(_modificationsList.map((m) => m.toMap()).toList());
+                                    }
+                                  }
 
 
                                   try {
                                     // Get user role from SharedPreferences
-                                    final prefs =
-                                        await SharedPreferences.getInstance();
+                                    
                                     final role = prefs.getString('role');
 
                                     // If role is captain, send FCM notification
                                     if (role == 'captain') {
-                                      await _sendFcmNotification(newItemsForKot);
+                                      bool print = newcartdata['print'];
+                                      print_log("save cart to the table newItemsForKot ${newItemsForKot}");
+                                      await _sendFcmNotification(newItemsForKot,widget.cart,print);
+                                      print_log("save cart to the table transection ${tableno}");
+                                      widget.addtablecart(widget.cartProvider);
                                       Navigator.of(context).pop(context);
                                       
                                     } else {
                                      if( tableno > 0){
                                         //debugPrint("PrinterCart ${tableno} and transactiondata ${transactiondata} newItemsForKot $newItemsForKot");
+                                        print_log("save cart to the table transection ${tableno}");
+                                        widget.addtablecart(widget.cartProvider);
+                                        Navigator.of(context).pop(context);
                                         await printer.printCart(
                                           context: context,
                                           cart1: newItemsForKot,
@@ -2390,11 +2759,7 @@ class __BottomBarState extends State<_BottomBar> {
                                           payment_mode: "CASH",
                                           transactionData : transactiondata,
                                           tableNo: tableno
-                                        ).then((value) async {
-                                            //debugPrint("PrinterCart ${tableno}");
-                                            widget.addtablecart(widget.cartProvider);
-                                            Navigator.of(context).pop(context);
-                                        });
+                                        );
                                       } else{
                                         //debugPrint("PrinterCart ${widget.cart} and transactiondata ${transactiondata} ${transactiondata['id']}");
                                         await printer.printCart(
@@ -2457,10 +2822,30 @@ class __BottomBarState extends State<_BottomBar> {
                                   setState(() {
                                     _isPrinting = true;
                                   });
+                                  final prefs = await SharedPreferences.getInstance();
+                                  
+                                  
+                                  final bool modifyHistory = prefs.getBool('modifyHistory') ?? false;
+                                  print_log("modificationsHistory in edit bill ${_initialTotal} ${total.toInt()} ${(transactiondata['payment_mode'])}");
+                                  if(_initialTotal > total.toInt() && modifyHistory){
+                                    final save_data = await _showModificationReasonDialog('Print');
+                                    if(save_data == null){
+                                      setState(() {
+                                      _isPrinting = false;
+                                    });
+                                      return;
+                                    }else{
+                                      // Convert the modifications list to JSON string
+                                      transactiondata['modificationsHistory'] = jsonEncode(_modificationsList.map((m) => m.toMap()).toList());
+                                    }
+                                  }
+
+
+
                                   print_log("goint to print data");
                                   // Map<String, dynamic> editbillMap = {'ordertype':_orderType};
                                   transactiondata['orderType'] = _orderType;
-                                  final prefs = await SharedPreferences.getInstance();
+                                  
                                   //debugPrint(" ${tableno} PrinterCart ${widget.cart} and transactiondata ${transactiondata} ${transactiondata['id']}");
                                   try {
                                     if(tableno > 0){
@@ -2520,7 +2905,6 @@ class __BottomBarState extends State<_BottomBar> {
                                     ConnectionState.waiting) {
                                   return const SizedBox.shrink();
                                 }
-
                                 final role = snapshot.data;
                                 if (role == 'captain') {
                                   return const SizedBox.shrink();
@@ -2550,10 +2934,7 @@ class __BottomBarState extends State<_BottomBar> {
                                   backgroundColor: Colors.blue,
                                   padding: const EdgeInsets.symmetric(vertical: 14),
                                 ),
-                                // ✅ 1. Disable the button when printing
                                 onPressed: _isPrinting ? null : () async {
-                                  // ✅ 2. Start the loading indicator
-                                  
                                   setState(() {
                                     _isPrinting = true;
                                   });
@@ -2569,17 +2950,30 @@ class __BottomBarState extends State<_BottomBar> {
                                   //   );
                                   //   return;
                                   // }
+                                  final bool modifyHistory = prefs.getBool('modifyHistory') ?? false;
+                                  print_log("modificationsHistory in edit bill ${_initialTotal} ${total.toInt()}");
+                                  if(_initialTotal > total.toInt() && modifyHistory){
+                                    final save_data = await _showModificationReasonDialog('Settle');
+                                    if(save_data == null){
+                                      setState(() {
+                                      _isPrinting = false;
+                                    });
+                                      return;
+                                    }else{
+                                      transactiondata['modificationsHistory'] = jsonEncode(_modificationsList.map((m) => m.toMap()).toList());
+                                    }
+                                  }
 
                                   if(_forudhari){
                                     ScaffoldMessenger.of(context).showSnackBar(
                                       SnackBar(
                                         content: Text("Customer Name and Mobile No is Required"),
-                                        // backgroundColor: Colors.red,
                                         duration: Duration(seconds: 1),
                                       ),
                                     );
                                     return;
                                   }
+                                  
                                   // Map<String, dynamic> editbillMap = {'ordertype':_orderType};
                                   transactiondata['orderType'] = _orderType;
                                   try {
@@ -2605,39 +2999,29 @@ class __BottomBarState extends State<_BottomBar> {
                                     final _pdf = prefs.getBool('pdf') ?? false;
                                     if(_pdf){
                                       final pdfBytes = await printer.generateReceiptPdfToShare( cart1: widget.cart, total: total.toInt(), billNo: transactiondata['billNo'], transactionData: transactiondata, tableno: tableno, context: context);
-                                      if(pdfBytes!=null){
-                                        // 4. Save Logic
-                                        final String folderPath = "${AppConstants.folderPath}/Bills";
-                                        final directory = Directory(folderPath);
-                                        if (!await directory.exists()) await directory.create(recursive: true);
-                                        DateTime now = DateTime.now();
-
-                                        // Format it
-                                        String formattedDate = DateFormat('dd-MM-yyyy').format(now);
-
-                                        final String filePath = "$folderPath/Orbipay_bill_${new_billNo}_${formattedDate}.pdf";
-                                        final File file = File(filePath);
-                                        
-                                        try{
-                                          await file.writeAsBytes(pdfBytes);
+                                      if (pdfBytes != null) {
+                                        try {
+                                          DateTime now = DateTime.now();
+                                          // Optional: Show print preview
+                                          await Printing.layoutPdf(
+                                            onLayout: (format) async => pdfBytes,
+                                            name :'Orbipay_bill_${transactiondata['billNo']}_${dateformat(now)}.pdf'
+                                          );
+                                          
                                         } catch (e) {
-                                          print_log_red("Error generating PDF: $e");
+                                          print_log_red("Error saving PDF: $e");
                                         }
                                       }
                                     }
 
                                     if(widget.cartProvider != null){
-                                      // final cartProvider = Provider.of<CartProvider>(context, listen: false);
                                       String billDetails = await _createBillString(widget.cartProvider!);  
-                                      // print_log("massage going to send sms --${_customermobile}--");
                                       _sendTransactionSms(_customermobile, total.toStringAsFixed(0), recivedamount.toStringAsFixed(0), (total - recivedamount).toStringAsFixed(0),billDetails);
                                     }
 
-                                    // //debugPrint("Transaction Data to be sent: transactiondata ${transactiondata}-${widget.mobileNo} $recivedamount $subtotal + $serviceCharge - $discount ${widget.subtotalNotifier.value} ${widget.serviceChargeNotifier.value} ${widget.discountNotifier.value}");
-                                    // //debugPrint("!_isChecked going to udhari${!_forudhari} ${!_isChecked}-${(_customermobile)}-${(_cusomername)}");
                                     if (paymentMode != null && (widget.cart).isNotEmpty) {
                                       if(tableno > 0){
-                                        //debugPrint("PrinterCart ${tableno} and transactiondata ${transactiondata}");
+                                        print_log("PrinterCart ${tableno} and transactiondata ${transactiondata}");
                                         await printer.printCart(
                                           context: context,
                                           cart1: widget.cart,
@@ -2649,7 +3033,7 @@ class __BottomBarState extends State<_BottomBar> {
                                         );
                                         _sendsettleFcmNotification(tableno.toString());
                                       } else{
-                                        // //debugPrint("PrinterCart ${widget.cart} and transaction ${transactiondata}");
+                                        print_log("PrinterCart ${widget.cart} and transaction ${transactiondata}");
                                         await printer.printCart(
                                           context: context,
                                           cart1: widget.cart,
@@ -2665,9 +3049,7 @@ class __BottomBarState extends State<_BottomBar> {
                                     }
 
                                     if(!_isChecked){
-                                      // //debugPrint("!_isChecked going to udhari${!_forudhari} ${!_isChecked}-${(_customermobile.isEmpty)}-${(_cusomername.isEmpty)}");
                                       String descriptionController = "Bill No- ${widget.billno} on date- ${DateTime.now()}";
-                                      // //debugPrint("currentCustomer $descriptionController");
                                       saveEntry(widget.name ?? "" , widget.mobileNo ?? "" ,widget.adreess ?? "", (total - recivedamount).toStringAsFixed(0), descriptionController);
                                     }
                                     
@@ -2741,12 +3123,24 @@ class __BottomBarState extends State<_BottomBar> {
                                     setState(() {
                                       _isPrinting = true;
                                     });
-                                    // Map<String, dynamic> editbillMap = {'ordertype':_orderType};
-                                    // transactiondata['orderType'] = _orderType;
+                                    final prefs = await SharedPreferences.getInstance();
+                                    final bool modifyHistory = prefs.getBool('modifyHistory') ?? false;
+
+                                    print_log("modificationsHistory in edit bill ${_initialTotal} ${total.toInt()}");
+                                  if(_initialTotal > total.toInt() && modifyHistory){
+                                    final save_data = await _showModificationReasonDialog('Settle');
+                                    if(save_data == null){
+                                      setState(() {
+                                      _isPrinting = false;
+                                    });
+                                      return;
+                                    }else{
+                                      transactiondata['modificationsHistory'] = jsonEncode(_modificationsList.map((m) => m.toMap()).toList());
+                                    }
+                                  }
 
                                     try {
                                     if(tableno > 0){
-
                                         widget.addtablecart(widget.cartProvider);
                                         Navigator.of(context).pop(context);
                                       }

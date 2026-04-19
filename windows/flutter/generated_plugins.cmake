@@ -7,12 +7,14 @@ list(APPEND FLUTTER_PLUGIN_LIST
   file_selector_windows
   firebase_core
   flutter_blue_plus_winrt
+  flutter_inappwebview_windows
   flutter_secure_storage_windows
   objectbox_flutter_libs
   permission_handler_windows
   printing
   share_plus
   url_launcher_windows
+  windows_printer
 )
 
 list(APPEND FLUTTER_FFI_PLUGIN_LIST

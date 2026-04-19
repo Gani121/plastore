@@ -6,6 +6,7 @@ import 'package:pdf/widgets.dart' as pw;
 import 'package:path_provider/path_provider.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:share_plus/share_plus.dart';
+import 'package:test1/utilities.dart';
 
 class PdfBillService {
   static const String appFolderName = 'orbipay';
@@ -325,7 +326,7 @@ class PdfBillService {
         }
       }
     } catch (e) {
-      print('Error saving PDF: $e');
+      print_log_red('Error saving PDF: $e');
     }
     return null;
   }
@@ -358,7 +359,7 @@ class PdfBillService {
       // You can also use the existing whatsapp_share_plus package if already configured
       
     } catch (e) {
-      print('Error sharing PDF via WhatsApp: $e');
+      print_log_red('Error sharing PDF via WhatsApp: $e');
       rethrow;
     }
   }
@@ -407,7 +408,7 @@ class PdfBillService {
 
       return savedPath;
     } catch (e) {
-      print('Error generating/saving PDF: $e');
+      print_log_red('Error generating/saving PDF: $e');
       return null;
     }
   }

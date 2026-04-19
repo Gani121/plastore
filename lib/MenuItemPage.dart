@@ -207,12 +207,12 @@ void _loadEditModeCartData() {
 }
 
   void _loadCartData() {
-    print("cartProvider.cart ${widget.cart1}");
+    print_log("cartProvider.cart ${widget.cart1}");
     final cartProvider = Provider.of<CartProvider>(context, listen: false);
     if (cartProvider.cart.isEmpty){
       cartProvider.setCart(widget.cart1 ?? []);
     }
-    print("cartProvider.cart ${cartProvider.cart}");
+    print_log("cartProvider.cart ${cartProvider.cart}");
     for (var cartItem in cartProvider.cart) {
       final itemName = cartItem['name']?.toString() ?? '';
       final quantity = cartItem['qty'] is int 
@@ -505,7 +505,7 @@ void _loadEditModeCartData() {
                 double.tryParse(rawPrice.toString())?.toInt() ??
                 0;
 
-      print("DEBUG => qty=$qty, sellPrice=$sellPrice"); // Check values
+      print_log("DEBUG => qty=$qty, sellPrice=$sellPrice"); // Check values
 
       total += qty * sellPrice;
     }
@@ -548,7 +548,7 @@ void _loadEditModeCartData() {
   }
 
     void _showPreviewAndPrint() {
-    print(" in the _showPreviewAndPrint");
+    print_log(" in the _showPreviewAndPrint");
   
     showModalBottomSheet(
       context: context,

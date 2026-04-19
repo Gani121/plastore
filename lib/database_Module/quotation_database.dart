@@ -1,4 +1,3 @@
-// lib/quotation/quotation_database.dart
 import 'package:objectbox/objectbox.dart';
 import 'dart:convert';
 
@@ -6,8 +5,10 @@ import 'dart:convert';
 class QuotationEntity {
   @Id()
   int id = 0;
-    int syid;
+  
+  int syid;
   bool synced;
+  
   @Property(type: PropertyType.date)
   DateTime createdAt = DateTime.now();
   
@@ -33,8 +34,8 @@ class QuotationEntity {
   DateTime? eventDate;
 
   QuotationEntity({
+    required this.syid,
     required this.quotationData,
-        required this.syid,
     this.synced = false,
     this.pdfPath,
     this.signaturePath,
@@ -47,8 +48,6 @@ class QuotationEntity {
     // Parse quotation data to extract indexed fields
     try {
       final Map<String, dynamic> data = jsonDecode(quotationData);
-      this.syid = syid;
-      this.synced = synced;
       this.quotationNumber = quotationNumber ?? data['quotationNumber'] ?? '';
       this.partyName = partyName ?? data['partyName'] ?? '';
       this.statusIndex = statusIndex ?? data['status'] ?? 0;
@@ -65,5 +64,27 @@ class QuotationEntity {
       this.statusIndex = statusIndex ?? 0;
       this.quotationDate = quotationDate ?? DateTime.now();
     }
+  }
+
+  QuotationEntity copy({
+    int? syid,
+    String? quotationData,
+    String? signaturePath,
+    String? quotationNumber,
+    String? partyName,
+    int? statusIndex,
+    DateTime? quotationDate,
+    DateTime? eventDate,
+  }) {
+    return QuotationEntity(
+      syid: syid ?? this.syid,
+      quotationData: quotationData ?? this.quotationData,
+      signaturePath: signaturePath ?? this.signaturePath,
+      quotationNumber: quotationNumber ?? this.quotationNumber,
+      partyName: partyName ?? this.partyName,
+      statusIndex: statusIndex ?? this.statusIndex,
+      quotationDate: quotationDate ?? this.quotationDate,
+      eventDate: eventDate ?? this.eventDate,
+    );
   }
 }

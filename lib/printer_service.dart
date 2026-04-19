@@ -5,8 +5,8 @@ import 'package:test1/utilities.dart';
 
 /// PrinterService - Complete implementation of all printer methods
 class PrinterService {
-  static const MethodChannel _channel = MethodChannel('com.orbipay.test6/printer');
-  static const EventChannel _eventChannel = EventChannel('com.orbipay.test6/printer_events');
+  static const MethodChannel _channel = MethodChannel('com.orbipay.test8/printer');
+  static const EventChannel _eventChannel = EventChannel('com.orbipay.test8/printer_events');
   
   // Connection type constants
   static const int CONN_TYPE_BT = 1;

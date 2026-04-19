@@ -18,6 +18,7 @@ import 'purchase_order_model.dart';
 import 'purchase_order_pdf.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:path/path.dart' as p;
+import 'package:test1/theme_setting/theme_provider.dart';
 
 class AddEditPurchaseOrderPage extends StatefulWidget {
   final PurchaseOrder? order;
@@ -66,6 +67,9 @@ class _AddEditPurchaseOrderPageState extends State<AddEditPurchaseOrderPage> {
   double _discountAmount = 0;
   double _shippingAmount = 0;
   double _total = 0;
+  // Add these variables in your state class
+  double _totalDiscountAmount = 0;
+  double _totalTaxAmount = 0;
   
   // Data lists
   List<Supplier> _suppliers = [];
@@ -110,7 +114,7 @@ class _AddEditPurchaseOrderPageState extends State<AddEditPurchaseOrderPage> {
         _loadInventoryItems(),
       ]);
     } catch (e) {
-      print('Error loading data: $e');
+      print_log('Error loading data: $e');
     } finally {
       setState(() => _isLoading = false);
     }
@@ -171,11 +175,18 @@ class _AddEditPurchaseOrderPageState extends State<AddEditPurchaseOrderPage> {
     _orderNumberController.text = 'PO-${DateFormat('yyyyMM').format(DateTime.now())}-$counter';
   }
 
-  void _calculateTotals() {
-    _subtotal = _items.fold(0, (sum, item) => sum + item.total);
-    _total = _subtotal + _taxAmount + _shippingAmount - _discountAmount;
-    setState(() {});
-  }
+// Update the _calculateTotals method
+void _calculateTotals() {
+  _subtotal = _items.fold(0, (sum, item) => sum + item.subtotal);
+  _totalDiscountAmount = _items.fold(0, (sum, item) => sum + item.discountAmount);
+  _totalTaxAmount = _items.fold(0, (sum, item) => sum + item.taxAmount);
+  
+  // Calculate totals
+  _subtotal = _items.fold(0, (sum, item) => sum + item.subtotal);
+  _total = _subtotal - _totalDiscountAmount + _totalTaxAmount + _shippingAmount;
+  
+  setState(() {});
+}
 
   Future<void> _selectSupplier(Supplier supplier) async {
     setState(() {
@@ -208,99 +219,101 @@ class _AddEditPurchaseOrderPageState extends State<AddEditPurchaseOrderPage> {
     return [...menuItems, ...inventoryItems];
   }
 
+void _showAddItemDialog() {
+  _itemNameController.clear();
+  _itemQtyController.clear();
+  _itemUnitPriceController.clear();
+  _itemDiscountController.clear();
+  _itemTaxController.clear();
+  _itemDescController.clear();
+  _unitController.clear();
 
+  String _selectedUnit = "Nos";
+  bool _isManualEntry = false;
+  final TextEditingController _searchController = TextEditingController();
 
-  void _showAddItemDialog() {
-    _itemNameController.clear();
-    _itemQtyController.clear();
-    _itemUnitPriceController.clear();
-    _itemDiscountController.clear();
-    _itemTaxController.clear();
-    _itemDescController.clear();
-    _unitController.clear();
+  showDialog(
+    context: context,
+    builder: (context) => StatefulBuilder(
+      builder: (context, setDialogState) {
+        // Calculate preview values
+        double qty = 0;
+        double price = 0;
+        double discount = 0;
+        double tax = 0;
+        
+        try {
+          qty = double.tryParse(_itemQtyController.text) ?? 0;
+          price = double.tryParse(_itemUnitPriceController.text) ?? 0;
+          discount = double.tryParse(_itemDiscountController.text) ?? 0;
+          tax = double.tryParse(_itemTaxController.text) ?? 0;
+        } catch (e) {}
+        
+        final subtotal = qty * price;
+        final discountAmount = subtotal * discount / 100;
+        final taxAmount = subtotal * tax / 100;
+        final total = subtotal - discountAmount + taxAmount;
+        
+        return AlertDialog(
+          title: const Text('Add Item'),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                SegmentedButton<String>(
+                  segments: const [
+                    ButtonSegment(value: 'autocomplete', label: Text('Search')),
+                    ButtonSegment(value: 'manual', label: Text('Manual')),
+                  ],
+                  selected: {_isManualEntry ? 'manual' : 'autocomplete'},
+                  onSelectionChanged: (Set<String> selection) {
+                    setDialogState(() {
+                      _isManualEntry = selection.first == 'manual';
+                      _itemNameController.clear();
+                      _itemUnitPriceController.clear();
+                    });
+                  },
+                ),
+                const SizedBox(height: 16),
 
-    String _initialValue = "Nos";
-
-    showDialog(
-      context: context,
-      builder: (context) => StatefulBuilder(
-        builder: (context, setDialogState) {
-          return AlertDialog(
-            title: const Text('Add Item'),
-            content: SingleChildScrollView(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  // Item Type Selection
-                  const Text('Select from:', style: TextStyle(fontWeight: FontWeight.bold)),
-                  const SizedBox(height: 8),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: ElevatedButton(
-                          onPressed: () => _showMenuItemsDialog(setDialogState),
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: Colors.orange.shade50,
-                            foregroundColor: Colors.orange.shade800,
-                          ),
-                          child: const Text('Menu Items'),
-                        ),
-                      ),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: ElevatedButton(
-                          onPressed: () => _showInventoryItemsDialog(setDialogState),
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: Colors.green.shade50,
-                            foregroundColor: Colors.green.shade800,
-                          ),
-                          child: const Text('Inventory'),
-                        ),
-                      ),
-                    ],
-                  ),
-                  
-                  const Divider(height: 24),
-                  
-                  // Manual Entry
+                // ITEM NAME / SEARCH SECTION
+                if (!_isManualEntry)
                   RawAutocomplete<ItemSuggestion>(
                     optionsBuilder: (TextEditingValue value) {
                       if (value.text.isEmpty) return const Iterable<ItemSuggestion>.empty();
-
                       return _allItemSuggestions.where((item) =>
-                        item.name.toLowerCase().contains(value.text.toLowerCase())
-                      );
+                          item.name.toLowerCase().contains(value.text.toLowerCase()));
                     },
-
                     displayStringForOption: (option) => option.name,
-
                     fieldViewBuilder: (context, controller, focusNode, onSubmitted) {
                       return TextFormField(
                         controller: controller,
                         focusNode: focusNode,
                         decoration: const InputDecoration(
-                          labelText: 'Item Name *',
+                          labelText: 'Search Item Name *',
                           border: OutlineInputBorder(),
+                          prefixIcon: Icon(Icons.search),
                         ),
-                        validator: (v) => (v == null || v.isEmpty) ? 'Required' : null,
                       );
                     },
-
                     optionsViewBuilder: (context, onSelected, options) {
                       return Align(
                         alignment: Alignment.topLeft,
                         child: Material(
                           elevation: 4,
                           child: SizedBox(
+                            width: 300,
                             height: 200,
                             child: ListView.builder(
+                              padding: EdgeInsets.zero,
+                              shrinkWrap: true,
                               itemCount: options.length,
-                              itemBuilder: (context, i) {
-                                final item = options.elementAt(i);
+                              itemBuilder: (BuildContext context, int index) {
+                                final option = options.elementAt(index);
                                 return ListTile(
-                                  title: Text(item.name),
-                                  subtitle: Text(item.source),
-                                  onTap: () => onSelected(item),
+                                  title: Text(option.name),
+                                  subtitle: Text("Price: ₹${option.price.toStringAsFixed(2)} | GST: ${option.gstRate}%"),
+                                  onTap: () => onSelected(option),
                                 );
                               },
                             ),
@@ -308,164 +321,234 @@ class _AddEditPurchaseOrderPageState extends State<AddEditPurchaseOrderPage> {
                         ),
                       );
                     },
-
                     onSelected: (item) {
-                      _itemNameController.text = item.name;
-                      _itemUnitPriceController.text = item.price.toString();
-                      _itemTaxController.text = item.gstRate.toString();
-                      if(mounted){
-                        setDialogState(() {
-                          _initialValue = item.unit;  // <-- update state
-                          _unitController.text = item.unit;
-                        });
-                      }
+                      setDialogState(() {
+                        _itemNameController.text = item.name;
+                        _itemUnitPriceController.text = item.price.toString();
+                        _itemTaxController.text = item.gstRate.toString();
+                        _selectedUnit = item.unit;
+                        _unitController.text = item.unit;
+                      });
                     },
-                  ),
-                  const SizedBox(height: 12),
-                  
-                  Row(
-                    children: [
-                      Expanded(
-                        child: TextFormField(
-                          controller: _itemQtyController,
-                          decoration: const InputDecoration(
-                            labelText: 'Quantity *',
-                            border: OutlineInputBorder(),
-                          ),
-                          keyboardType: TextInputType.number,
-                        ),
-                      ),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: DropdownButtonFormField<String>(
-                          initialValue : _initialValue,
-                          isExpanded: true,
-                          decoration: const InputDecoration(
-                            labelText: 'Unit',
-                            border: OutlineInputBorder(),
-                          ),
-                          items: units.map((u) => DropdownMenuItem(value: u, child: Text(u))).toList(),
-                          onChanged: (v) {
-                            if(mounted){
-                              setDialogState(() {
-                                _initialValue = v!;
-                                _unitController.text = v;
-                              });
-                            }
-                          },
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 12),
-                  
-                  Row(
-                    children: [
-                      Expanded(
-                        child: TextFormField(
-                          controller: _itemUnitPriceController,
-                          decoration: const InputDecoration(
-                            labelText: 'Unit Price *',
-                            border: OutlineInputBorder(),
-                          ),
-                          keyboardType: TextInputType.number,
-                        ),
-                      ),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: TextFormField(
-                          controller: _itemDiscountController,
-                          decoration: const InputDecoration(
-                            labelText: 'Discount %',
-                            border: OutlineInputBorder(),
-                          ),
-                          keyboardType: TextInputType.number,
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 12),
-                  
-                  Row(
-                    children: [
-                      Expanded(
-                        child: TextFormField(
-                          controller: _itemTaxController,
-                          decoration: const InputDecoration(
-                            labelText: 'Tax %',
-                            border: OutlineInputBorder(),
-                          ),
-                          keyboardType: TextInputType.number,
-                        ),
-                      ),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: Container(), // Empty for alignment
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 12),
-                  
+                  )
+                else
                   TextFormField(
-                    controller: _itemDescController,
-                    maxLines: 2,
+                    controller: _itemNameController,
                     decoration: const InputDecoration(
-                      labelText: 'Description',
+                      labelText: 'Item Name *',
                       border: OutlineInputBorder(),
                     ),
                   ),
-                ],
-              ),
+
+                const SizedBox(height: 12),
+
+                // UNIT PRICE
+                TextFormField(
+                  controller: _itemUnitPriceController,
+                  decoration: const InputDecoration(
+                    labelText: 'Unit Price *',
+                    border: OutlineInputBorder(),
+                    prefixText: '₹ ',
+                  ),
+                  keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                  onChanged: (value) => setDialogState(() {}),
+                ),
+
+                const SizedBox(height: 12),
+
+                // QUANTITY AND UNIT
+                Row(
+                  children: [
+                    Expanded(
+                      child: TextFormField(
+                        controller: _itemQtyController,
+                        decoration: const InputDecoration(
+                          labelText: 'Quantity *',
+                          border: OutlineInputBorder(),
+                        ),
+                        keyboardType: TextInputType.number,
+                        onChanged: (value) => setDialogState(() {}),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: DropdownButtonFormField<String>(
+                        value: _selectedUnit,
+                        decoration: const InputDecoration(
+                          labelText: 'Unit',
+                          border: OutlineInputBorder(),
+                        ),
+                        items: units.map((u) => DropdownMenuItem(value: u, child: Text(u))).toList(),
+                        onChanged: (v) {
+                          setDialogState(() {
+                            _selectedUnit = v!;
+                            _unitController.text = v;
+                          });
+                        },
+                      ),
+                    ),
+                  ],
+                ),
+
+                const SizedBox(height: 12),
+
+                // DISCOUNT AND TAX
+                Row(
+                  children: [
+                    Expanded(
+                      child: TextFormField(
+                        controller: _itemDiscountController,
+                        decoration: const InputDecoration(
+                          labelText: 'Discount %',
+                          border: OutlineInputBorder(),
+                          suffixText: '%',
+                        ),
+                        keyboardType: TextInputType.number,
+                        onChanged: (value) => setDialogState(() {}),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: TextFormField(
+                        controller: _itemTaxController,
+                        decoration: const InputDecoration(
+                          labelText: 'GST %',
+                          border: OutlineInputBorder(),
+                          suffixText: '%',
+                        ),
+                        keyboardType: TextInputType.number,
+                        onChanged: (value) => setDialogState(() {}),
+                      ),
+                    ),
+                  ],
+                ),
+                
+                const SizedBox(height: 12),
+                
+                // PRICE PREVIEW SECTION
+                if (qty > 0 && price > 0)
+                  Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: Colors.teal.shade50,
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: Colors.teal.shade200),
+                    ),
+                    child: Column(
+                      children: [
+                        const Text(
+                          'Price Preview',
+                          style: TextStyle(fontWeight: FontWeight.bold),
+                        ),
+                        const SizedBox(height: 8),
+                        _buildPreviewRow('Subtotal', subtotal),
+                        if (discount > 0)
+                          _buildPreviewRow('Discount (${discount.toStringAsFixed(0)}%)', -discountAmount, 
+                            color: Colors.red),
+                        if (tax > 0)
+                          _buildPreviewRow('GST (${tax.toStringAsFixed(0)}%)', taxAmount,
+                            color: Colors.orange),
+                        const Divider(),
+                        _buildPreviewRow('Total', total, isBold: true, color: Colors.teal),
+                      ],
+                    ),
+                  ),
+                
+                const SizedBox(height: 12),
+                
+                TextFormField(
+                  controller: _itemDescController,
+                  maxLines: 2,
+                  decoration: const InputDecoration(
+                    labelText: 'Description (Optional)',
+                    border: OutlineInputBorder(),
+                  ),
+                ),
+              ],
             ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.pop(context),
-                child: const Text('Cancel'),
-              ),
-              ElevatedButton(
-                onPressed: () {
-                  if (_itemNameController.text.isNotEmpty &&
-                      _itemQtyController.text.isNotEmpty &&
-                      _itemUnitPriceController.text.isNotEmpty) {
-                    
-                    final qty = double.parse(_itemQtyController.text);
-                    final price = double.parse(_itemUnitPriceController.text);
-                    final discount = double.tryParse(_itemDiscountController.text) ?? 0;
-                    final tax = double.tryParse(_itemTaxController.text) ?? 0;
-                    
-                    final itemPrice = price * qty;
-                    final discountAmount = itemPrice * discount / 100;
-                    const taxAmount = 0; // You can calculate tax properly
-                    final total = itemPrice - discountAmount + taxAmount;
-                    
-                    final item = PurchaseOrderItem(
-                      id: DateTime.now().millisecondsSinceEpoch.toString(),
-                      name: _itemNameController.text,
-                      description: _itemDescController.text.isNotEmpty ? _itemDescController.text : null,
-                      quantity: qty,
-                      unit: _unitController.text,
-                      unitPrice: price,
-                      discount: discount,
-                      tax: tax,
-                      total: total,
-                    );
-                    
-                    setState(() {
-                      _items.add(item);
-                      _calculateTotals();
-                    });
-                    
-                    Navigator.pop(context);
-                  }
-                },
-                child: const Text('Add'),
-              ),
-            ],
-          );
-        },
-      ),
-    );
-  }
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Cancel'),
+            ),
+            ElevatedButton(
+              onPressed: () {
+                if (_itemNameController.text.isNotEmpty &&
+                    _itemQtyController.text.isNotEmpty &&
+                    _itemUnitPriceController.text.isNotEmpty) {
+                  
+                  final qty = double.parse(_itemQtyController.text);
+                  final price = double.parse(_itemUnitPriceController.text);
+                  final discountPercent = double.tryParse(_itemDiscountController.text) ?? 0;
+                  final taxPercent = double.tryParse(_itemTaxController.text) ?? 0;
+                  
+                  final subtotal = qty * price;
+                  final discountAmount = subtotal * discountPercent / 100;
+                  final taxAmount = subtotal * taxPercent / 100;
+                  final total = subtotal - discountAmount + taxAmount;
+
+                  final item = PurchaseOrderItem(
+                    id: DateTime.now().millisecondsSinceEpoch.toString(),
+                    name: _itemNameController.text,
+                    description: _itemDescController.text,
+                    quantity: qty,
+                    unit: _unitController.text.isNotEmpty ? _unitController.text : _selectedUnit,
+                    unitPrice: price,
+                    discount: discountPercent,
+                    discountAmount: discountAmount,
+                    tax: taxPercent,
+                    taxAmount: taxAmount,
+                    subtotal: subtotal,
+                    total: total,
+                  );
+
+                  setState(() {
+                    _items.add(item);
+                    _calculateTotals();
+                  });
+
+                  Navigator.pop(context);
+                }
+              },
+              child: const Text('Add Item'),
+            ),
+          ],
+        );
+      },
+    ),
+  );
+}
+
+
+Widget _buildPreviewRow(String label, double amount, {bool isBold = false, Color? color}) {
+  return Padding(
+    padding: const EdgeInsets.symmetric(vertical: 2),
+    child: Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        Text(
+          label,
+          style: TextStyle(
+            fontWeight: isBold ? FontWeight.bold : FontWeight.normal,
+            fontSize: isBold ? 14 : 12,
+          ),
+        ),
+        Text(
+          '₹ ${amount.toStringAsFixed(2)}',
+          style: TextStyle(
+            fontWeight: isBold ? FontWeight.bold : FontWeight.normal,
+            color: color,
+            fontSize: isBold ? 14 : 12,
+          ),
+        ),
+      ],
+    ),
+  );
+}
+
+
+
 
   void _showMenuItemsDialog(StateSetter setDialogState) {
     showDialog(
@@ -488,7 +571,7 @@ class _AddEditPurchaseOrderPageState extends State<AddEditPurchaseOrderPage> {
                   ),
                 ),
                 title: Text(item.name),
-                subtitle: Text('Price: ₹${item.sellPrice}'),
+                subtitle: Text('Price: Rs.${item.sellPrice}'),
                 onTap: () {
                   setDialogState(() {
                     _itemNameController.text = item.name;
@@ -541,49 +624,99 @@ class _AddEditPurchaseOrderPageState extends State<AddEditPurchaseOrderPage> {
     );
   }
 
-  Future<void> _saveOrder() async {
-    if (!_formKey.currentState!.validate()) return;
-    if (_items.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Add at least one item')),
-      );
-      return;
-    }
+Future<void> _saveOrder() async {
+  if (!_formKey.currentState!.validate()) return;
+  if (_items.isEmpty) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Add at least one item')),
+    );
+    return;
+  }
+  
+  final _syid = ganarateID();
+  setState(() => _isSaving = true);
 
-    setState(() => _isSaving = true);
+  try {
+    final order = PurchaseOrder(
+      syid: isEditing ? widget.order!.syid : _syid,
+      synced: false,
+      id: isEditing ? widget.order!.id : DateTime.now().millisecondsSinceEpoch.toString(),
+      orderNumber: _orderNumberController.text,
+      orderDate: _orderDate,
+      expectedDeliveryDate: _expectedDate,
+      supplierId: '', // You may want to store supplier ID
+      supplierName: _supplierNameController.text,
+      supplierMobile: _supplierMobileController.text.isNotEmpty ? _supplierMobileController.text : null,
+      supplierAddress: _supplierAddressController.text.isNotEmpty ? _supplierAddressController.text : null,
+      supplierGst: _supplierGstController.text.isNotEmpty ? _supplierGstController.text : null,
+      items: List.from(_items),
+      subtotal: _subtotal,
+      taxAmount: _taxAmount,
+      discountAmount: _discountAmount,
+      shippingAmount: _shippingAmount,
+      totalAmount: _total,
+      status: _status,
+      notes: _notesController.text.isNotEmpty ? _notesController.text : null,
+      termsAndConditions: _termsController.text.isNotEmpty ? _termsController.text : null,
+      paymentTerms: _paymentTermsController.text.isNotEmpty ? _paymentTermsController.text : null,
+      dueDate: _dueDate,
+      createdAt: widget.order?.createdAt ?? DateTime.now(),
+      updatedAt: DateTime.now(),
+      createdBy: 'current_user',
+      signaturePath: _signaturePath,
+    );
 
-    try {
-      final order = PurchaseOrder(
-        id: isEditing ? widget.order!.id : DateTime.now().millisecondsSinceEpoch.toString(),
-        orderNumber: _orderNumberController.text,
-        orderDate: _orderDate,
-        expectedDeliveryDate: _expectedDate,
-        supplierId: '', // You may want to store supplier ID
-        supplierName: _supplierNameController.text,
-        supplierMobile: _supplierMobileController.text.isNotEmpty ? _supplierMobileController.text : null,
-        supplierAddress: _supplierAddressController.text.isNotEmpty ? _supplierAddressController.text : null,
-        supplierGst: _supplierGstController.text.isNotEmpty ? _supplierGstController.text : null,
-        items: List.from(_items),
-        subtotal: _subtotal,
-        taxAmount: _taxAmount,
-        discountAmount: _discountAmount,
-        shippingAmount: _shippingAmount,
-        totalAmount: _total,
-        status: _status,
-        notes: _notesController.text.isNotEmpty ? _notesController.text : null,
-        termsAndConditions: _termsController.text.isNotEmpty ? _termsController.text : null,
-        paymentTerms: _paymentTermsController.text.isNotEmpty ? _paymentTermsController.text : null,
-        dueDate: _dueDate,
-        createdAt: widget.order?.createdAt ?? DateTime.now(),
-        updatedAt: DateTime.now(),
-        createdBy: 'current_user', // Add user info
-        signaturePath: _signaturePath,
-      );
-
-      // Save to database
-      final box = _store.box<PurchaseOrderEntity>();
+    final box = _store.box<PurchaseOrderEntity>();
+    
+    if (isEditing) {
+      // Update existing order - Query by syid (your custom ID)
+      final query = box.query(PurchaseOrderEntity_.syid.equals(widget.order!.syid)).build();
+      final existingEntity = query.findFirst();
+      query.close();
+      
+      if (existingEntity != null) {
+        // Update the existing entity by modifying its properties directly
+        existingEntity.orderData = jsonEncode(order.toMap());
+        existingEntity.signaturePath = _signaturePath;
+        existingEntity.orderNumber = order.orderNumber;
+        existingEntity.supplierName = order.supplierName;
+        existingEntity.statusIndex = order.status.index;
+        existingEntity.orderDate = order.orderDate;
+        existingEntity.synced = false; // Mark as not synced if you have sync functionality
+        
+        // Put the entity back - this will UPDATE because the object has an @Id
+        await box.put(existingEntity);
+        
+        print_log('Updated order: ${order.orderNumber} with ID: ${existingEntity.id}');
+      } else {
+        // If not found, create new (fallback)
+        final entity = PurchaseOrderEntity(
+          syid: _syid,
+          orderData: jsonEncode(order.toMap()),
+          signaturePath: _signaturePath,
+          orderNumber: order.orderNumber,
+          supplierName: order.supplierName,
+          statusIndex: order.status.index,
+          orderDate: order.orderDate,
+        );
+        
+        await box.put(entity);
+        
+        print_log('Created new order (fallback): ${order.orderNumber}');
+      }
+      
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Order ${order.orderNumber} updated successfully'),
+            backgroundColor: Colors.green,
+          ),
+        );
+      }
+    } else {
+      // Create new order
       final entity = PurchaseOrderEntity(
-        syid:ganarateID(), 
+        syid: _syid,
         orderData: jsonEncode(order.toMap()),
         signaturePath: _signaturePath,
         orderNumber: order.orderNumber,
@@ -592,31 +725,10 @@ class _AddEditPurchaseOrderPageState extends State<AddEditPurchaseOrderPage> {
         orderDate: order.orderDate,
       );
       
-      await box.putAsync(entity);
-
-      // Generate PDF
-      try {
-        // final pdfFile = await PurchaseOrderPDF.generate(order);
-        // final directory = await getApplicationDocumentsDirectory();
-        // final pdfPath = '${directory.path}/PO_${order.orderNumber}.pdf';
-        // await pdfFile.saveTo(pdfPath);
-
-        final pdf = await PurchaseOrderPDF.generate(order);
-        final bytes = await pdf.save();
-
-        final directory = await getTemporaryDirectory();
-        final filePath = '${directory.path}/PO_${order.orderNumber}.pdf';
-
-        final file = File(filePath);
-        await file.writeAsBytes(bytes);
-        
-        // Update entity with PDF path
-        entity.pdfPath = filePath;
-        await box.putAsync(entity);
-      } catch (e) {
-        print('Error generating PDF: $e');
-      }
-
+      await box.put(entity);
+      
+      print_log('Created new order: ${order.orderNumber}');
+      
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -624,19 +736,25 @@ class _AddEditPurchaseOrderPageState extends State<AddEditPurchaseOrderPage> {
             backgroundColor: Colors.green,
           ),
         );
-        Navigator.pop(context, true);
       }
-    } catch (e) {
-      print('Error saving order: $e');
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red),
-        );
-      }
-    } finally {
+    }
+
+    if (mounted) {
+      Navigator.pop(context, true);
+    }
+  } catch (e) {
+    print_log('Error saving order: $e');
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red),
+      );
+    }
+  } finally {
+    if (mounted) {
       setState(() => _isSaving = false);
     }
   }
+}
 
   Future<String?> saveImageInternalStorage(String sourcePath, String folderName) async {
     try {
@@ -655,7 +773,7 @@ class _AddEditPurchaseOrderPageState extends State<AddEditPurchaseOrderPage> {
 
       return savedFile.path;
     } catch (e) {
-      print('Error saving image: $e');
+      print_log('Error saving image: $e');
       return null;
     }
   }
@@ -678,10 +796,11 @@ class _AddEditPurchaseOrderPageState extends State<AddEditPurchaseOrderPage> {
 
   @override
   Widget build(BuildContext context) {
+    final themeProvider = Provider.of<ThemeProvider>(context);
     return Scaffold(
       appBar: AppBar(
         title: Text(isEditing ? 'Edit Purchase Order' : 'New Purchase Order'),
-        backgroundColor: Colors.teal.shade800,
+        backgroundColor: themeProvider.primaryColor,
         foregroundColor: Colors.white,
         actions: [
           if (isEditing)
@@ -843,22 +962,41 @@ class _AddEditPurchaseOrderPageState extends State<AddEditPurchaseOrderPage> {
                     RawAutocomplete<Supplier>(
                       optionsBuilder: (textEditingValue) {
                         if (textEditingValue.text.isEmpty) return Iterable.empty();
-                        return _suppliers.where((s) => s.supplierName.toLowerCase().contains(textEditingValue.text.toLowerCase(),),
+                        // Also update your external controller as the user types manually
+                        _supplierNameController.text = textEditingValue.text; 
+                        
+                        return _suppliers.where((s) => 
+                          s.supplierName.toLowerCase().contains(textEditingValue.text.toLowerCase())
                         );
                       },
                       displayStringForOption: (s) => s.supplierName,
-                      onSelected: _selectSupplier,
+                      onSelected: (Supplier selection) {
+                        // 1. Update your external controller manually here
+                        setState(() {
+                          _supplierNameController.text = selection.supplierName;
+                        });
+                        // 2. Call your original select logic
+                        _selectSupplier(selection);
+                      },
                       fieldViewBuilder: (context, tc, fn, onSubmitted) {
+                        // If your controller already has a value (e.g., editing), sync it to the autocomplete
+                        if (_supplierNameController.text.isNotEmpty && tc.text.isEmpty) {
+                          tc.text = _supplierNameController.text;
+                        }
+
                         return TextFormField(
-                          controller: tc, // <-- FIXED
+                          controller: tc, 
                           focusNode: fn,
+                          onChanged: (value) {
+                            // Update your controller when the user types manually
+                            _supplierNameController.text = value;
+                          },
                           decoration: const InputDecoration(
                             labelText: 'Supplier Name *',
                             border: OutlineInputBorder(),
                             prefixIcon: Icon(Icons.business),
                           ),
-                          validator: (v) =>
-                              (v == null || v.isEmpty) ? 'Required' : null,
+                          validator: (v) => (v == null || v.isEmpty) ? 'Required' : null,
                         );
                       },
                       optionsViewBuilder: (context, onSelected, options) {
@@ -870,6 +1008,8 @@ class _AddEditPurchaseOrderPageState extends State<AddEditPurchaseOrderPage> {
                               width: 300,
                               constraints: const BoxConstraints(maxHeight: 200),
                               child: ListView.separated(
+                                padding: EdgeInsets.zero, // Add this to remove default padding
+                                shrinkWrap: true,
                                 itemCount: options.length,
                                 separatorBuilder: (_, __) => const Divider(height: 1),
                                 itemBuilder: (context, i) {
@@ -947,7 +1087,7 @@ class _AddEditPurchaseOrderPageState extends State<AddEditPurchaseOrderPage> {
                           icon: const Icon(Icons.add),
                           label: const Text('Add Item'),
                           style: ElevatedButton.styleFrom(
-                            backgroundColor: Colors.teal.shade800,
+                            backgroundColor: themeProvider.primaryColor,
                             foregroundColor: Colors.white,
                           ),
                         ),
@@ -1000,6 +1140,7 @@ class _AddEditPurchaseOrderPageState extends State<AddEditPurchaseOrderPage> {
                                 _calculateTotals();
                               });
                             },
+                            // In the items list builder
                             child: Container(
                               padding: const EdgeInsets.symmetric(vertical: 8),
                               child: Row(
@@ -1021,6 +1162,36 @@ class _AddEditPurchaseOrderPageState extends State<AddEditPurchaseOrderPage> {
                                           '${item.formattedQuantity} ${item.unit} × ${item.formattedUnitPrice}',
                                           style: const TextStyle(fontSize: 12),
                                         ),
+                                        // Show discount and tax badges
+                                        Wrap(
+                                          spacing: 4,
+                                          children: [
+                                            if (item.discount > 0)
+                                              Container(
+                                                padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+                                                decoration: BoxDecoration(
+                                                  color: Colors.red.shade100,
+                                                  borderRadius: BorderRadius.circular(4),
+                                                ),
+                                                child: Text(
+                                                  '${item.formattedDiscount} OFF',
+                                                  style: TextStyle(fontSize: 10, color: Colors.red.shade800),
+                                                ),
+                                              ),
+                                            if (item.tax > 0)
+                                              Container(
+                                                padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+                                                decoration: BoxDecoration(
+                                                  color: Colors.orange.shade100,
+                                                  borderRadius: BorderRadius.circular(4),
+                                                ),
+                                                child: Text(
+                                                  'GST ${item.formattedTax}',
+                                                  style: TextStyle(fontSize: 10, color: Colors.orange.shade800),
+                                                ),
+                                              ),
+                                          ],
+                                        ),
                                       ],
                                     ),
                                   ),
@@ -1034,12 +1205,20 @@ class _AddEditPurchaseOrderPageState extends State<AddEditPurchaseOrderPage> {
                                           color: Colors.teal,
                                         ),
                                       ),
-                                      if (item.discount > 0)
+                                      if (item.discountAmount > 0)
                                         Text(
-                                          '${item.discount}% off',
+                                          'Saved: ₹${item.discountAmount.toStringAsFixed(2)}',
                                           style: TextStyle(
-                                            fontSize: 11,
+                                            fontSize: 10,
                                             color: Colors.green.shade600,
+                                          ),
+                                        ),
+                                      if (item.taxAmount > 0)
+                                        Text(
+                                          'GST: ₹${item.taxAmount.toStringAsFixed(2)}',
+                                          style: TextStyle(
+                                            fontSize: 10,
+                                            color: Colors.orange.shade600,
                                           ),
                                         ),
                                     ],
@@ -1054,6 +1233,7 @@ class _AddEditPurchaseOrderPageState extends State<AddEditPurchaseOrderPage> {
                     const SizedBox(height: 20),
 
                     // Totals Section
+                    // Update the totals section in your build method
                     Container(
                       padding: const EdgeInsets.all(16),
                       decoration: BoxDecoration(
@@ -1065,13 +1245,14 @@ class _AddEditPurchaseOrderPageState extends State<AddEditPurchaseOrderPage> {
                         children: [
                           _buildTotalRow('Subtotal', _subtotal),
                           const SizedBox(height: 8),
-                          _buildTotalRow('Tax', _taxAmount),
-                          const SizedBox(height: 8),
-                          _buildTotalRow('Discount', -_discountAmount),
-                          const SizedBox(height: 8),
-                          _buildTotalRow('Shipping', _shippingAmount),
+                          if (_totalDiscountAmount > 0)
+                            _buildTotalRow('Total Discount', -_totalDiscountAmount, color: Colors.red),
+                          if (_totalTaxAmount > 0)
+                            _buildTotalRow('Total GST', _totalTaxAmount, color: Colors.orange),
+                          if (_shippingAmount > 0)
+                            _buildTotalRow('Shipping', _shippingAmount),
                           const Divider(height: 16),
-                          _buildTotalRow('Total', _total, isBold: true, color: Colors.teal),
+                          _buildTotalRow('Grand Total', _total, isBold: true, color: Colors.teal),
                         ],
                       ),
                     ),
@@ -1211,7 +1392,7 @@ class _AddEditPurchaseOrderPageState extends State<AddEditPurchaseOrderPage> {
                           child: ElevatedButton(
                             onPressed: _isSaving ? null : _saveOrder,
                             style: ElevatedButton.styleFrom(
-                              backgroundColor: Colors.teal.shade800,
+                              backgroundColor: themeProvider.primaryColor,
                               foregroundColor: Colors.white,
                               padding: const EdgeInsets.symmetric(vertical: 16),
                               shape: RoundedRectangleBorder(
@@ -1253,7 +1434,7 @@ class _AddEditPurchaseOrderPageState extends State<AddEditPurchaseOrderPage> {
           ),
         ),
         Text(
-          '₹ ${amount.toStringAsFixed(2)}',
+          'Rs. ${amount.toStringAsFixed(2)}',
           style: TextStyle(
             fontWeight: isBold ? FontWeight.bold : FontWeight.normal,
             color: color,
@@ -1306,7 +1487,7 @@ class _AddEditPurchaseOrderPageState extends State<AddEditPurchaseOrderPage> {
         ),
       );
     } catch (e) {
-      print('Error sharing: $e');
+      print_log('Error sharing: $e');
     }
   }
 

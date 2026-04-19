@@ -17,6 +17,7 @@ import 'package:test1/database_Module/quotation_database.dart';
 import 'quotation_pdf.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:path/path.dart' as p;
+import 'package:test1/theme_setting/theme_provider.dart';
 
 class AddEditQuotationPage extends StatefulWidget {
   final Quotation? quotation;
@@ -36,6 +37,7 @@ class _AddEditQuotationPageState extends State<AddEditQuotationPage> with Single
   final TextEditingController _quotationNumberController = TextEditingController();
   final TextEditingController _partyNameController = TextEditingController();
   final TextEditingController _partyMobileController = TextEditingController();
+  final TextEditingController _businessaddress = TextEditingController();
   final TextEditingController _partyEmailController = TextEditingController();
   final TextEditingController _partyAddressController = TextEditingController();
   final TextEditingController _partyGstController = TextEditingController();
@@ -137,7 +139,7 @@ class _AddEditQuotationPageState extends State<AddEditQuotationPage> with Single
         _loadMenuItems(),
       ]);
     } catch (e) {
-      print('Error loading data: $e');
+      print_log('Error loading data: $e');
     } finally {
       setState(() => _isLoading = false);
     }
@@ -158,6 +160,7 @@ class _AddEditQuotationPageState extends State<AddEditQuotationPage> with Single
     _quotationNumberController.text = q.quotationNumber;
     _partyNameController.text = q.partyName;
     _partyMobileController.text = q.partyMobile ?? '';
+    _businessaddress.text = q.businessAddress ?? '';
     _partyEmailController.text = q.partyEmail ?? '';
     _partyAddressController.text = q.partyAddress ?? '';
     _partyGstController.text = q.partyGst ?? '';
@@ -288,7 +291,7 @@ class _AddEditQuotationPageState extends State<AddEditQuotationPage> with Single
                             decoration: const InputDecoration(
                               labelText: 'Price per Plate *',
                               border: OutlineInputBorder(),
-                              prefixText: '₹ ',
+                              prefixText: 'Rs.  ',
                             ),
                             keyboardType: TextInputType.number,
                           ),
@@ -421,51 +424,163 @@ class _AddEditQuotationPageState extends State<AddEditQuotationPage> with Single
     );
   }
 
-  void _showMenuItemsForPlate(StateSetter setDialogState) {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Select Menu Items'),
-        content: SizedBox(
-          width: double.maxFinite,
-          child: ListView.builder(
-            shrinkWrap: true,
-            itemCount: _menuItems.length,
-            itemBuilder: (context, index) {
-              final item = _menuItems[index];
-              final isSelected = _newPlateItems.any((i) => i.id == item.id.toString());
-              
-              return CheckboxListTile(
-                title: Text(item.name),
-                subtitle: Text('₹${item.sellPrice}'),
-                value: isSelected,
-                onChanged: (selected) {
-                  setDialogState(() {
-                    if (selected == true) {
-                      _newPlateItems.add(PlateMenuItem(
-                        id: item.id.toString(),
-                        name: item.name,
-                        description: item.category,
-                        included: true,
-                      ));
-                    } else {
-                      _newPlateItems.removeWhere((i) => i.id == item.id.toString());
-                    }
-                  });
-                },
-              );
-            },
+void _showMenuItemsForPlate(StateSetter setDialogState) {
+  List<PlateMenuItem> tempSelectedItems = List.from(_newPlateItems);
+  String searchQuery = '';
+  
+  showDialog(
+    context: context,
+    builder: (context) => StatefulBuilder(
+      builder: (context, setState) {
+        // Filter menu items based on search
+        final filteredItems = _menuItems.where((item) => 
+          item.name.toLowerCase().contains(searchQuery.toLowerCase())
+        ).toList();
+        
+        return AlertDialog(
+          title: const Text('Select Menu Items'),
+          content: SizedBox(
+            width: double.maxFinite,
+            height: 500,
+            child: Column(
+              children: [
+                // Search bar
+                TextField(
+                  decoration: InputDecoration(
+                    hintText: 'Search menu items...',
+                    prefixIcon: const Icon(Icons.search),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                  ),
+                  onChanged: (value) {
+                    setState(() {
+                      searchQuery = value;
+                    });
+                  },
+                ),
+                const SizedBox(height: 12),
+                
+                // Selected count
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                  decoration: BoxDecoration(
+                    color: Colors.blue.shade50,
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      const Text(
+                        'Selected Items:',
+                        style: TextStyle(fontWeight: FontWeight.bold),
+                      ),
+                      Text(
+                        '${tempSelectedItems.length}',
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          color: Colors.blue.shade700,
+                          fontSize: 16,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                
+                const SizedBox(height: 12),
+                
+                // Items list
+                Expanded(
+                  child: ListView.builder(
+                    shrinkWrap: true,
+                    itemCount: filteredItems.length,
+                    itemBuilder: (context, index) {
+                      final item = filteredItems[index];
+                      final isSelected = tempSelectedItems.any((i) => i.id == item.id.toString());
+                      
+                      return Card(
+                        margin: const EdgeInsets.only(bottom: 4),
+                        child: CheckboxListTile(
+                          title: Text(
+                            item.name,
+                            style: TextStyle(
+                              fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                            ),
+                          ),
+                          subtitle: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text('₹ ${item.f_price}'),
+                              if (item.category != null)
+                                Text(
+                                  item.category!,
+                                  style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
+                                ),
+                            ],
+                          ),
+                          value: isSelected,
+                          activeColor: Colors.purple,
+                          onChanged: (selected) {
+                            setState(() {
+                              if (selected == true) {
+                                tempSelectedItems.add(PlateMenuItem(
+                                  id: item.id.toString(),
+                                  name: item.name,
+                                  description: item.category,
+                                  included: true,
+                                ));
+                              } else {
+                                tempSelectedItems.removeWhere((i) => i.id == item.id.toString());
+                              }
+                            });
+                          },
+                        ),
+                      );
+                    },
+                  ),
+                ),
+              ],
+            ),
           ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Done'),
-          ),
-        ],
-      ),
-    );
-  }
+          actions: [
+            TextButton(
+              onPressed: () {
+                // Cancel - don't save changes
+                Navigator.pop(context);
+              },
+              child: const Text('Cancel'),
+            ),
+            ElevatedButton(
+              onPressed: () {
+                // Save changes to parent dialog
+                setDialogState(() {
+                  _newPlateItems.clear();
+                  _newPlateItems.addAll(tempSelectedItems);
+                });
+                Navigator.pop(context);
+                
+                // Optional: Show success message
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text('${tempSelectedItems.length} items selected'),
+                    duration: const Duration(seconds: 1),
+                    backgroundColor: Colors.green,
+                  ),
+                );
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.white70,
+                foregroundColor: Colors.black,
+              ),
+              child: const Text('Apply Selection'),
+            ),
+          ],
+        );
+      },
+    ),
+  );
+}
 
   void _showAddBanquetDialog() {
     _newBanquetNameController.clear();
@@ -506,7 +621,7 @@ class _AddEditQuotationPageState extends State<AddEditQuotationPage> with Single
                             decoration: const InputDecoration(
                               labelText: 'Total Price *',
                               border: OutlineInputBorder(),
-                              prefixText: '₹ ',
+                              prefixText: 'Rs.  ',
                             ),
                             keyboardType: TextInputType.number,
                           ),
@@ -677,7 +792,7 @@ class _AddEditQuotationPageState extends State<AddEditQuotationPage> with Single
                         decoration: const InputDecoration(
                           labelText: 'Price *',
                           border: OutlineInputBorder(),
-                          prefixText: '₹ ',
+                          prefixText: 'Rs.  ',
                         ),
                         keyboardType: TextInputType.number,
                       ),
@@ -778,7 +893,7 @@ class _AddEditQuotationPageState extends State<AddEditQuotationPage> with Single
 
     return savedFile.path;
   } catch (e) {
-    print('Error saving image: $e');
+    print_log('Error saving image: $e');
     return null;
   }
 }
@@ -799,60 +914,113 @@ class _AddEditQuotationPageState extends State<AddEditQuotationPage> with Single
     }
   }
 
-  Future<void> _saveQuotation() async {
-    if (!_formKey.currentState!.validate()) return;
-    if (_plates.isEmpty && _banquetItems.isEmpty && _additionalItems.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Add at least one item')),
-      );
-      return;
-    }
+Future<void> _saveQuotation() async {
+  if (!_formKey.currentState!.validate()) return;
+  if (_plates.isEmpty && _banquetItems.isEmpty && _additionalItems.isEmpty) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Add at least one item')),
+    );
+    return;
+  }
+  final _syid = ganarateID();
 
-    setState(() => _isSaving = true);
+  setState(() => _isSaving = true);
 
-    try {
-      final quotation = Quotation(
-        id: isEditing ? widget.quotation!.id : DateTime.now().millisecondsSinceEpoch.toString(),
-        quotationNumber: _quotationNumberController.text,
-        quotationDate: _quotationDate,
-        validUntil: _validUntil,
-        partyId: '', // You may want to store party ID
-        partyName: _partyNameController.text,
-        partyMobile: _partyMobileController.text.isNotEmpty ? _partyMobileController.text : null,
-        partyEmail: _partyEmailController.text.isNotEmpty ? _partyEmailController.text : null,
-        partyAddress: _partyAddressController.text.isNotEmpty ? _partyAddressController.text : null,
-        partyGst: _partyGstController.text.isNotEmpty ? _partyGstController.text : null,
-        eventName: _eventNameController.text.isNotEmpty ? _eventNameController.text : null,
-        eventDate: _eventDate,
-        eventVenue: _eventVenueController.text.isNotEmpty ? _eventVenueController.text : null,
-        expectedGuests: int.tryParse(_expectedGuestsController.text),
-        plates: _plates,
-        banquetItems: _banquetItems,
-        additionalItems: _additionalItems,
-        platesSubtotal: _platesSubtotal,
-        banquetSubtotal: _banquetSubtotal,
-        additionalSubtotal: _additionalSubtotal,
-        discountAmount: _discountAmount,
-        taxAmount: _taxAmount,
-        totalAmount: _totalAmount,
-        serviceCharge: double.tryParse(_serviceChargeController.text),
-        packagingCharge: double.tryParse(_packagingChargeController.text),
-        deliveryCharge: double.tryParse(_deliveryChargeController.text),
-        status: _status,
-        termsAndConditions: _termsController.text.isNotEmpty ? _termsController.text : null,
-        cancellationPolicy: _cancellationController.text.isNotEmpty ? _cancellationController.text : null,
-        paymentTerms: _paymentTermsController.text.isNotEmpty ? _paymentTermsController.text : null,
-        specialInstructions: _specialInstructionsController.text.isNotEmpty ? _specialInstructionsController.text : null,
-        createdAt: widget.quotation?.createdAt ?? DateTime.now(),
-        updatedAt: DateTime.now(),
-        createdBy: 'current_user',
-        signaturePath: _signaturePath,
-      );
+  try {
+    final quotation = Quotation(
+      syid: isEditing ? widget.quotation!.syid : _syid,
+      synced: false,
+      id: isEditing ? widget.quotation!.id : DateTime.now().millisecondsSinceEpoch.toString(),
+      quotationNumber: _quotationNumberController.text,
+      quotationDate: _quotationDate,
+      validUntil: _validUntil,
+      partyId: '',
+      businessAddress: _businessaddress.text,
+      partyName: _partyNameController.text,
+      partyMobile: _partyMobileController.text.isNotEmpty ? _partyMobileController.text : null,
+      partyEmail: _partyEmailController.text.isNotEmpty ? _partyEmailController.text : null,
+      partyAddress: _partyAddressController.text.isNotEmpty ? _partyAddressController.text : null,
+      partyGst: _partyGstController.text.isNotEmpty ? _partyGstController.text : null,
+      eventName: _eventNameController.text.isNotEmpty ? _eventNameController.text : null,
+      eventDate: _eventDate,
+      eventVenue: _eventVenueController.text.isNotEmpty ? _eventVenueController.text : null,
+      expectedGuests: int.tryParse(_expectedGuestsController.text),
+      plates: _plates,
+      banquetItems: _banquetItems,
+      additionalItems: _additionalItems,
+      platesSubtotal: _platesSubtotal,
+      banquetSubtotal: _banquetSubtotal,
+      additionalSubtotal: _additionalSubtotal,
+      discountAmount: _discountAmount,
+      taxAmount: _taxAmount,
+      totalAmount: _totalAmount,
+      serviceCharge: double.tryParse(_serviceChargeController.text),
+      packagingCharge: double.tryParse(_packagingChargeController.text),
+      deliveryCharge: double.tryParse(_deliveryChargeController.text),
+      status: _status,
+      termsAndConditions: _termsController.text.isNotEmpty ? _termsController.text : null,
+      cancellationPolicy: _cancellationController.text.isNotEmpty ? _cancellationController.text : null,
+      paymentTerms: _paymentTermsController.text.isNotEmpty ? _paymentTermsController.text : null,
+      specialInstructions: _specialInstructionsController.text.isNotEmpty ? _specialInstructionsController.text : null,
+      createdAt: widget.quotation?.createdAt ?? DateTime.now(),
+      updatedAt: DateTime.now(),
+      createdBy: 'current_user',
+      signaturePath: _signaturePath,
+    );
 
-      // Save to database
-      final box = _store.box<QuotationEntity>();
+    final box = _store.box<QuotationEntity>();
+    
+    if (isEditing) {
+      // Update existing quotation - IMPORTANT: Query by syid (your custom ID)
+      final query = box.query(QuotationEntity_.syid.equals(widget.quotation!.syid)).build();
+      final existingEntity = query.findFirst();
+      query.close();
+      
+      if (existingEntity != null) {
+        // Update the existing entity by modifying its properties directly
+        existingEntity.quotationData = jsonEncode(quotation.toMap());
+        existingEntity.signaturePath = _signaturePath;
+        existingEntity.quotationNumber = quotation.quotationNumber;
+        existingEntity.partyName = quotation.partyName;
+        existingEntity.statusIndex = quotation.status.index;
+        existingEntity.quotationDate = quotation.quotationDate;
+        existingEntity.eventDate = quotation.eventDate;
+        existingEntity.synced = false; // Mark as not synced if you have sync functionality
+        
+        // Put the entity back - this will UPDATE because the object has an @Id
+        await box.put(existingEntity);
+        
+        print_log('Updated quotation: ${quotation.quotationNumber} with ID: ${existingEntity.id}');
+      } else {
+        // If not found, create new (fallback)
+        final entity = QuotationEntity(
+          syid: _syid,
+          quotationData: jsonEncode(quotation.toMap()),
+          signaturePath: _signaturePath,
+          quotationNumber: quotation.quotationNumber,
+          partyName: quotation.partyName,
+          statusIndex: quotation.status.index,
+          quotationDate: quotation.quotationDate,
+          eventDate: quotation.eventDate,
+        );
+
+        await box.put(entity);
+        
+        print_log('Created new quotation: ${quotation.quotationNumber}');
+      }
+      
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Quotation ${quotation.quotationNumber} updated successfully'),
+            backgroundColor: Colors.green,
+          ),
+        );
+      }
+    } else {
+      // Create new quotation
       final entity = QuotationEntity(
-        syid:ganarateID(), 
+        syid: _syid,
         quotationData: jsonEncode(quotation.toMap()),
         signaturePath: _signaturePath,
         quotationNumber: quotation.quotationNumber,
@@ -862,25 +1030,9 @@ class _AddEditQuotationPageState extends State<AddEditQuotationPage> with Single
         eventDate: quotation.eventDate,
       );
       
-      await box.putAsync(entity);
-
-      // Generate PDF
-      try {
-        final pdf = await QuotationPDF.generate(quotation);
-        final bytes = await pdf.save();
-        final tempDir = await getTemporaryDirectory();
-        final filePath = '${tempDir.path}/Quotation_${quotation.quotationNumber}.pdf';
-
-        final file = File(filePath);
-        await file.writeAsBytes(bytes);
-        
-        // Update entity with PDF path
-        entity.pdfPath = filePath;
-        await box.putAsync(entity);
-      } catch (e) {
-        print('Error generating PDF: $e');
-      }
-
+      await box.put(entity);
+      print_log('Created new quotation: ${quotation.quotationNumber}');
+      
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -888,19 +1040,25 @@ class _AddEditQuotationPageState extends State<AddEditQuotationPage> with Single
             backgroundColor: Colors.green,
           ),
         );
-        Navigator.pop(context, true);
       }
-    } catch (e) {
-      print('Error saving quotation: $e');
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red),
-        );
-      }
-    } finally {
+    }
+
+    if (mounted) {
+      Navigator.pop(context, true);
+    }
+  } catch (e) {
+    print_log_red('Error saving quotation: $e');
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red),
+      );
+    }
+  } finally {
+    if (mounted) {
       setState(() => _isSaving = false);
     }
   }
+}
 
   Future<void> _shareQuotation(Quotation quotation) async {
     try {
@@ -920,99 +1078,109 @@ class _AddEditQuotationPageState extends State<AddEditQuotationPage> with Single
       ),
     );
     } catch (e) {
-      print('Error sharing: $e');
+      print_log('Error sharing: $e');
     }
   }
 
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: Text(isEditing ? 'Edit Quotation' : 'New Quotation'),
-        backgroundColor: Colors.purple.shade800,
-        foregroundColor: Colors.white,
-        bottom: TabBar(
-          controller: _tabController,
-          isScrollable: true,
-          labelColor: Colors.white,
-          unselectedLabelColor: Colors.white70,
-          indicatorColor: Colors.white,
-          tabs: const [
-            Tab(text: 'Party & Event'),
-            Tab(text: 'Food Packages'),
-            Tab(text: 'Banquet Hall'),
-            Tab(text: 'Summary'),
-          ],
-        ),
-        actions: [
-          if (isEditing)
-            PopupMenuButton<String>(
-              icon: const Icon(Icons.more_vert),
-              onSelected: (value) {
-                if (value == 'share') {
-                  _shareQuotation(widget.quotation!);
-                }
-              },
-              itemBuilder: (context) => [
-                const PopupMenuItem(
-                  value: 'share',
-                  child: Row(
-                    children: [
-                      Icon(Icons.share, color: Colors.blue),
-                      SizedBox(width: 8),
-                      Text('Share PDF'),
-                    ],
-                  ),
-                ),
-              ],
-            ),
+@override
+Widget build(BuildContext context) {
+  final themeProvider = Provider.of<ThemeProvider>(context);
+  return Scaffold(
+    appBar: AppBar(
+      title: Text(isEditing ? 'Edit Quotation' : 'New Quotation'),
+      backgroundColor: themeProvider.primaryColor,
+      foregroundColor: Colors.white,
+      bottom: TabBar(
+        controller: _tabController,
+        isScrollable: true,
+        labelColor: Colors.white,
+        unselectedLabelColor: Colors.white70,
+        indicatorColor: Colors.white,
+        tabs: const [
+          Tab(text: 'Party & Event'),
+          Tab(text: 'Food Packages'),
+          Tab(text: 'Banquet Hall'),
+          Tab(text: 'Summary'),
         ],
       ),
-      body: _isLoading
-          ? const Center(child: CircularProgressIndicator())
-          : Form(
-              key: _formKey,
-              child: TabBarView(
-                controller: _tabController,
-                children: [
-                  // Tab 1: Party & Event Details
-                  _buildPartyEventTab(),
-                  
-                  // Tab 2: Food Packages
-                  _buildFoodPackagesTab(),
-                  
-                  // Tab 3: Banquet Hall
-                  _buildBanquetHallTab(),
-                  
-                  // Tab 4: Summary & Terms
-                  _buildSummaryTab(),
-                ],
+      actions: [
+        if (isEditing)
+          PopupMenuButton<String>(
+            icon: const Icon(Icons.more_vert),
+            onSelected: (value) {
+              if (value == 'share') {
+                _shareQuotation(widget.quotation!);
+              }
+            },
+            itemBuilder: (context) => [
+              const PopupMenuItem(
+                value: 'share',
+                child: Row(
+                  children: [
+                    Icon(Icons.share, color: Colors.blue),
+                    SizedBox(width: 8),
+                    Text('Share PDF'),
+                  ],
+                ),
               ),
+            ],
+          ),
+      ],
+    ),
+    body: _isLoading
+        ? const Center(child: CircularProgressIndicator())
+        : Form(
+            key: _formKey,
+            child: TabBarView(
+              controller: _tabController,
+              children: [
+                // Tab 1: Party & Event Details
+                _buildPartyEventTab(),
+                
+                // Tab 2: Food Packages
+                _buildFoodPackagesTab(),
+                
+                // Tab 3: Banquet Hall
+                _buildBanquetHallTab(),
+                
+                // Tab 4: Summary & Terms
+                _buildSummaryTab(),
+              ],
             ),
-      floatingActionButton: _tabController.index == 1
-          ? FloatingActionButton.extended(
-              onPressed: _showAddPlateDialog,
-              icon: const Icon(Icons.add),
-              label: const Text('Add Package'),
-              backgroundColor: Colors.purple.shade800,
-            )
-          : _tabController.index == 2
-              ? FloatingActionButton.extended(
-                  onPressed: _showAddBanquetDialog,
-                  icon: const Icon(Icons.add),
-                  label: const Text('Add Hall'),
-                  backgroundColor: Colors.purple.shade800,
-                )
-              : _tabController.index == 3
-                  ? FloatingActionButton.extended(
-                      onPressed: _showAddAdditionalItemDialog,
-                      icon: const Icon(Icons.add),
-                      label: const Text('Add Item'),
-                      backgroundColor: Colors.purple.shade800,
-                    )
-                  : null,
-    );
-  }
+          ),
+    floatingActionButton: ValueListenableBuilder(
+      valueListenable: _tabController.animation!,
+      builder: (context, value, child) {
+        final currentIndex = _tabController.index;
+        
+        if (currentIndex == 1) {
+          return FloatingActionButton.extended(
+            onPressed: _showAddPlateDialog,
+            icon: const Icon(Icons.add, color: Colors.white),
+            label: const Text('Add Package', style: TextStyle(color: Colors.white)),
+            backgroundColor: themeProvider.primaryColor,
+          );
+        } else if (currentIndex == 2) {
+          return FloatingActionButton.extended(
+            onPressed: _showAddBanquetDialog,
+            icon: const Icon(Icons.add, color: Colors.white),
+            label: const Text('Add Hall', style: TextStyle(color: Colors.white)),
+            backgroundColor: themeProvider.primaryColor,
+          );
+        } else if (currentIndex == 3) {
+          return FloatingActionButton.extended(
+            onPressed: _showAddAdditionalItemDialog,
+            icon: const Icon(Icons.add, color: Colors.white),
+            label: const Text('Add Item', style: TextStyle(color: Colors.white)),
+            backgroundColor: themeProvider.primaryColor,
+          );
+        } else {
+          return const SizedBox.shrink(); // Hide FAB on first tab
+        }
+      },
+    ),
+  );
+}
 
   Widget _buildPartyEventTab() {
     return SingleChildScrollView(
@@ -1022,7 +1190,7 @@ class _AddEditQuotationPageState extends State<AddEditQuotationPage> with Single
         children: [
           // Quotation Header
           Container(
-            padding: const EdgeInsets.all(16),
+            padding: const EdgeInsets.all(10),
             decoration: BoxDecoration(
               color: Colors.purple.shade50,
               borderRadius: BorderRadius.circular(12),
@@ -1068,7 +1236,7 @@ class _AddEditQuotationPageState extends State<AddEditQuotationPage> with Single
                     ),
                   ],
                 ),
-                const SizedBox(height: 12),
+                const SizedBox(height: 10),
                 Row(
                   children: [
                     Expanded(
@@ -1096,10 +1264,10 @@ class _AddEditQuotationPageState extends State<AddEditQuotationPage> with Single
                         ),
                       ),
                     ),
-                    const SizedBox(width: 12),
+                    const SizedBox(width: 10),
                     Expanded(
                       child: DropdownButtonFormField<QuotationStatus>(
-                        value: _status,
+                        initialValue: _status,
                         decoration: const InputDecoration(
                           labelText: 'Status',
                           border: OutlineInputBorder(),
@@ -1110,15 +1278,6 @@ class _AddEditQuotationPageState extends State<AddEditQuotationPage> with Single
                             value: status,
                             child: Row(
                               children: [
-                                Container(
-                                  width: 12,
-                                  height: 12,
-                                  decoration: BoxDecoration(
-                                    shape: BoxShape.circle,
-                                    color: _getStatusColor(status),
-                                  ),
-                                ),
-                                const SizedBox(width: 8),
                                 Text(_getStatusText(status)),
                               ],
                             ),
@@ -1134,6 +1293,31 @@ class _AddEditQuotationPageState extends State<AddEditQuotationPage> with Single
           ),
 
           const SizedBox(height: 20),
+
+
+          // Party Selection
+          const Text(
+            'Business Details',
+            style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+          ),
+          const SizedBox(height: 12),
+          Row(
+            children: [
+              Expanded(
+              child: TextFormField(
+                controller: _businessaddress,
+                decoration: const InputDecoration(
+                  labelText: 'Business Address',
+                  border: OutlineInputBorder(),
+                  prefixIcon: Icon(Icons.edit_location),
+                ),
+              ),
+            ),
+            ],
+          ),
+
+          
+          const SizedBox(height: 12),
 
           // Party Selection
           const Text(
@@ -1322,6 +1506,7 @@ class _AddEditQuotationPageState extends State<AddEditQuotationPage> with Single
   }
 
   Widget _buildFoodPackagesTab() {
+    final themeProvider = Provider.of<ThemeProvider>(context);
     if (_plates.isEmpty) {
       return Center(
         child: Column(
@@ -1336,10 +1521,10 @@ class _AddEditQuotationPageState extends State<AddEditQuotationPage> with Single
             const SizedBox(height: 8),
             ElevatedButton.icon(
               onPressed: _showAddPlateDialog,
-              icon: const Icon(Icons.add),
+              icon: const Icon(Icons.add, color: Colors.white,),
               label: const Text('Add Food Package'),
               style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.purple.shade800,
+                backgroundColor: themeProvider.primaryColor,
                 foregroundColor: Colors.white,
               ),
             ),
@@ -1471,6 +1656,7 @@ class _AddEditQuotationPageState extends State<AddEditQuotationPage> with Single
   }
 
   Widget _buildBanquetHallTab() {
+    final themeProvider = Provider.of<ThemeProvider>(context);
     if (_banquetItems.isEmpty) {
       return Center(
         child: Column(
@@ -1486,9 +1672,9 @@ class _AddEditQuotationPageState extends State<AddEditQuotationPage> with Single
             ElevatedButton.icon(
               onPressed: _showAddBanquetDialog,
               icon: const Icon(Icons.add),
-              label: const Text('Add Banquet Hall'),
+              label: const Text('Add Banquet Hall', style: TextStyle(color: Colors.white),),
               style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.purple.shade800,
+                backgroundColor: themeProvider.primaryColor,
                 foregroundColor: Colors.white,
               ),
             ),
@@ -1593,6 +1779,7 @@ class _AddEditQuotationPageState extends State<AddEditQuotationPage> with Single
   }
 
   Widget _buildSummaryTab() {
+    final themeProvider = Provider.of<ThemeProvider>(context);
     return SingleChildScrollView(
       padding: const EdgeInsets.all(20),
       child: Column(
@@ -1711,7 +1898,7 @@ class _AddEditQuotationPageState extends State<AddEditQuotationPage> with Single
                     labelText: 'Discount',
                     border: OutlineInputBorder(),
                     prefixIcon: Icon(Icons.discount),
-                    prefixText: '₹ ',
+                    prefixText: 'Rs.  ',
                   ),
                   keyboardType: TextInputType.number,
                   onChanged: (v) => _calculateTotals(),
@@ -1726,7 +1913,7 @@ class _AddEditQuotationPageState extends State<AddEditQuotationPage> with Single
                     labelText: 'Tax',
                     border: OutlineInputBorder(),
                     prefixIcon: Icon(Icons.receipt),
-                    prefixText: '₹ ',
+                    prefixText: 'Rs.  ',
                   ),
                   keyboardType: TextInputType.number,
                   onChanged: (v) => _calculateTotals(),
@@ -1741,7 +1928,7 @@ class _AddEditQuotationPageState extends State<AddEditQuotationPage> with Single
                     labelText: 'Service Charge',
                     border: OutlineInputBorder(),
                     prefixIcon: Icon(Icons.miscellaneous_services),
-                    prefixText: '₹ ',
+                    prefixText: 'Rs.  ',
                   ),
                   keyboardType: TextInputType.number,
                   onChanged: (v) => _calculateTotals(),
@@ -1756,7 +1943,7 @@ class _AddEditQuotationPageState extends State<AddEditQuotationPage> with Single
                     labelText: 'Packaging Charge',
                     border: OutlineInputBorder(),
                     prefixIcon: Icon(Icons.inventory),
-                    prefixText: '₹ ',
+                    prefixText: 'Rs.  ',
                   ),
                   keyboardType: TextInputType.number,
                   onChanged: (v) => _calculateTotals(),
@@ -1771,7 +1958,7 @@ class _AddEditQuotationPageState extends State<AddEditQuotationPage> with Single
                     labelText: 'Delivery Charge',
                     border: OutlineInputBorder(),
                     prefixIcon: Icon(Icons.local_shipping),
-                    prefixText: '₹ ',
+                    prefixText: 'Rs.  ',
                   ),
                   keyboardType: TextInputType.number,
                   onChanged: (v) => _calculateTotals(),
@@ -1882,7 +2069,7 @@ class _AddEditQuotationPageState extends State<AddEditQuotationPage> with Single
             child: ElevatedButton(
               onPressed: _isSaving ? null : _saveQuotation,
               style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.purple.shade800,
+                backgroundColor: themeProvider.primaryColor,
                 foregroundColor: Colors.white,
                 padding: const EdgeInsets.symmetric(vertical: 16),
                 shape: RoundedRectangleBorder(
@@ -1900,7 +2087,7 @@ class _AddEditQuotationPageState extends State<AddEditQuotationPage> with Single
                     )
                   : Text(
                       isEditing ? 'Update Quotation' : 'Save Quotation',
-                      style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                      style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold , color: Colors.white),
                     ),
             ),
           ),
@@ -1922,7 +2109,7 @@ class _AddEditQuotationPageState extends State<AddEditQuotationPage> with Single
             ),
           ),
           Text(
-            '₹ ${amount.toStringAsFixed(2)}',
+            'Rs.  ${amount.toStringAsFixed(2)}',
             style: TextStyle(
               fontWeight: isBold ? FontWeight.bold : FontWeight.normal,
               color: color,
@@ -1979,6 +2166,7 @@ class _AddEditQuotationPageState extends State<AddEditQuotationPage> with Single
     _quotationNumberController.dispose();
     _partyNameController.dispose();
     _partyMobileController.dispose();
+    _businessaddress.dispose();
     _partyEmailController.dispose();
     _partyAddressController.dispose();
     _partyGstController.dispose();

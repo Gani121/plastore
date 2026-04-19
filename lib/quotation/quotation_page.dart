@@ -13,9 +13,12 @@ import 'package:test1/database_Module/quotation_database.dart';
 import 'add_edit_quotation_page.dart';
 import 'quotation_pdf.dart';
 import 'dart:io';
+import 'dart:typed_data';
 import 'dart:async';
-import 'dart:convert';
 import 'package:path_provider/path_provider.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:printing/printing.dart';
+import 'package:test1/theme_setting/theme_provider.dart';
 
 
 class QuotationPage extends StatefulWidget {
@@ -55,7 +58,7 @@ class _QuotationPageState extends State<QuotationPage> {
           final map = Map<String, dynamic>.from(jsonDecode(entity.quotationData));
           quotations.add(Quotation.fromMap(map));
         } catch (e) {
-          print('Error parsing quotation: $e');
+          print_log('Error parsing quotation: $e');
         }
       }
 
@@ -64,7 +67,7 @@ class _QuotationPageState extends State<QuotationPage> {
         _applyFiltersAndSort();
       });
     } catch (e) {
-      print('Error loading quotations: $e');
+      print_log('Error loading quotations: $e');
     } finally {
       setState(() => _isLoading = false);
     }
@@ -174,10 +177,86 @@ class _QuotationPageState extends State<QuotationPage> {
           );
         }
       } catch (e) {
-        print('Error deleting quotation: $e');
+        print_log('Error deleting quotation: $e');
       }
     }
   }
+
+  Future<void> _saveAndShareQuotation(Quotation quotation) async {
+  try {
+    // Show options dialog
+    final action = await showDialog<String>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Quotation Actions'),
+        content: const Text('What would you like to do with this quotation?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, 'share'),
+            child: const Text('Share'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(context, 'save'),
+            child: const Text('Save to Device'),
+          ),
+        ],
+      ),
+    );
+    
+    if (action == null) return;
+    
+    // Show loading
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Processing PDF...'),
+        ),
+      );
+    }
+    
+    // Generate PDF
+    final pdf = await QuotationPDF.generate(quotation);
+    final bytes = await pdf.save();
+    
+    // Handle different actions
+    if (action == 'share') {
+      final tempDir = await getTemporaryDirectory();
+      final fileName = 'Quotation_${quotation.quotationNumber}.pdf';
+      final filePath = '${tempDir.path}/$fileName';
+      
+      final file = File(filePath);
+      await file.writeAsBytes(bytes);
+
+      final p = ShareParams(files: [XFile(filePath)],
+      text: 'Quotation: ${quotation.quotationNumber}\n'
+              'Party: ${quotation.partyName}\n'
+              'Date: ${quotation.formattedQuotationDate}\n'
+              'Total: ${quotation.formattedTotal}',
+      subject: 'Quotation ${quotation.quotationNumber}',
+      title: fileName,
+      );
+      await SharePlus.instance.share(p);
+    }
+    
+    if (action == 'save') {
+      await Printing.layoutPdf(
+        onLayout: (format) async => bytes,
+        name: 'Quotation_${quotation.quotationNumber}',
+      );
+    }
+  } catch (e) {
+    print_log('Error processing quotation: $e');
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Error: ${e.toString()}'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
+  }
+}
+
 
   Future<void> _shareQuotation(Quotation quotation) async {
     try {
@@ -204,7 +283,7 @@ class _QuotationPageState extends State<QuotationPage> {
       ),
     );
     } catch (e) {
-      print('Error sharing quotation: $e');
+      print_log('Error sharing quotation: $e');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Error sharing: $e'), backgroundColor: Colors.red),
@@ -215,10 +294,11 @@ class _QuotationPageState extends State<QuotationPage> {
 
   @override
   Widget build(BuildContext context) {
+    final themeProvider = Provider.of<ThemeProvider>(context);
     return Scaffold(
       appBar: AppBar(
         title: const Text('Quotations'),
-        backgroundColor: Colors.purple.shade800,
+        backgroundColor: themeProvider.primaryColor,
         foregroundColor: Colors.white,
         actions: [
           // Filter by status
@@ -382,11 +462,170 @@ class _QuotationPageState extends State<QuotationPage> {
                 ),
       floatingActionButton: FloatingActionButton(
         onPressed: _navigateToAddQuotation,
-        backgroundColor: Colors.purple.shade800,
+        backgroundColor: themeProvider.primaryColor,
         child: const Icon(Icons.add, color: Colors.white),
       ),
     );
   }
+
+  Future<void> _copyQuotation(Quotation originalQuotation) async {
+  // Show options dialog for copy
+  final options = await showDialog<Map<String, dynamic>>(
+    context: context,
+    builder: (context) => AlertDialog(
+      title: const Text('Copy Quotation Options'),
+      content: StatefulBuilder(
+        builder: (context, setDialogState) {
+          bool keepEventDate = true;
+          bool keepSignature = true;
+          bool resetStatus = true;
+          
+          return Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              CheckboxListTile(
+                title: const Text('Keep Event Date'),
+                value: keepEventDate,
+                onChanged: (value) {
+                  setDialogState(() {
+                    keepEventDate = value ?? true;
+                  });
+                },
+              ),
+              CheckboxListTile(
+                title: const Text('Keep Signature'),
+                value: keepSignature,
+                onChanged: (value) {
+                  setDialogState(() {
+                    keepSignature = value ?? true;
+                  });
+                },
+              ),
+              CheckboxListTile(
+                title: const Text('Reset Status to Draft'),
+                value: resetStatus,
+                onChanged: (value) {
+                  setDialogState(() {
+                    resetStatus = value ?? true;
+                  });
+                },
+              ),
+            ],
+          );
+        },
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context, null),
+          child: const Text('Cancel'),
+        ),
+        ElevatedButton(
+          onPressed: () => Navigator.pop(context, {
+            'keepEventDate': true,
+            'keepSignature': true,
+            'resetStatus': true,
+          }),
+          style: ElevatedButton.styleFrom(
+            backgroundColor: Colors.purple.shade800,
+          ),
+          child: const Text('Copy'),
+        ),
+      ],
+    ),
+  );
+
+  if (options == null) return;
+
+  setState(() => _isLoading = true);
+
+  try {
+    // Generate new quotation number
+    final prefs = await SharedPreferences.getInstance();
+    int counter = prefs.getInt('quotation_counter') ?? 1000;
+    counter++;
+    await prefs.setInt('quotation_counter', counter);
+    final newQuotationNumber = 'Q-${DateFormat('yyyyMM').format(DateTime.now())}-$counter';
+    final int _syid = ganarateID();
+
+    // Create copy based on options
+    final copiedQuotation = Quotation(
+      syid: _syid,
+      synced: false,
+      id: DateTime.now().millisecondsSinceEpoch.toString(),
+      quotationNumber: newQuotationNumber,
+      quotationDate: DateTime.now(),
+      validUntil: DateTime.now().add(const Duration(days: 15)),
+      partyId: originalQuotation.partyId,
+      partyName: originalQuotation.partyName,
+      partyMobile: originalQuotation.partyMobile,
+      partyEmail: originalQuotation.partyEmail,
+      partyAddress: originalQuotation.partyAddress,
+      partyGst: originalQuotation.partyGst,
+      eventName: originalQuotation.eventName,
+      eventDate: options['keepEventDate'] ? originalQuotation.eventDate : null,
+      eventVenue: originalQuotation.eventVenue,
+      expectedGuests: originalQuotation.expectedGuests,
+      plates: List.from(originalQuotation.plates),
+      banquetItems: List.from(originalQuotation.banquetItems),
+      additionalItems: List.from(originalQuotation.additionalItems),
+      platesSubtotal: originalQuotation.platesSubtotal,
+      banquetSubtotal: originalQuotation.banquetSubtotal,
+      additionalSubtotal: originalQuotation.additionalSubtotal,
+      discountAmount: originalQuotation.discountAmount,
+      taxAmount: originalQuotation.taxAmount,
+      totalAmount: originalQuotation.totalAmount,
+      serviceCharge: originalQuotation.serviceCharge,
+      packagingCharge: originalQuotation.packagingCharge,
+      deliveryCharge: originalQuotation.deliveryCharge,
+      status: options['resetStatus'] ? QuotationStatus.draft : originalQuotation.status,
+      termsAndConditions: originalQuotation.termsAndConditions,
+      cancellationPolicy: originalQuotation.cancellationPolicy,
+      paymentTerms: originalQuotation.paymentTerms,
+      specialInstructions: originalQuotation.specialInstructions,
+      createdAt: DateTime.now(),
+      updatedAt: DateTime.now(),
+      createdBy: 'current_user',
+      pdfPath: null,
+      signaturePath: options['keepSignature'] ? originalQuotation.signaturePath : null,
+    );
+
+    // Save to database
+    final box = _store.box<QuotationEntity>();
+    final entity = QuotationEntity(
+      syid: _syid,
+      quotationData: jsonEncode(copiedQuotation.toMap()),
+      signaturePath: copiedQuotation.signaturePath,
+      quotationNumber: copiedQuotation.quotationNumber,
+      partyName: copiedQuotation.partyName,
+      statusIndex: copiedQuotation.status.index,
+      quotationDate: copiedQuotation.quotationDate,
+      eventDate: copiedQuotation.eventDate,
+    );
+    
+    await box.put(entity);
+
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Quotation copied successfully: ${copiedQuotation.quotationNumber}'),
+          backgroundColor: Colors.green,
+        ),
+      );
+      _loadQuotations();
+    }
+  } catch (e) {
+    print_log('Error copying quotation: $e');
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error copying quotation: $e'), backgroundColor: Colors.red),
+      );
+    }
+  } finally {
+    if (mounted) {
+      setState(() => _isLoading = false);
+    }
+  }
+}
 
   Widget _buildQuotationCard(Quotation quotation) {
     final isExpired = quotation.validUntil != null && 
@@ -616,8 +855,13 @@ class _QuotationPageState extends State<QuotationPage> {
                   Row(
                     children: [
                       IconButton(
+                        icon: const Icon(Icons.copy_all, color: Colors.red),
+                        onPressed: () => _copyQuotation(quotation),
+                        tooltip: 'Create Copy',
+                      ),
+                      IconButton(
                         icon: const Icon(Icons.picture_as_pdf, color: Colors.red),
-                        onPressed: () => _shareQuotation(quotation),
+                        onPressed: () => _saveAndShareQuotation(quotation),
                         tooltip: 'Share PDF',
                       ),
                       IconButton(

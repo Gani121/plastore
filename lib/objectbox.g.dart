@@ -34,7 +34,7 @@ final _entities = <obx_int.ModelEntity>[
   obx_int.ModelEntity(
     id: const obx_int.IdUid(1, 1946107522687558548),
     name: 'BillCounter',
-    lastPropertyId: const obx_int.IdUid(14, 6334187345324838075),
+    lastPropertyId: const obx_int.IdUid(15, 5130092978261785957),
     flags: 0,
     properties: <obx_int.ModelProperty>[
       obx_int.ModelProperty(
@@ -92,7 +92,7 @@ final _entities = <obx_int.ModelEntity>[
   obx_int.ModelEntity(
     id: const obx_int.IdUid(2, 8114204961835078834),
     name: 'MenuItem',
-    lastPropertyId: const obx_int.IdUid(49, 3111082863429707317),
+    lastPropertyId: const obx_int.IdUid(50, 3689670474744560956),
     flags: 0,
     properties: <obx_int.ModelProperty>[
       obx_int.ModelProperty(
@@ -354,7 +354,7 @@ final _entities = <obx_int.ModelEntity>[
   obx_int.ModelEntity(
     id: const obx_int.IdUid(3, 4469350567211994079),
     name: 'Transaction',
-    lastPropertyId: const obx_int.IdUid(32, 658611132438731738),
+    lastPropertyId: const obx_int.IdUid(35, 4246727041876379702),
     flags: 0,
     properties: <obx_int.ModelProperty>[
       obx_int.ModelProperty(
@@ -507,6 +507,18 @@ final _entities = <obx_int.ModelEntity>[
         type: 6,
         flags: 0,
       ),
+      obx_int.ModelProperty(
+        id: const obx_int.IdUid(33, 8999822574320245142),
+        name: 'modificationsHistory',
+        type: 9,
+        flags: 0,
+      ),
+      obx_int.ModelProperty(
+        id: const obx_int.IdUid(35, 4246727041876379702),
+        name: 'hotelName',
+        type: 9,
+        flags: 0,
+      ),
     ],
     relations: <obx_int.ModelRelation>[],
     backlinks: <obx_int.ModelBacklink>[],
@@ -596,7 +608,7 @@ final _entities = <obx_int.ModelEntity>[
   obx_int.ModelEntity(
     id: const obx_int.IdUid(8, 1884757268945243640),
     name: 'TransactionUdhari',
-    lastPropertyId: const obx_int.IdUid(19, 8953347660749874291),
+    lastPropertyId: const obx_int.IdUid(20, 7788251394010803305),
     flags: 0,
     properties: <obx_int.ModelProperty>[
       obx_int.ModelProperty(
@@ -693,7 +705,7 @@ final _entities = <obx_int.ModelEntity>[
   obx_int.ModelEntity(
     id: const obx_int.IdUid(9, 803850883550001508),
     name: 'CartItem',
-    lastPropertyId: const obx_int.IdUid(20, 1322947260243538747),
+    lastPropertyId: const obx_int.IdUid(21, 2515257198556412436),
     flags: 0,
     properties: <obx_int.ModelProperty>[
       obx_int.ModelProperty(
@@ -784,7 +796,7 @@ final _entities = <obx_int.ModelEntity>[
   obx_int.ModelEntity(
     id: const obx_int.IdUid(10, 7003873532803288360),
     name: 'OrderItem',
-    lastPropertyId: const obx_int.IdUid(20, 285205673583690157),
+    lastPropertyId: const obx_int.IdUid(21, 8936588801439919566),
     flags: 0,
     properties: <obx_int.ModelProperty>[
       obx_int.ModelProperty(
@@ -875,7 +887,7 @@ final _entities = <obx_int.ModelEntity>[
   obx_int.ModelEntity(
     id: const obx_int.IdUid(12, 6667384983004949850),
     name: 'Active_Table_view',
-    lastPropertyId: const obx_int.IdUid(18, 2831265446927798619),
+    lastPropertyId: const obx_int.IdUid(19, 587457624140048324),
     flags: 0,
     properties: <obx_int.ModelProperty>[
       obx_int.ModelProperty(
@@ -964,7 +976,7 @@ final _entities = <obx_int.ModelEntity>[
   obx_int.ModelEntity(
     id: const obx_int.IdUid(13, 3969341799271811412),
     name: 'tableCart',
-    lastPropertyId: const obx_int.IdUid(11, 1927858818119958752),
+    lastPropertyId: const obx_int.IdUid(12, 7059215422874989234),
     flags: 0,
     properties: <obx_int.ModelProperty>[
       obx_int.ModelProperty(
@@ -1040,7 +1052,7 @@ final _entities = <obx_int.ModelEntity>[
   obx_int.ModelEntity(
     id: const obx_int.IdUid(14, 2768773813359552193),
     name: 'expences',
-    lastPropertyId: const obx_int.IdUid(11, 1333389533984705924),
+    lastPropertyId: const obx_int.IdUid(12, 6331453525227868226),
     flags: 0,
     properties: <obx_int.ModelProperty>[
       obx_int.ModelProperty(
@@ -1116,7 +1128,7 @@ final _entities = <obx_int.ModelEntity>[
   obx_int.ModelEntity(
     id: const obx_int.IdUid(15, 4201487541336974071),
     name: 'Parties',
-    lastPropertyId: const obx_int.IdUid(26, 4819755331369326777),
+    lastPropertyId: const obx_int.IdUid(27, 7793495502709639698),
     flags: 0,
     properties: <obx_int.ModelProperty>[
       obx_int.ModelProperty(
@@ -1264,7 +1276,7 @@ final _entities = <obx_int.ModelEntity>[
   obx_int.ModelEntity(
     id: const obx_int.IdUid(16, 5727313015559224984),
     name: 'InventoryItem',
-    lastPropertyId: const obx_int.IdUid(11, 9038910502171452702),
+    lastPropertyId: const obx_int.IdUid(12, 5763750254574254166),
     flags: 0,
     properties: <obx_int.ModelProperty>[
       obx_int.ModelProperty(
@@ -1392,7 +1404,7 @@ final _entities = <obx_int.ModelEntity>[
   obx_int.ModelEntity(
     id: const obx_int.IdUid(18, 3646327834900425017),
     name: 'PurchaseInvoiceEntity',
-    lastPropertyId: const obx_int.IdUid(5, 4574475261507979469),
+    lastPropertyId: const obx_int.IdUid(6, 1695501224402810247),
     flags: 0,
     properties: <obx_int.ModelProperty>[
       obx_int.ModelProperty(
@@ -1432,7 +1444,7 @@ final _entities = <obx_int.ModelEntity>[
   obx_int.ModelEntity(
     id: const obx_int.IdUid(19, 7845926616772917602),
     name: 'Supplier',
-    lastPropertyId: const obx_int.IdUid(14, 6362725389168022675),
+    lastPropertyId: const obx_int.IdUid(15, 3284995160025761728),
     flags: 0,
     properties: <obx_int.ModelProperty>[
       obx_int.ModelProperty(
@@ -1526,7 +1538,7 @@ final _entities = <obx_int.ModelEntity>[
   obx_int.ModelEntity(
     id: const obx_int.IdUid(20, 1135638778823892512),
     name: 'PurchaseOrderEntity',
-    lastPropertyId: const obx_int.IdUid(11, 5783639787049349607),
+    lastPropertyId: const obx_int.IdUid(12, 7463236151963668021),
     flags: 0,
     properties: <obx_int.ModelProperty>[
       obx_int.ModelProperty(
@@ -1605,7 +1617,7 @@ final _entities = <obx_int.ModelEntity>[
   obx_int.ModelEntity(
     id: const obx_int.IdUid(21, 1244000944143152839),
     name: 'QuotationEntity',
-    lastPropertyId: const obx_int.IdUid(12, 7911238566288039879),
+    lastPropertyId: const obx_int.IdUid(13, 7300253034875608195),
     flags: 0,
     properties: <obx_int.ModelProperty>[
       obx_int.ModelProperty(
@@ -1811,6 +1823,21 @@ obx_int.ModelDefinition getObjectBoxModel() {
       8135050372608154532,
       729086968309304893,
       629919279716649099,
+      587457624140048324,
+      5130092978261785957,
+      2515257198556412436,
+      5763750254574254166,
+      3689670474744560956,
+      8936588801439919566,
+      7793495502709639698,
+      1695501224402810247,
+      7463236151963668021,
+      7300253034875608195,
+      3284995160025761728,
+      7839633476833242102,
+      7788251394010803305,
+      6331453525227868226,
+      7059215422874989234,
     ],
     retiredRelationUids: const [],
     modelVersion: 5,
@@ -1846,7 +1873,7 @@ obx_int.ModelDefinition getObjectBoxModel() {
         final reserved_field5Offset = object.reserved_field5 == null
             ? null
             : fbb.writeString(object.reserved_field5!);
-        fbb.startTable(15);
+        fbb.startTable(16);
         fbb.addInt64(0, object.id);
         fbb.addInt64(1, object.lastBillNo);
         fbb.addOffset(8, reserved_fieldOffset);
@@ -1987,7 +2014,7 @@ obx_int.ModelDefinition getObjectBoxModel() {
         final reserved_field5Offset = object.reserved_field5 == null
             ? null
             : fbb.writeString(object.reserved_field5!);
-        fbb.startTable(50);
+        fbb.startTable(51);
         fbb.addInt64(0, object.id);
         fbb.addOffset(1, nameOffset);
         fbb.addOffset(2, sellPriceOffset);
@@ -2285,7 +2312,11 @@ obx_int.ModelDefinition getObjectBoxModel() {
         final orderTypeOffset = object.orderType == null
             ? null
             : fbb.writeString(object.orderType!);
-        fbb.startTable(33);
+        final modificationsHistoryOffset = fbb.writeString(
+          object.modificationsHistory,
+        );
+        final hotelNameOffset = fbb.writeString(object.hotelName);
+        fbb.startTable(36);
         fbb.addInt64(0, object.id);
         fbb.addInt64(1, object.time.millisecondsSinceEpoch);
         fbb.addInt64(2, object.tableNo);
@@ -2311,6 +2342,8 @@ obx_int.ModelDefinition getObjectBoxModel() {
         fbb.addInt64(29, object.cashamount);
         fbb.addInt64(30, object.upiamount);
         fbb.addInt64(31, object.syid);
+        fbb.addOffset(32, modificationsHistoryOffset);
+        fbb.addOffset(34, hotelNameOffset);
         fbb.finish(fbb.endTable());
         return object.id;
       },
@@ -2343,6 +2376,9 @@ obx_int.ModelDefinition getObjectBoxModel() {
         final payment_modeParam = const fb.StringReader(
           asciiOptimization: true,
         ).vTableGet(buffer, rootOffset, 14, '');
+        final hotelNameParam = const fb.StringReader(
+          asciiOptimization: true,
+        ).vTableGet(buffer, rootOffset, 72, '');
         final cashamountParam = const fb.Int64Reader().vTableGetNullable(
           buffer,
           rootOffset,
@@ -2412,6 +2448,9 @@ obx_int.ModelDefinition getObjectBoxModel() {
         final reserved_field5Param = const fb.StringReader(
           asciiOptimization: true,
         ).vTableGetNullable(buffer, rootOffset, 58);
+        final modificationsHistoryParam = const fb.StringReader(
+          asciiOptimization: true,
+        ).vTableGet(buffer, rootOffset, 68, '');
         final object = Transaction(
           time: timeParam,
           syid: syidParam,
@@ -2419,6 +2458,7 @@ obx_int.ModelDefinition getObjectBoxModel() {
           total: totalParam,
           cartData: cartDataParam,
           payment_mode: payment_modeParam,
+          hotelName: hotelNameParam,
           cashamount: cashamountParam,
           upiamount: upiamountParam,
           synced: syncedParam,
@@ -2437,6 +2477,7 @@ obx_int.ModelDefinition getObjectBoxModel() {
           reserved_field3: reserved_field3Param,
           reserved_field4: reserved_field4Param,
           reserved_field5: reserved_field5Param,
+          modificationsHistory: modificationsHistoryParam,
         )..id = const fb.Int64Reader().vTableGet(buffer, rootOffset, 4, 0);
 
         return object;
@@ -2575,7 +2616,7 @@ obx_int.ModelDefinition getObjectBoxModel() {
         final reserved_field3Offset = object.reserved_field3 == null
             ? null
             : fbb.writeString(object.reserved_field3!);
-        fbb.startTable(20);
+        fbb.startTable(21);
         fbb.addInt64(0, object.id);
         fbb.addFloat64(1, object.amount);
         fbb.addInt64(2, object.date.millisecondsSinceEpoch);
@@ -2687,7 +2728,7 @@ obx_int.ModelDefinition getObjectBoxModel() {
         final reserved_field5Offset = object.reserved_field5 == null
             ? null
             : fbb.writeString(object.reserved_field5!);
-        fbb.startTable(21);
+        fbb.startTable(22);
         fbb.addInt64(0, object.id);
         fbb.addInt64(1, object.quantity);
         fbb.addOffset(2, nameOffset);
@@ -2803,7 +2844,7 @@ obx_int.ModelDefinition getObjectBoxModel() {
         final reserved_field5Offset = object.reserved_field5 == null
             ? null
             : fbb.writeString(object.reserved_field5!);
-        fbb.startTable(21);
+        fbb.startTable(22);
         fbb.addInt64(0, object.id);
         fbb.addOffset(1, nameOffset);
         fbb.addFloat64(3, object.price);
@@ -2925,7 +2966,7 @@ obx_int.ModelDefinition getObjectBoxModel() {
         final reserved_field5Offset = object.reserved_field5 == null
             ? null
             : fbb.writeString(object.reserved_field5!);
-        fbb.startTable(19);
+        fbb.startTable(20);
         fbb.addInt64(0, object.id);
         fbb.addInt64(1, object.number);
         fbb.addFloat64(2, object.total);
@@ -3042,7 +3083,7 @@ obx_int.ModelDefinition getObjectBoxModel() {
         final reserved_field5Offset = object.reserved_field5 == null
             ? null
             : fbb.writeString(object.reserved_field5!);
-        fbb.startTable(12);
+        fbb.startTable(13);
         fbb.addInt64(0, object.id);
         fbb.addInt64(1, object.tableNo);
         fbb.addOffset(2, tCartOffset);
@@ -3143,7 +3184,7 @@ obx_int.ModelDefinition getObjectBoxModel() {
         final reserved_field5Offset = object.reserved_field5 == null
             ? null
             : fbb.writeString(object.reserved_field5!);
-        fbb.startTable(12);
+        fbb.startTable(13);
         fbb.addInt64(0, object.id);
         fbb.addInt64(1, object.createTime.millisecondsSinceEpoch);
         fbb.addOffset(2, expenceOffset);
@@ -3265,7 +3306,7 @@ obx_int.ModelDefinition getObjectBoxModel() {
         final visitingdayOffset = object.visitingday == null
             ? null
             : fbb.writeString(object.visitingday!);
-        fbb.startTable(27);
+        fbb.startTable(28);
         fbb.addInt64(0, object.id);
         fbb.addInt64(1, object.createTime.millisecondsSinceEpoch);
         fbb.addOffset(2, customernameOffset);
@@ -3435,7 +3476,7 @@ obx_int.ModelDefinition getObjectBoxModel() {
         final reserved_field3Offset = object.reserved_field3 == null
             ? null
             : fbb.writeString(object.reserved_field3!);
-        fbb.startTable(12);
+        fbb.startTable(13);
         fbb.addInt64(0, object.id);
         fbb.addOffset(1, nameOffset);
         fbb.addOffset(2, unitOffset);
@@ -3583,7 +3624,7 @@ obx_int.ModelDefinition getObjectBoxModel() {
       },
       objectToFB: (PurchaseInvoiceEntity object, fb.Builder fbb) {
         final invoiceDataOffset = fbb.writeString(object.invoiceData);
-        fbb.startTable(6);
+        fbb.startTable(7);
         fbb.addInt64(0, object.id);
         fbb.addInt64(1, object.createdDate.millisecondsSinceEpoch);
         fbb.addOffset(2, invoiceDataOffset);
@@ -3667,7 +3708,7 @@ obx_int.ModelDefinition getObjectBoxModel() {
         final reserved_field3Offset = object.reserved_field3 == null
             ? null
             : fbb.writeString(object.reserved_field3!);
-        fbb.startTable(15);
+        fbb.startTable(16);
         fbb.addInt64(0, object.id);
         fbb.addOffset(1, supplierNameOffset);
         fbb.addOffset(2, mobileNumberOffset);
@@ -3775,7 +3816,7 @@ obx_int.ModelDefinition getObjectBoxModel() {
             : fbb.writeString(object.signaturePath!);
         final orderNumberOffset = fbb.writeString(object.orderNumber);
         final supplierNameOffset = fbb.writeString(object.supplierName);
-        fbb.startTable(12);
+        fbb.startTable(13);
         fbb.addInt64(0, object.id);
         fbb.addInt64(1, object.createdAt.millisecondsSinceEpoch);
         fbb.addOffset(2, orderDataOffset);
@@ -3867,7 +3908,7 @@ obx_int.ModelDefinition getObjectBoxModel() {
             : fbb.writeString(object.signaturePath!);
         final quotationNumberOffset = fbb.writeString(object.quotationNumber);
         final partyNameOffset = fbb.writeString(object.partyName);
-        fbb.startTable(13);
+        fbb.startTable(14);
         fbb.addInt64(0, object.id);
         fbb.addInt64(1, object.createdAt.millisecondsSinceEpoch);
         fbb.addOffset(2, quotationDataOffset);
@@ -3891,15 +3932,15 @@ obx_int.ModelDefinition getObjectBoxModel() {
           rootOffset,
           22,
         );
-        final quotationDataParam = const fb.StringReader(
-          asciiOptimization: true,
-        ).vTableGet(buffer, rootOffset, 8, '');
         final syidParam = const fb.Int64Reader().vTableGet(
           buffer,
           rootOffset,
           24,
           0,
         );
+        final quotationDataParam = const fb.StringReader(
+          asciiOptimization: true,
+        ).vTableGet(buffer, rootOffset, 8, '');
         final syncedParam = const fb.BoolReader().vTableGet(
           buffer,
           rootOffset,
@@ -3932,8 +3973,8 @@ obx_int.ModelDefinition getObjectBoxModel() {
             : DateTime.fromMillisecondsSinceEpoch(eventDateValue);
         final object =
             QuotationEntity(
-                quotationData: quotationDataParam,
                 syid: syidParam,
+                quotationData: quotationDataParam,
                 synced: syncedParam,
                 pdfPath: pdfPathParam,
                 signaturePath: signaturePathParam,
@@ -4337,6 +4378,16 @@ class Transaction_ {
   /// See [Transaction.syid].
   static final syid = obx.QueryIntegerProperty<Transaction>(
     _entities[2].properties[24],
+  );
+
+  /// See [Transaction.modificationsHistory].
+  static final modificationsHistory = obx.QueryStringProperty<Transaction>(
+    _entities[2].properties[25],
+  );
+
+  /// See [Transaction.hotelName].
+  static final hotelName = obx.QueryStringProperty<Transaction>(
+    _entities[2].properties[26],
   );
 }
 

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:test1/utilities.dart';
+import 'package:test1/YoutubePaymentPage.dart';
 
 const Map<String, String> switchPreferenceKeys = {
   "1.1 Enable Captain": "startcaptain",
@@ -541,24 +542,32 @@ class _billSettingsPageState extends State<billSettingsPage> {
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
-              children: const [
+              children: [
                 Text(
-                  "Beyond Foam",
+                  "Traning Videos",
                   style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
                 ),
-                Text("Phone Unavailable", style: TextStyle(color: Colors.grey)),
+                // Text("", style: TextStyle(color: Colors.grey)),
               ],
             ),
           ),
           ElevatedButton(
-            onPressed: () {},
+            onPressed: () {
+              Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) => PlaylistPlayerPage(),
+              ), // Use the new page here
+            );
+            },
             style: ElevatedButton.styleFrom(
               backgroundColor: Colors.green[800],
+              foregroundColor: Colors.white,
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(6),
               ),
             ),
-            child: const Text("BUY Orbipay"),
+            child: Text("traning videos"),
           ),
         ],
       ),
@@ -802,7 +811,7 @@ Widget buildInlineInputTile(String label, String hint, String key) {
             onChanged: (value) async {
               final prefs = await SharedPreferences.getInstance();
               await prefs.setString(key, value);
-              print("key $key  value $value");
+              print_log("key $key  value $value");
             },
           ),
         ),

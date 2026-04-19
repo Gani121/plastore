@@ -66,7 +66,7 @@ class _AddCustomerPageState extends State<AddCustomerPage> {
       box.put(newCustomer);
 
       List<udhariCustomer> customername = box.getAll(); // Refresh the list
-      print("All Customers: ${customername.map((c) => c.id).toList()}");
+      print_log("All Customers: ${customername.map((c) => c.id).toList()}");
 
       Navigator.pop(context); // Go back to dashboard
       ScaffoldMessenger.of(context).showSnackBar(

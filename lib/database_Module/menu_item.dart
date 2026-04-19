@@ -1,4 +1,5 @@
 import 'package:objectbox/objectbox.dart';
+import 'package:test1/utilities.dart';
 
 
 //flutter pub run build_runner watch
@@ -264,11 +265,11 @@ class MenuItem {
   }
 
   factory MenuItem.fromJson(Map<String, dynamic> json) {
+    // print_log(" json $json");
     return MenuItem(
-      itemCode: json['id']?.toString(),
-      syid: json['syid'] ?? 1,
-      synced: json['synced'] ?? false,
-      // id:  int.tryParse(json['id']) ?? 0,
+      itemCode: json['itemCode']?.toString(),
+      syid:  int.tryParse(json['syid'] ?? "1") ?? 1,
+      synced: true,
       name: (json['submenu']?.toString() ?? ''),
       sellPrice:json['full_price']?.toString() ??'0.00',
       sellPriceType: 'rs',

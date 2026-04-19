@@ -136,7 +136,7 @@ class SettingsPage extends StatelessWidget {
   void saveMenuItemsReliably(List<MenuItem> menuItems,BuildContext context) {
     // ❌ Remove all old items first
     if (menuItemBox != null) {
-      menuItemBox.removeAll();;
+      menuItemBox.removeAll();
       }else{
       print_log("found menuItemBox is null in setting");
     }
@@ -144,6 +144,7 @@ class SettingsPage extends StatelessWidget {
     // ✅ Insert fresh items
     for (int i = 0; i < menuItems.length; i++) {
       final item = menuItems[i];
+      item.synced = true;
       menuItemBox.put(item);
     }
     screen_massage(context, "Menu Updated Successfully");
@@ -180,7 +181,7 @@ class SettingsPage extends StatelessWidget {
     );
 
     if (proceed != true) {
-      //debugPrint("❌ User cancelled sync");
+      print_log("❌ User cancelled sync");
       return;
     }
 
@@ -195,10 +196,10 @@ class SettingsPage extends StatelessWidget {
       if(role=="captain"){
         hotelName = getHotelIdentifier(username);
         // hotelName = username.split("_").sublist(0, username.split("_").length - 1).join("_");
-        //debugPrint("hotelName $hotelName");
+        print_log("hotelName $hotelName");
       }else{
          hotelName = username;
-         //debugPrint("hotelName $hotelName");
+         print_log("hotelName $hotelName");
       }
 
       try {
@@ -214,6 +215,7 @@ class SettingsPage extends StatelessWidget {
           print_log("server response $dataList");
           if (dataList is List) {
             List<MenuItem> menuItems = dataList.map((item) => MenuItem.fromJson(item)).toList();
+            // print_log("menuItems ${menuItems}");
             saveMenuItemsReliably(menuItems,context);
             downloadHotelZip(hotelName);
             

@@ -1,4 +1,4 @@
-package com.orbipay.test6
+package com.orbipay.test8
 
 
 
@@ -22,16 +22,16 @@ import android.os.Handler
 class MyFirebaseMessagingService : FirebaseMessagingService() {
 
     // Called when a new FCM token is generated
-    override fun onNewToken(token: String) {
-        super.onNewToken(token)
-        Log.d("FCM_TOKEN", "New FCM Token: $token")
+    // override fun onNewToken(token: String) {
+    //     super.onNewToken(token)
+    //     Log.d("FCM_TOKEN", "New FCM Token: $token")
         
-    }
+    // }
 
 
-    private fun saveTokenToJson(token: String) {
+    // private fun saveTokenToJson(token: String) {
         
-    }
+    // }
 
 
     fun showUserMessage(context: Context, message: String) {
@@ -45,12 +45,17 @@ class MyFirebaseMessagingService : FirebaseMessagingService() {
     // Called when a message is received (foreground/background/killed)
     override fun onMessageReceived(message: RemoteMessage) {
         Log.d("FCM_MSG", "FCM Received: $message")
-        //showUserMessage(this, "FCM Received: $message")
+        // showUserMessage(this, "FCM Received: $message")
         val printData = message.data["printData"] ?: ""
-        Log.d("FCM_MSG", "FCM Received: $printData")
+        val replaceData = message.data["replaceData"] ?: ""
+        Log.d("FCM_MSG", "FCM Received printData: $printData")
+        Log.d("FCM_MSG", "FCM Received replaceData: $replaceData")
 
-        val intent = Intent(this, BluetoothPrintService::class.java)
-        intent.putExtra("printData", printData)
+        // Create intent and put ALL extras
+        val intent = Intent(this, BluetoothPrintService::class.java).apply {
+            putExtra("printData", printData)
+            putExtra("replaceData", replaceData)
+        }
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             startForegroundService(intent)

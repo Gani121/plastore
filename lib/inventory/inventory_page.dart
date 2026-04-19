@@ -58,11 +58,15 @@ class _InventoryPageState extends State<InventoryPage> {
     // Add a listener to update the active alphabet while scrolling
     _itemPositionsListener.itemPositions.addListener(_onScroll);
     // Load items after the first frame to ensure context is available
-    WidgetsBinding.instance.addPostFrameCallback((_) {
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
       _loadItems();
       sync.addNewStock(null, _inventoryBox);
       sync.saveRecipeToServer(null, null, null, _consumptionBox);
       _sendItemsToServer();
+      // OR if you want to await it (inside an async function)
+      Future.delayed(Duration(seconds: 1), () {
+        SyncService().fetchFromServer(_store);
+      });
     });
   }
 
@@ -89,7 +93,8 @@ class _InventoryPageState extends State<InventoryPage> {
     // Sort items alphabetically by name (case-insensitive)
     for (var item in items) {
       if(!item.synced){
-        await sync.sendItemtoServer(item);
+        print_log("sending item to server: ${item.name} ${!item.synced}");
+        await sync.sendItemtoServer(item,_menuItemBox);
       }
     }
   }
@@ -275,10 +280,9 @@ Future<void> _showAdjustStockDialog(BuildContext context, MenuItem item) async {
                   });
 
                   try {
-                    final store = Provider.of<ObjectBoxService>(context, listen: false).store;
-                    final Box<MenuItem> menuItemBox = store.box<MenuItem>();
 
                     final int addValue = int.tryParse(controller.text) ?? 0;
+                    int newStock = 0;
                     
                     // Validate input
                     if (controller.text.isEmpty) {
@@ -287,10 +291,9 @@ Future<void> _showAdjustStockDialog(BuildContext context, MenuItem item) async {
 
                     // Calculate new stock
                     int currentStock = item.adjustStock ?? 0;
-                    int newStock;
-                    
-                    
-                      newStock = currentStock + addValue;
+                    newStock = currentStock + addValue;
+
+                    print_log("Calculated new stock: $currentStock + $addValue = $newStock");
                     
 
                     // Validate new stock is not negative
@@ -300,14 +303,19 @@ Future<void> _showAdjustStockDialog(BuildContext context, MenuItem item) async {
 
                     // Send to server FIRST (to ensure server sync)
                     try {
-                      await sendStockToServer(item, addValue, isOverride:isOverride);
+                      item.synced = false;
+                      final b = await sendStockToServer(item, addValue, isOverride:isOverride);
+                      if(b){
+                        item.synced = true;
+                      }
                       
                       // Update local stock only after successful server update
                       item.adjustStock = newStock;
                       
                       // Save to local database
-                      menuItemBox.put(item);
-                      print_log("✅ Stock updated locally: ${item.name} -> $newStock");
+                      // _menuItemBox.get(item.id); // Update the in-memory object
+                      _menuItemBox.put(item);
+                      print_log("✅ Stock updated locally: ${item.id} -> ${_menuItemBox.get(item.id)?.adjustStock}");
 
                       if (context.mounted) {
                         Navigator.pop(context); // Close dialog
@@ -354,8 +362,10 @@ Future<void> _showAdjustStockDialog(BuildContext context, MenuItem item) async {
                           return; // This will restart the process
                         } else {
                           // Proceed with local update only
+                          item.synced = false;
                           item.adjustStock = newStock;
-                          menuItemBox.put(item);
+                          _menuItemBox.put(item);
+                          print_log("✅ Stock updated locally: ${item.id} -> ${_menuItemBox.get(item.id)?.adjustStock}");
                           
                           Navigator.pop(context);
                           ScaffoldMessenger.of(context).showSnackBar(
@@ -528,7 +538,7 @@ Future<void> _showAdjustStockDialog(BuildContext context, MenuItem item) async {
                     Text("₹ ${item.f_price}",
                         style: const TextStyle(fontSize: 14)),
                     Text(
-                        "${AppLocalizations.of(context)!.currentStock}: ${item.adjustStock}",
+                        "${AppLocalizations.of(context)!.currentStock}: ${(item.adjustStock ?? 0) < 0 ? 0 : item.adjustStock}",
                         style: const TextStyle(fontSize: 16)),
                     const SizedBox(height: 6),
                     ElevatedButton(
@@ -699,8 +709,8 @@ Widget _buildAlphabetScrollbar() {
                 style: const TextStyle(color: Colors.white, fontSize: 18),
               )
             :  Text(AppLocalizations.of(context)!.itemList,style: TextStyle(color: Colors.white)),
-        backgroundColor: themeProvider.primaryColor, // Colors.purple.shade700,
-        actions: _isSearching
+                backgroundColor: themeProvider.primaryColor, // Colors.purple.shade700,
+                actions: _isSearching
             ? [
                 IconButton(
                   icon: const Icon(Icons.clear,color: Colors.white,),
@@ -711,6 +721,7 @@ Widget _buildAlphabetScrollbar() {
                     });
                   },
                 ),
+                
               ]
             : [
                 IconButton(
@@ -719,6 +730,36 @@ Widget _buildAlphabetScrollbar() {
                     setState(() {
                       _isSearching = true;
                     });
+                  },
+                ),
+                // When not searching, show both sync and search buttons
+                IconButton(
+                  icon: const Icon(Icons.cloud_download, color: Colors.white),
+                  onPressed: () async {
+                    // Show loading indicator
+                    final store = Provider.of<ObjectBoxService>(context, listen: false).store;
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text('Syncing with cloud...'),
+                        duration: Duration(seconds: 1),
+                      ),
+                    );
+                    
+                    // Perform sync
+                    await SyncService().fetchFromServer(store);
+                    
+                    // Update UI
+                    if (mounted) {
+                      setState(() {});
+                    }
+                    
+                    // Show completion message
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text('Sync completed!'),
+                        backgroundColor: Colors.green,
+                      ),
+                    );
                   },
                 ),
               ],

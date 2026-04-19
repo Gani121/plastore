@@ -36,7 +36,8 @@ import 'package:badges/badges.dart' as badges; // Add this to pubspec.yaml
 import '../udhari/due_date_service.dart';
 import 'package:test1/purchase_order/purchase_order_page.dart';
 import 'package:test1/quotation/quotation_page.dart';
-
+import 'dart:convert';
+import 'package:test1/rapidBill/rapid_bill.dart';
 // import 'package:test1/database_Module/udharicustomer.dart';
 // import 'package:device_info_plus/device_info_plus.dart';
 // import 'package:shared_preferences/shared_preferences.dart';
@@ -215,10 +216,8 @@ class _DostiKitchenPageState extends State<DostiKitchenPage> {
   DateTime _selectedDate = getBusinessDate(cutoffHour: 4);
   late Store store = Provider.of<ObjectBoxService>(context, listen: false).store;
   late Box<MenuItem> menuItemBox = store.box<MenuItem>();
-  // late Box<Active_Table_view> _tablesList;
   final Map<String, String> _selectedPayments = {};
   final ValueNotifier<double> _totalExpensesNotifier = ValueNotifier<double>(0.0,);
-  List<Active_Table_view> activeTables = [];
   String table_payment_mode = "CASH";
   bool isPrinting = false;
   String businessName = 'My Business';
@@ -244,7 +243,6 @@ class _DostiKitchenPageState extends State<DostiKitchenPage> {
     super.initState();
     _loadTotalExpenses();
     _loadimagepath();
-    // _tablesList = store.box<Active_Table_view>();
     printer.onTransactionAdded = () {
       loadRecentTransactions(store);
     };
@@ -557,7 +555,13 @@ class _DostiKitchenPageState extends State<DostiKitchenPage> {
           TextButton(
             onPressed: () async {
               Navigator.pop(context); // close current dialog
-
+              final prefs = await SharedPreferences.getInstance();
+              final _editbill = prefs.getBool('hide_edit') ?? true;
+              String status = tx['status'];
+              if (_editbill && status.toLowerCase() != "kot") {
+                screen_massage(context, "Access Denied Not Able To Edit This Bill");
+                return;
+              }
               _editTransaction(tx);
             },
             child: Text('✏️ ${AppLocalizations.of(context)!.edit}'),
@@ -575,12 +579,14 @@ class _DostiKitchenPageState extends State<DostiKitchenPage> {
   void _printTransaction(Map<String, dynamic> tx) async {
     try {
       // //debugPrint("Printing transaction: $tx");
-
+      final cartdata = jsonDecode(tx['cartData']);
+      final List<Map<String, dynamic>> cart = (cartdata as List).cast<Map<String, dynamic>>();
+      List<Map<String, dynamic>> cart1 = cart.map((item) => Map<String, dynamic>.from(item)).toList();
       // The await here is important for the try-catch to work on this async call
       tx['udhari'] = false;
       await printer.printCart(
         context: context,
-        cart1: (tx['cart'] as List).cast<Map<String, dynamic>>(),
+        cart1: cart1,
         total: tx['total'],
         mode: "onlyPrint",
         payment_mode: "",
@@ -604,12 +610,15 @@ class _DostiKitchenPageState extends State<DostiKitchenPage> {
   }
 
   void _editTransaction(Map<String, dynamic> tx) async {
-    final List<Map<String, dynamic>> cart = (tx['cart'] as List).cast<Map<String, dynamic>>();
+    
+    final cartdata = jsonDecode(tx['cartData']);
+    final List<Map<String, dynamic>> cart = (cartdata as List).cast<Map<String, dynamic>>();
+    List<Map<String, dynamic>> cart1 = cart.map((item) => Map<String, dynamic>.from(item)).toList();
     await Navigator.push(
       context,
       MaterialPageRoute(
         builder: (context) =>
-            DetailPage(cart1: cart, mode: "edit", transaction: tx),
+            DetailPage(cart1: cart1, mode: "edit", transaction: tx),
       ),
     );
     loadRecentTransactions(store); 
@@ -622,6 +631,629 @@ class _DostiKitchenPageState extends State<DostiKitchenPage> {
       selectedStyle = prefs.getString('selectedStyle') ?? "List Style Half Full";
     });
   }
+
+  bool _hasModifications(Map<String, dynamic> tx) {
+    if (tx['modificationsHistory'] == null) return false;
+    
+    try {
+      if (tx['modificationsHistory'] is List) {
+        return (tx['modificationsHistory'] as List).isNotEmpty;
+      } else if (tx['modificationsHistory'] is String) {
+        String historyStr = tx['modificationsHistory'];
+        if (historyStr.isNotEmpty && historyStr != '[]') {
+          List<dynamic> decoded = jsonDecode(historyStr);
+          return decoded.isNotEmpty;
+        }
+      }
+    } catch (e) {
+      print_log_red("Error checking modifications: $e");
+    }
+    return false;
+  }
+
+  bool _hasNote(Map<String, dynamic> tx) {
+  // Safely check if reserved_field2 exists and is not null/empty
+  final note = tx['reserved_field2'];
+  if (note == null) return false;
+  
+  // Handle different possible types
+  if (note is String) {
+    return note.trim().isNotEmpty;
+  }
+  if (note is List) {
+    return note.isNotEmpty;
+  }
+  return false;
+}
+
+void _showModificationsDialogCompact(BuildContext context, Map<String, dynamic> transaction) {
+  List<ModificationRecord> modifications = [];
+  
+  // Parse modifications from transaction
+  try {
+    if (transaction['modificationsHistory'] is List) {
+      modifications = (transaction['modificationsHistory'] as List)
+          .map((item) => ModificationRecord.fromMap(item))
+          .toList();
+    } else if (transaction['modificationsHistory'] is String) {
+      String historyStr = transaction['modificationsHistory'];
+      if (historyStr.isNotEmpty && historyStr != '[]') {
+        List<dynamic> decoded = jsonDecode(historyStr);
+        modifications = decoded
+            .map((item) => ModificationRecord.fromMap(item as Map<String, dynamic>))
+            .toList();
+      }
+    }
+  } catch (e) {
+    print_log_red("Error parsing modifications: $e");
+  }
+  
+  if (modifications.isEmpty) return;
+  
+  showModalBottomSheet(
+    context: context,
+    isScrollControlled: true,
+    shape: RoundedRectangleBorder(
+      borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+    ),
+    builder: (context) {
+      return DraggableScrollableSheet(
+        initialChildSize: 0.6,
+        minChildSize: 0.4,
+        maxChildSize: 0.9,
+        expand: false,
+        builder: (context, scrollController) {
+          return Container(
+            padding: EdgeInsets.all(16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Center(
+                  child: Container(
+                    width: 40,
+                    height: 4,
+                    decoration: BoxDecoration(
+                      color: Colors.grey[300],
+                      borderRadius: BorderRadius.circular(2),
+                    ),
+                  ),
+                ),
+                SizedBox(height: 16),
+                Text(
+                  "Modification History",
+                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                ),
+                SizedBox(height: 8),
+                Container(
+                  padding: EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: Colors.grey[100],
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text("Bill No: ${transaction['billNo']}"),
+                      Text("Total: ₹${transaction['total']}"),
+                    ],
+                  ),
+                ),
+                SizedBox(height: 16),
+                Expanded(
+                  child: ListView.builder(
+                    controller: scrollController,
+                    itemCount: modifications.length,
+                    itemBuilder: (context, index) {
+                      final mod = modifications[index];
+                      return Card(
+                        margin: EdgeInsets.only(bottom: 8),
+                        child: Padding(
+                          padding: EdgeInsets.all(12),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Row(
+                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                children: [
+                                  Text(
+                                    DateFormat('dd/MM/yy HH:mm').format(mod.timestamp),
+                                    style: TextStyle(
+                                      fontSize: 12,
+                                      color: Colors.grey[600],
+                                    ),
+                                  ),
+                                  Container(
+                                    padding: EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                                    decoration: BoxDecoration(
+                                      color: Colors.blue[100],
+                                      borderRadius: BorderRadius.circular(12),
+                                    ),
+                                    child: Text(
+                                      mod.changedBy ?? 'System',
+                                      style: TextStyle(fontSize: 10),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              SizedBox(height: 8),
+                              Text(
+                                mod.description,
+                                style: TextStyle(fontWeight: FontWeight.w500),
+                              ),
+                              SizedBox(height: 8),
+                              Row(
+                                children: [
+                                  Expanded(
+                                    child: Column(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      children: [
+                                        Text("Old Value:", style: TextStyle(fontSize: 11, color: Colors.grey)),
+                                        Text(
+                                          _formatValue(mod.oldValue),
+                                          style: TextStyle(
+                                            fontSize: 13,
+                                            color: Colors.red,
+                                            decoration: TextDecoration.lineThrough,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                  Icon(Icons.arrow_forward, size: 16, color: Colors.grey),
+                                  Expanded(
+                                    child: Column(
+                                      crossAxisAlignment: CrossAxisAlignment.end,
+                                      children: [
+                                        Text("New Value:", style: TextStyle(fontSize: 11, color: Colors.grey)),
+                                        Text(
+                                          _formatValue(mod.newValue),
+                                          style: TextStyle(
+                                            fontSize: 13,
+                                            color: Colors.green,
+                                            fontWeight: FontWeight.bold,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              if (mod.fieldChanged == "cart" && mod.oldValue is List && mod.newValue is List)
+                                Padding(
+                                  padding: EdgeInsets.only(top: 8),
+                                  child: Text(
+                                    "Cart items modified",
+                                    style: TextStyle(fontSize: 11, color: Colors.orange),
+                                  ),
+                                ),
+                            ],
+                          ),
+                        ),
+                      );
+                    },
+                  ),
+                ),
+                SizedBox(height: 8),
+                TextButton(
+                  onPressed: () => Navigator.pop(context),
+                  child: Text("Close"),
+                ),
+              ],
+            ),
+          );
+        },
+      );
+    },
+  );
+}
+
+  // Helper method to format values for display
+  String _formatValue(dynamic value) {
+    if (value == null) return '-';
+    if (value is num) {
+      return value.toStringAsFixed(2);
+    }
+    if (value is String) {
+      return value;
+    }
+    if (value is List) {
+      return '${value.length} items changed';
+    }
+    if (value is Map) {
+      return '${value.length} fields changed';
+    }
+    return value.toString();
+  }
+
+void _openAddNoteSheet(BuildContext context, Map tx) async {
+  final store = Provider.of<ObjectBoxService>(context, listen: false).store;
+  final box = store.box<Transaction>();
+
+  final transaction = box.get(tx['id']);
+  if (transaction == null) return;
+
+  List cartItems = jsonDecode(tx['cartData'] ?? '[]');
+  List<String> itemNames = cartItems.map<String>((e) => e['name'].toString()).toList();
+
+  String previousNotes = transaction.reserved_field2 ?? "";
+  TextEditingController searchCtrl = TextEditingController();
+  TextEditingController noteCtrl = TextEditingController();
+  TextEditingController manualItemCtrl = TextEditingController(); // New controller for manual items
+  FocusNode searchFocus = FocusNode();
+  FocusNode manualFocus = FocusNode(); // New focus node for manual input
+
+  List<String> selectedItems = [];
+  List<String> suggestions = itemNames;
+  String manualItem = ""; // Store manually typed item
+  // print_log("items for seggesion is $suggestions");
+
+  showModalBottomSheet(
+    context: context,
+    isScrollControlled: true,
+    backgroundColor: Colors.white,
+    shape: const RoundedRectangleBorder(
+      borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+    ),
+    builder: (context) {
+      return StatefulBuilder(
+        builder: (context, setState) {
+          // Listen for focus to show all items
+          searchFocus.addListener(() {
+            if (searchFocus.hasFocus) {
+              setState(() { suggestions = itemNames; });
+            }
+          });
+
+          return Container(
+            padding: EdgeInsets.only(
+              bottom: MediaQuery.of(context).viewInsets.bottom,
+              left: 20, right: 20, top: 10,
+            ),
+            child: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Center(child: Container(width: 40, height: 4, decoration: BoxDecoration(color: Colors.grey[300], borderRadius: BorderRadius.circular(10)), margin: EdgeInsets.only(bottom: 20))),
+                  const SizedBox(height: 15),
+                  const Text("Add Item Note", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                  const SizedBox(height: 5),
+
+                  // ------------------ MANUAL ITEM INPUT SECTION ------------------
+                  Container(
+                    decoration: BoxDecoration(
+                      color: Colors.orange.shade50,
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: Colors.orange.shade200),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Padding(
+                          padding: const EdgeInsets.all(12),
+                          child: Row(
+                            children: [
+                              Icon(Icons.edit_note, color: Colors.orange.shade700, size: 20),
+                              const SizedBox(width: 8),
+                              Text(
+                                "Add Custom Item",
+                                style: TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.orange.shade700,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                          child: Row(
+                            children: [
+                              Expanded(
+                                child: TextField(
+                                  controller: manualItemCtrl,
+                                  focusNode: manualFocus,
+                                  decoration: InputDecoration(
+                                    hintText: "Type custom item name...",
+                                    border: OutlineInputBorder(
+                                      borderRadius: BorderRadius.circular(8),
+                                      borderSide: BorderSide.none,
+                                    ),
+                                    filled: true,
+                                    fillColor: Colors.white,
+                                    contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                                  ),
+                                  onChanged: (value) {
+                                    setState(() {
+                                      manualItem = value.trim();
+                                    });
+                                  },
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                              ElevatedButton(
+                                onPressed: manualItem.isEmpty
+                                    ? null
+                                    : () {
+                                        if (!selectedItems.contains(manualItem)) {
+                                          setState(() {
+                                            selectedItems.add(manualItem);
+                                            manualItemCtrl.clear();
+                                            manualItem = "";
+                                          });
+                                        }
+                                      },
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: Colors.orange.shade700,
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(8),
+                                  ),
+                                ),
+                                child: const Text("Add"),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+
+                  const SizedBox(height: 8),
+
+                  // ------------------ SEARCH SECTION ------------------
+                  Text(
+                    "Or select from cart items:",
+                    style: TextStyle(fontSize: 13, color: Colors.grey.shade600),
+                  ),
+                  const SizedBox(height: 8),
+                  
+                  TextField(
+                    controller: searchCtrl,
+                    focusNode: searchFocus,
+                    decoration: InputDecoration(
+                      hintText: "Search cart items...",
+                      prefixIcon: const Icon(Icons.search),
+                      filled: true,
+                      fillColor: Colors.grey[100],
+                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
+                    ),
+                    onChanged: (txt) {
+                      setState(() {
+                        suggestions = itemNames.where((name) => name.toLowerCase().contains(txt.toLowerCase())).toList();
+                      });
+                    },
+                    onTap: () {
+                      setState(() { suggestions = itemNames; });
+                    },
+                  ),
+
+                  // ------------------ SUGGESTION LIST ------------------
+                  // if (searchFocus.hasFocus || searchCtrl.text.isNotEmpty)
+                  Container(
+                    constraints: const BoxConstraints(maxHeight: 200),
+                    margin: const EdgeInsets.only(top: 8),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(12),
+                      boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 10)],
+                    ),
+                    child: ListView.separated(
+                      shrinkWrap: true,
+                      itemCount: suggestions.length,
+                      separatorBuilder: (_, __) => const Divider(height: 1),
+                      itemBuilder: (context, index) {
+                        return ListTile(
+                          title: Text(suggestions[index]),
+                          trailing: const Icon(Icons.add_circle_outline, size: 20),
+                          onTap: () {
+                            if (!selectedItems.contains(suggestions[index])) {
+                              setState(() => selectedItems.add(suggestions[index]));
+                            }
+                            searchCtrl.clear();
+                            searchFocus.unfocus();
+                          },
+                        );
+                      },
+                    ),
+                  ),
+
+                  const SizedBox(height: 15),
+
+                  // ------------------ SELECTED ITEMS (CHIPS) ------------------
+                  if (selectedItems.isNotEmpty) ...[
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text(
+                          "Selected Items (${selectedItems.length})",
+                          style: TextStyle(fontSize: 13, fontWeight: FontWeight.w500, color: Colors.grey.shade700),
+                        ),
+                        TextButton(
+                          onPressed: () => setState(() => selectedItems.clear()),
+                          child: const Text("Clear All", style: TextStyle(color: Colors.red, fontSize: 12)),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+                    Wrap(
+                      spacing: 8,
+                      runSpacing: 8,
+                      children: selectedItems.map((item) {
+                        // Check if item is custom (not in cart items)
+                        bool isCustom = !itemNames.contains(item);
+                        return Chip(
+                          backgroundColor: isCustom ? Colors.orange.shade50 : Colors.red.shade50,
+                          side: BorderSide(color: isCustom ? Colors.orange.shade200 : Colors.red.shade100),
+                          label: Text(
+                            item,
+                            style: TextStyle(
+                              color: isCustom ? Colors.orange.shade700 : Colors.red,
+                              fontWeight: isCustom ? FontWeight.w500 : FontWeight.normal,
+                            ),
+                          ),
+                          deleteIcon: Icon(Icons.cancel, size: 18, color: isCustom ? Colors.orange : Colors.red),
+                          onDeleted: () => setState(() => selectedItems.remove(item)),
+                        );
+                      }).toList(),
+                    ),
+                    const SizedBox(height: 15),
+                  ],
+
+                  // ------------------ NOTE FIELD ------------------
+                  TextField(
+                    controller: noteCtrl,
+                    maxLines: 2,
+                    decoration: InputDecoration(
+                      labelText: "Detailed Note",
+                      hintText: "Add any additional notes here...",
+                      alignLabelWithHint: true,
+                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                      filled: true,
+                      fillColor: Colors.grey.shade50,
+                    ),
+                  ),
+
+                  const SizedBox(height: 10),
+
+                  // ------------------ SAVE BUTTON ------------------
+                  SizedBox(
+                    width: double.infinity,
+                    height: 50,
+                    child: ElevatedButton(
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.blueAccent,
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      ),
+                      onPressed: () {
+                        String entry = "";
+                        
+                        // 1. Prepare Note part
+                        String noteText = noteCtrl.text.trim().isEmpty ? "None" : noteCtrl.text.trim();
+                        entry += "Note: $noteText";
+                        
+                        // 2. Prepare Items part with custom indicator
+                        if (selectedItems.isNotEmpty) {
+                          List<String> formattedItems = selectedItems.asMap().entries.map((e) {
+                            String item = e.value;
+                            // Add indicator for custom items
+                            if (!itemNames.contains(item)) {
+                              return "${e.key + 1}. $item (Custom)";
+                            }
+                            return "${e.key + 1}. $item";
+                          }).toList();
+                          
+                          String itemsText = formattedItems.join(", ");
+                          entry += " | Items: $itemsText";
+                        }
+
+                        // 3. Save to History
+                        if (entry.isNotEmpty) {
+                          transaction.reserved_field2 = (previousNotes + "\n" + entry).trim();
+                          transaction.synced = false;
+                          box.put(transaction);
+                        }
+                        
+                        printer.sendTransactionToServer(box, transaction.id);
+                        loadRecentTransactions(store);
+                        Navigator.pop(context);
+                      },
+                      child: const Text("Save Note", style: TextStyle(color: Colors.white, fontSize: 16)),
+                    ),
+                  ),
+
+                  const SizedBox(height: 25),
+
+                  // ------------------ HISTORY SECTION ------------------
+                  // ------------------ HISTORY SECTION ------------------
+                  if (previousNotes.isNotEmpty) ...[
+                    const Text("Transaction History", style: TextStyle(fontWeight: FontWeight.bold, color: Colors.blueGrey)),
+                    const SizedBox(height: 12),
+                    
+                    // Split notes into a list to identify them individually
+                    ...previousNotes.split('\n').where((s) => s.trim().isNotEmpty).map((entry) {
+                      bool isAdd = entry.toLowerCase().contains("add");
+                      Color themeColor = isAdd ? Colors.blue : Colors.red;
+
+                      List<String> parts = entry.split('|');
+                      String notePart = parts[0].trim();
+                      String itemsPart = parts.length > 1 ? parts[1].trim() : "";
+
+                      return Container(
+                        margin: const EdgeInsets.only(bottom: 12),
+                        padding: const EdgeInsets.all(15),
+                        decoration: BoxDecoration(
+                          color: themeColor.withOpacity(0.05),
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(color: themeColor.withOpacity(0.2), width: 1),
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
+                              children: [
+                                Icon(isAdd ? Icons.add_circle : Icons.remove_circle, size: 18, color: themeColor),
+                                const SizedBox(width: 8),
+                                Expanded(
+                                  child: Text(
+                                    notePart,
+                                    style: TextStyle(fontWeight: FontWeight.bold, color: themeColor.withOpacity(0.9), fontSize: 14),
+                                  ),
+                                ),
+                                // --- DELETE BUTTON START ---
+                                IconButton(
+                                  visualDensity: VisualDensity.compact,
+                                  icon: Icon(Icons.delete_outline, size: 20, color: Colors.red.shade300),
+                                  onPressed: () {
+                                    setState(() {
+                                      // 1. Get all current notes as a list
+                                      List<String> allNotes = previousNotes.split('\n').where((s) => s.trim().isNotEmpty).toList();
+                                      
+                                      // 2. Remove this specific entry
+                                      allNotes.remove(entry);
+                                      
+                                      // 3. Join them back and update local variable
+                                      previousNotes = allNotes.join('\n');
+                                      
+                                      // 4. Update the ObjectBox Database
+                                      transaction.reserved_field2 = previousNotes.isEmpty ? null : previousNotes;
+                                      transaction.synced = false;
+                                      box.put(transaction);
+                                    });
+                                    
+                                    // Optional: Notify server or refresh lists
+                                    printer.sendTransactionToServer(box, transaction.id);
+                                  },
+                                ),
+                                // --- DELETE BUTTON END ---
+                              ],
+                            ),
+                            if (itemsPart.isNotEmpty) ...[
+                              Padding(
+                                padding: const EdgeInsets.symmetric(vertical: 8),
+                                child: Divider(color: themeColor.withOpacity(0.1), height: 1),
+                              ),
+                              Text(
+                                itemsPart,
+                                style: TextStyle(fontSize: 13, color: Colors.grey[800], height: 1.5),
+                              ),
+                            ],
+                          ],
+                        ),
+                      );
+                    }).toList(),
+                  ],
+                  const SizedBox(height: 30),
+                ],
+              ),
+            ),
+          );
+        },
+      );
+    },
+  );
+}
+
+
 
   @override
   Widget build(BuildContext context) {
@@ -846,6 +1478,20 @@ class _DostiKitchenPageState extends State<DostiKitchenPage> {
                   },
                 ),
                 ListTile(
+                  leading: Icon(Icons.description, color: Colors.purple),
+                  title: Text("Fast Mode"),
+                  onTap: () {
+                    if(Platform.isWindows){
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => RapidBillPage(),
+                        ),
+                      );
+                    }
+                  },
+                ),
+                ListTile(
                   leading: Icon(Icons.logout),
                   title: Text(AppLocalizations.of(context)!.logout),
                   onTap: () {
@@ -914,42 +1560,45 @@ class _DostiKitchenPageState extends State<DostiKitchenPage> {
       appBar: AppBar(
         backgroundColor: themeProvider.primaryColor,
         elevation: 0,
-
+        
         // 🔹 Left Menu Button
         leading: IconButton(
-          icon: Icon(Icons.settings, color: Colors.black),
+          icon: Icon(Icons.settings, color: Colors.black,),
           onPressed: () => _scaffoldKey.currentState?.openDrawer(),
+          padding: EdgeInsets.zero, // Remove default padding
+          constraints: BoxConstraints(minWidth: 40), // Set minimum width
         ),
-
+        
+        titleSpacing: 0, // Remove spacing between leading and title
         title: FutureBuilder<SharedPreferences>(
           future: SharedPreferences.getInstance(),
           builder: (context, snapshot) {
             if (!snapshot.hasData) {
-              return Row(
-                children: [
-                  // Icon(Icons.restaurant, size: 24, color: Colors.white),
-                  // SizedBox(width: 8),
-                  Text('${AppLocalizations.of(context)!.loding}...', 
-                    style: TextStyle(color: Colors.white,fontSize: 10)
-                  ),
-                  Spacer(),
-                ],
+              return Text(
+                '${AppLocalizations.of(context)!.loding}...', 
+                style: TextStyle(color: Colors.white, fontSize: 10)
               );
             }
-
+            
             final prefs = snapshot.data!;
             String businessName = prefs.getString('businessName') ?? 'My Business';
-            return Row(
-              children: [
-                // Icon(Icons.restaurant, size: 24, color: Colors.white),
-                // SizedBox(width: 8),
-                Text(businessName, style: TextStyle(color: Colors.white,fontSize: 18)),
-                Spacer(),
-              ],
+            
+            // Check if text length is more than 25 characters
+            bool isLongText = businessName.length > 22;
+            
+            return Text(
+              businessName,
+              style: TextStyle(
+                color: Colors.white,
+                fontSize: isLongText ? 14 : 18, // Reduced font size for long text
+                fontWeight: FontWeight.w500,
+              ),
+              overflow: TextOverflow.ellipsis, // Add ellipsis if text overflows
+              maxLines: 1,
             );
           },
         ),
-
+        
         bottom: LiveTimeBar(),
       ),
 
@@ -1009,7 +1658,7 @@ class _DostiKitchenPageState extends State<DostiKitchenPage> {
           ),
 
           Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 0),
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 0),
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
@@ -1103,16 +1752,38 @@ class _DostiKitchenPageState extends State<DostiKitchenPage> {
                                     ElevatedButton(
                                       onPressed:_selectedPayments[transactionKey] != null
                                         ? () async {
+                                            final prefs = await SharedPreferences.getInstance();
                                             final store =Provider.of<ObjectBoxService>(context,listen: false,).store;
                                             final box = store.box<Transaction>();
                                             final selectedPayment = _selectedPayments[transactionKey];
                                             final transaction = box.get(tx['id'],);
                                             if (transaction != null) {
                                               // //debugPrint('Settling ${tx['tableNo']} with $selectedPayment',);
-                                              transaction.payment_mode = selectedPayment!;
-                                              transaction.status = 'settle';
-                                              box.put(transaction);
-                                              printer.sendTransactionToServer(box,tx['id'],);
+                                              final cart = jsonDecode(transaction.cartData);
+                                              final List<Map<String, dynamic>> newCart = cart
+                                              .map((item) {
+                                                if (item is Map) {
+                                                  return Map<String, dynamic>.from(item);
+                                                } else {
+                                                  return null; 
+                                                }
+                                              }).whereType<Map<String, dynamic>>().toList();
+
+                                              final int tableNO = transaction.tableNo ?? 0;
+                                              final int total = transaction.total ?? 0;
+
+                                              printer.settel_update(context: context,
+                                              prefs: prefs,
+                                              box: box,
+                                              cart: newCart,
+                                              total: total,
+                                              tableNo: tableNO,
+                                              pageback: 0,
+                                              payment_mode: '${selectedPayment ?? 'Cash'}_${tx['id']}',
+                                              mode: 'onlysettle',
+                                              transactionData:transaction.toMap());
+                                              // box.put(transaction);
+                                              // printer.sendTransactionToServer(box,tx['id'],);
                                               loadRecentTransactions(store);
                                             }
                                           }
@@ -1145,16 +1816,32 @@ class _DostiKitchenPageState extends State<DostiKitchenPage> {
                                 Column(
                                   crossAxisAlignment: CrossAxisAlignment.end,
                                   children: [
-                                    Text('${AppLocalizations.of(context)!.sale}: ₹${tx['total']}',
-                                      style: const TextStyle(
-                                        fontWeight: FontWeight.bold,
+                                    GestureDetector(
+                                      onTap: () {
+                                        if (_hasModifications(tx)) {
+                                          _showModificationsDialogCompact(context, tx);
+                                        } else {
+                                          _openAddNoteSheet(context, tx);
+                                        }
+                                      },
+                                      child: Text(
+                                        '${AppLocalizations.of(context)!.sale}: ₹${tx['total']}',
+                                        style: TextStyle(
+                                          fontWeight: FontWeight.bold,
+                                          color: _hasModifications(tx) ? Colors.red : (_hasNote(tx) ? Colors.blue : Colors.black),
+                                          decoration: _hasModifications(tx) ? TextDecoration.underline : null,
+                                        ),
                                       ),
                                     ),
-                                    Text('${AppLocalizations.of(context)!.items}: ${tx['cart'].length}',
-                                      style: const TextStyle(fontSize: 12),
+                                    Text(
+                                    _hasModifications(tx)? 'See History' :  (_hasNote(tx) ? 'Added Note' : 'Add Note'),
+                                    style: TextStyle(
+                                      color: _hasModifications(tx) ? Colors.blue : (_hasNote(tx) ? Colors.red : Colors.black),
+                                      fontSize: 12,
+                                    ),
                                     ),
                                   ],
-                                ),
+                                )
                               ],
                             ),
                           ),
@@ -1430,7 +2117,7 @@ class _LiveTimeBarState extends State<LiveTimeBar> {
     final statusText = _isOnline ? 'Online' : 'Offline';
     // final barColor = _isOnline ? themeProvider.primaryColor : Colors.grey.shade400;
     final gradientColors = _isOnline 
-        ? [themeProvider.primaryColor, themeProvider.primaryColor.withOpacity(0.8)]
+        ? [themeProvider.primaryColor, themeProvider.primaryColor.withValues(alpha:0.8)]
         : [Colors.grey.shade400, Colors.grey.shade600];
     
     return Container(

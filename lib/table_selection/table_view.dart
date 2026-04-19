@@ -24,9 +24,7 @@ import '../database_Module/menu_item.dart';
 import 'dart:io'; // Add this for File class
 import 'package:path_provider/path_provider.dart'; // Add this for getApplicationDocumentsDirectory
 import 'package:crypto/crypto.dart';
-import 'package:http/http.dart' as http;
-import 'package:test1/utility_captain.dart';
-
+import 'package:test1/l10n/app_localizations.dart';
 class TableView extends StatefulWidget {
   const TableView({Key? key}) : super(key: key);
 
@@ -40,14 +38,13 @@ class _TableViewState extends State<TableView> {
   List<Active_Table_view> activeTables = [];
   String selectedStyle = "List Style Half Full"; // Default
   late Box<MenuItem> menuItemBox = store.box<MenuItem>();
-
-  
   late StreamSubscription<FileSystemEvent>? _kotWatcher;
   late StreamSubscription<FileSystemEvent>? _settleWatcher;
   String lastKotHash = "";
   String lastSettleHash = "";
   Timer? _debounce;
   Timer? _settleDebounce;
+  late CartProvider _cartProvider;
 
 
   @override
@@ -55,7 +52,7 @@ class _TableViewState extends State<TableView> {
     super.initState();
 
     _tablesList = store.box<Active_Table_view>();
-    cartProvider = Provider.of<CartProvider>(context,listen: false);
+    _cartProvider = Provider.of<CartProvider>(context,listen: false);
     
     // Load initial data
     // Call your methods sequentially
@@ -67,19 +64,24 @@ class _TableViewState extends State<TableView> {
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       if (!mounted) return;
       await readAndSaveToPrefs();
-      await processSettleTables();
+      await processSettleTables(context);
       _loadTables();
-      //debugPrint("✅ Sync completed");
     });
   }
 
   /// Fetches all tables from ObjectBox and updates the UI.
   void _loadTables() {
-    setState(() {
-      activeTables = _tablesList.getAll();
-      activeTables.sort((a, b) => a.number.compareTo(b.number));
-    });
-    //debugPrint("✅ Table #${activeTables} total updated to:");
+    Future.delayed(Duration(seconds: 1));
+    if(mounted){
+      setState(() {
+        activeTables = _tablesList.getAll();
+        activeTables.sort((a, b) => a.number.compareTo(b.number));
+      });
+     }
+    // for(var table in activeTables ){
+    //   print_log("✅ Table #${table.total} total updated to: #${table.number}");
+    // }
+    // print_log("✅ Table #${activeTables} total updated to: #${activeTables.length}");
   }
 
   /// Loads the user's preferred order page style
@@ -107,19 +109,19 @@ void watchKOTFile() async {
   final kotFile = File('${dir.path}/pending_kot.json');
 
   if (!await kotFile.exists()) {
-    await kotFile.writeAsString("[]");
-    //debugPrint("🆕 Created pending_kot.json");
+    await kotFile.writeAsString("{}");
+    print_log("pending_kot Created pending_kot.json");
   }
 
   _kotWatcher = kotFile.watch(events: FileSystemEvent.modify).listen((event) async {
     if (event.type != FileSystemEvent.modify) return;
 
     final text = await kotFile.readAsString();
-    //debugPrint("⛔ text read from file $text");
+    print_log("⛔ pending_kot text read from file $text");
     final currentHash = getMd5(text);
 
     if (currentHash == lastKotHash) {
-      //debugPrint("⛔ No change in KOT file → ignoring");
+      print_log("⛔ pending_kot No change in KOT file → ignoring");
       return;
     }
 
@@ -127,49 +129,18 @@ void watchKOTFile() async {
 
     _debounce?.cancel();
     _debounce = Timer(const Duration(milliseconds: 600), () async {
-      //debugPrint("🔄 KOT file updated → checking role/device...");
+    print_log("🔄 pending_kot KOT file updated → checking role/device...");
 
-      try {
-        final List decoded = jsonDecode(text);
+    try {
+      final decoded = jsonDecode(text);
+      print_log("pending_kot Sync complete ${decoded.runtimeType} $decoded");
+      await readAndSaveToPrefs();
+      if (mounted) setState(() => _loadTables());
+      print_log("✅ pending_kot Sync complete");
 
-        if (decoded.isNotEmpty &&
-            decoded[0]["items"] != null &&
-            decoded[0]["items"].isNotEmpty) {
-          
-          final item = decoded[0]["items"][0];
-          final dataFor = item["datafor"]?.toString() ?? "";
-           final type = item["type"]?.toString() ?? "";
-          final senderDevice = item["sender_device"]?.toString() ?? ""; // Add sender device field
-
-          //debugPrint("🔍 File datafor = $dataFor | User role = $role | Sender device = $senderDevice | deviceId = $deviceId");
-
-          // 🔥 CRITICAL FIX: Check if this update came from THIS device
-          if (senderDevice == deviceId) {
-            //debugPrint("⏭️ Update came from this device → ignoring to prevent duplicate");
-            await kotFile.writeAsString("[]"); // Clear the file
-            return;
-          }
-
-          if (dataFor == "ALL" || dataFor == role) {
-            //debugPrint("✅ ROLE MATCH → Processing KOT");
-            if(type == "KOT")
-            {
-               await readAndSaveToPrefsforkot();
-            }else{
-              await readAndSaveToPrefs();
-            }
-            
-            if (mounted) setState(() => _loadTables());
-            //debugPrint("✅ Sync complete");
-          } else {
-            //debugPrint("⛔ ROLE MISMATCH → Ignoring KOT");
-            await kotFile.writeAsString("[]");
-            //debugPrint("⛔ ROLE MISMATCH → Ignoring KOT & file cleared");
-          }
-        }
-      } catch (e) {
-        //debugPrint("❌ JSON parse error: $e");
-      }
+    } catch (e) {
+      print_log("❌ pending_kot JSON parse error: $e");
+    }
     });
   });
 }
@@ -183,7 +154,7 @@ void watchSettleFile() async {
     await settleFile.writeAsString("[]");
   }
 
-  //debugPrint("SETTLE → watching directory: ${dir.path}");
+  print_log("SETTLE → watching directory: ${dir.path}");
 
   _settleWatcher = dir.watch().listen((event) async {
     if (!event.path.endsWith("pending_settle.json")) return;
@@ -193,7 +164,7 @@ void watchSettleFile() async {
     final currentHash = getMd5(text);
 
     if (currentHash == lastSettleHash) {
-      //debugPrint("⛔ No real change");
+      print_log("⛔ No real change");
       return;
     }
 
@@ -201,10 +172,10 @@ void watchSettleFile() async {
 
     _settleDebounce?.cancel();
     _settleDebounce = Timer(const Duration(milliseconds: 600), () async {
-      //debugPrint("🔄 SETTLE updated → syncing...");
-      await processSettleTables();
+      print_log("🔄 SETTLE updated → syncing...");
+      await processSettleTables(context);
       if (mounted) setState(() => _loadTables());
-      //debugPrint("✅ SETTLE Sync complete");
+      print_log("✅ SETTLE Sync complete");
     });
   });
 }
@@ -350,253 +321,300 @@ void dispose() {
 
 
   
-Future<void> processSettleTables() async {
+Future<void> processSettleTables(BuildContext context,{int? tablenumber}) async {
   try {
     final dir = await getApplicationSupportDirectory();
     final file = File("${dir.path}/pending_settle.json");
-
     if (!file.existsSync()) {
-      //debugPrint("❌ pending_settle.json file not found");
+      print_log("❌ pending_kot  pending_settle.json file not found");
       return;
     }
-
     final text = await file.readAsString();
-
-    //debugPrint("pending_settle.json file $text");
+    print_log("pending_kot  pending_settle.json file $text");
     if (text.isEmpty) return;
-
     final List<dynamic> settleList = jsonDecode(text);
-
+    print_log("pending_kot  pending_settle.json file settleList ${settleList.runtimeType} $settleList ");
     if (settleList.isEmpty) return;
-
     final prefs = await SharedPreferences.getInstance();
-
     for (var entry in settleList) {
       if (entry is Map<String, dynamic>) {
-        final tableNo = entry['tableNo']?.toString();
+        final tableNo = (tablenumber == null) ?  entry['tableNo']?.toString()  : tablenumber.toString();
+        final key = "tt$tableNo";
+        if (prefs.containsKey(key)) {
+          await prefs.remove(key);
+        }
         if (tableNo != null) {
-          final key = "table$tableNo";
-          if (prefs.containsKey(key)) {
-            await prefs.remove(key);
-            //debugPrint("✅ Removed table $tableNo from SharedPreferences");
-            // -----------------------------
-      // 5️⃣ Update ObjectBox table total
-      // -----------------------------
-      final store = Provider.of<ObjectBoxService>(context, listen: false).store;
-      final box = store.box<Active_Table_view>();
-
-      final query = box
-          .query(Active_Table_view_.number.equals(int.parse(tableNo)))
-          .build();
-
-      final tableList = query.find();
-      query.close();
-
-      if (tableList.isNotEmpty) {
-        final table = tableList.first;
-
-        // Update total inside ObjectBox
-        updateTableTotal(table, []);
-
-        final tableNo1 = int.tryParse(entry['tableNo']) ?? 0;
-          // 3. Find if an entry for this table already exists
-    final box = store.box<tableCart>();
-    final query = box.query(tableCart_.tableNo.equals(tableNo1)).build();
-    tableCart? existingTableCart = query.findFirst();
-    query.close();
-    //debugPrint("✅ Updated cart for table #$tableNo in ObjectBox. existingTableCart $existingTableCart");
-
-    // 5. If the cart is empty, remove the entry from the database
-    if (existingTableCart != null) {
-      box.remove(existingTableCart.id);
-      //debugPrint("🗑️ Removed empty cart for table #$tableNo from ObjectBox.");
-    }
-
-
-       
-
-        _loadTables(); // refresh UI
-
-        //debugPrint("🔄 Updated ObjectBox table ${table.number}");
-      } else {
-        //debugPrint("❌ No ObjectBox table found for number: $tableNo");
-      }
-
+          print_log("✅ pending_kot  Removed table $tableNo from SharedPreferences");
+          final store = Provider.of<ObjectBoxService>(context, listen: false).store;
+          final box = store.box<Active_Table_view>();
+          final query = box.query(Active_Table_view_.number.equals(int.parse(tableNo))).build();
+          final tableList = query.find();
+          query.close();
+          if (tableList.isNotEmpty) {
+            final table = tableList.first;
+            updateTableTotal(table, []); // remove table total to free the table from red/busy
+            final tableNo1 = int.tryParse(tableNo) ?? 0;
+            final box = store.box<tableCart>();
+            final query = box.query(tableCart_.tableNo.equals(tableNo1)).build();
+            tableCart? existingTableCart = query.findFirst();
+            query.close();
+            print_log("✅pending_kot  Updated cart for table #$tableNo in ObjectBox. existingTableCart $existingTableCart");
+            if (existingTableCart != null) {
+              box.remove(existingTableCart.id); // remove table cart from ObjectBox
+              print_log("🗑️pending_kot  Removed empty cart for table #$tableNo from ObjectBox.");
+            }
+            _loadTables(); // refresh UI
+            print_log("🔄pending_kot  Updated ObjectBox table ${table.number}");
           } else {
-            //debugPrint("⚠️ Table $tableNo key not found in SharedPreferences");
-
-               final store = Provider.of<ObjectBoxService>(context, listen: false).store;
-      final box = store.box<Active_Table_view>();
-
-             final query = box
-          .query(Active_Table_view_.number.equals(int.parse(tableNo)))
-          .build();
-
-      final tableList = query.find();
-      query.close();
-
-  
-        final table = tableList.first;
-            updateTableTotal(table, [], skipFcm: true);
-
-
-              final tableNo1 = int.tryParse(entry['tableNo']) ?? 0;
-          // 3. Find if an entry for this table already exists
-    final box1 = store.box<tableCart>();
-    final query1 = box1.query(tableCart_.tableNo.equals(tableNo1)).build();
-    tableCart? existingTableCart = query1.findFirst();
-    query1.close();
-    //debugPrint("✅ Updated cart for table #$tableNo in ObjectBox. existingTableCart $existingTableCart");
-
-    // 5. If the cart is empty, remove the entry from the database
-    if (existingTableCart != null) {
-      box1.remove(existingTableCart.id);
-      //debugPrint("🗑️ Removed empty cart for table #$tableNo from ObjectBox.");
-
-    }
-
-     if (mounted) setState(() => _loadTables());
+            print_log("❌pending_kot  No ObjectBox table found for number: $tableNo");
           }
+
+        } else {
+          print_log("⚠️pending_kot  Table $tableNo key not found in SharedPreferences");
+          final store = Provider.of<ObjectBoxService>(context, listen: false).store;
+          final box = store.box<Active_Table_view>();
+          final query = box.query(Active_Table_view_.number.equals(int.parse(tableNo ?? '1'))).build();
+          final tableList = query.find();
+          query.close();
+          final table = tableList.first;
+          updateTableTotal(table, [], skipFcm: true);
+          final tableNo1 = int.tryParse(entry['tableNo']) ?? 0;
+          final box1 = store.box<tableCart>();
+          final query1 = box1.query(tableCart_.tableNo.equals(tableNo1)).build();
+          tableCart? existingTableCart = query1.findFirst();
+          query1.close();
+          print_log("✅pending_kot  Updated cart for table #$tableNo in ObjectBox. existingTableCart $existingTableCart");
+          // 5. If the cart is empty, remove the entry from the database
+          if (existingTableCart != null) {
+            box1.remove(existingTableCart.id);
+            print_log("🗑️pending_kot  Removed empty cart for table #$tableNo from ObjectBox.");
+          }
+          if (mounted) setState(() => _loadTables());
+          
         }
       }
     }
-
     // Clear the pending_settle.json file after processing
     await file.writeAsString("[]");
-    //debugPrint("🧹 pending_settle.json cleared after processing");
-
-    
+    print_log("🧹pending_kot  pending_settle.json cleared after processing");
   } catch (e) {
-    //debugPrint("❌ Error processing settle tables: $e");
+    print_log("❌pending_kot  Error processing settle tables: $e");
   }
 }
 
-Future<void> readAndSaveToPrefsforkot() async {
-  try {
-    final dir = await getApplicationSupportDirectory();
-    final file = File("${dir.path}/pending_kot.json");
+// Future<void> readAndSaveToPrefsforkot() async {
+//   try {
+//     final dir = await getApplicationSupportDirectory();
+//     final file = File("${dir.path}/pending_kot.json");
 
-    if (!file.existsSync()) {
-      //debugPrint("❌ pending_kot.json not found");
-      return;
-    }
+//     if (!file.existsSync()) {
+//       print_log("❌ pending_kot.json not found");
+//       return;
+//     }
 
-    final raw = await file.readAsString();
-    //debugPrint("pending_kot File → $raw");
+//     final raw = await file.readAsString();
+//     print_log("pending_kot File → $raw");
 
-    final List<dynamic> rootList = jsonDecode(raw);
+//     final List<dynamic> rootList = jsonDecode(raw);
+//     print_log("pending_kot File rootList → $rootList");
+//     // STEP 1️⃣ : GROUP ITEMS BY TABLE
+//     Map<String, List<Map<String, dynamic>>> tableMap = {};
 
-    // STEP 1️⃣ : GROUP ITEMS BY TABLE
-    Map<String, List<Map<String, dynamic>>> tableMap = {};
+//     for (var entry in rootList) {
+//       final List<dynamic> items = entry["items"] ?? [];
+//       if (items.isEmpty) continue;
 
-    for (var entry in rootList) {
-      final List<dynamic> items = entry["items"] ?? [];
-      if (items.isEmpty) continue;
+//       final tableNo = items.first["tableno"]?.toString();
+//       if (tableNo == null || tableNo.isEmpty) continue;
 
-      final tableNo = items.first["tableno"]?.toString();
-      if (tableNo == null || tableNo.isEmpty) continue;
+//       tableMap.putIfAbsent(tableNo, () => []);
+//       tableMap[tableNo]!.addAll(
+//         items.map<Map<String, dynamic>>((e) => Map<String, dynamic>.from(e))
+//       );
+//     }
+//     print_log("pending_kot File tableMap → $tableMap");
+//     // Access ObjectBox
+//     final store = Provider.of<ObjectBoxService>(context, listen: false).store;
+//     final activeBox = store.box<Active_Table_view>();
+//     final cartBox = store.box<tableCart>();
 
-      tableMap.putIfAbsent(tableNo, () => []);
-      tableMap[tableNo]!.addAll(
-        items.map<Map<String, dynamic>>((e) => Map<String, dynamic>.from(e))
-      );
-    }
+//     // STEP 2️⃣ : PROCESS EACH TABLE ONCE
+//     for (var tableNo in tableMap.keys) {
+//       final int tNo = int.parse(tableNo);
 
-    // Access ObjectBox
-    final store = Provider.of<ObjectBoxService>(context, listen: false).store;
-    final activeBox = store.box<Active_Table_view>();
-    final cartBox = store.box<tableCart>();
+//       // Check existing cart
+//       final cartQuery = cartBox.query(tableCart_.tableNo.equals(tNo)).build();
+//       tableCart? existing = cartQuery.findFirst();
+//       cartQuery.close();
 
-    // STEP 2️⃣ : PROCESS EACH TABLE ONCE
-    for (var tableNo in tableMap.keys) {
-      final int tNo = int.parse(tableNo);
+//       // Decode old cart
+//       List<Map<String, dynamic>> oldItems = [];
+//       if (existing != null && existing.tCart.isNotEmpty) {
+//         oldItems = List<Map<String, dynamic>>.from(jsonDecode(existing.tCart));
+//       }
 
-      // Check existing cart
-      final cartQuery =
-          cartBox.query(tableCart_.tableNo.equals(tNo)).build();
-      tableCart? existing = cartQuery.findFirst();
-      cartQuery.close();
+//       // New KOT items
+//       List<Map<String, dynamic>> newItems = tableMap[tableNo]!;
 
-      // Decode old cart
-      List<Map<String, dynamic>> oldItems = [];
-      if (existing != null && existing.tCart.isNotEmpty) {
-        oldItems =
-            List<Map<String, dynamic>>.from(jsonDecode(existing.tCart));
-      }
+//       // STEP 3️⃣ : Merge (name + portion)
+//       Map<String, Map<String, dynamic>> merged = {};
 
-      // New KOT items
-      List<Map<String, dynamic>> newItems = tableMap[tableNo]!;
+//       for (var item in oldItems) {
+//         final key = "${item['name']}_${item['portion']}";
+//         merged[key] = Map<String, dynamic>.from(item);
+//       }
 
-      // STEP 3️⃣ : Merge (name + portion)
-      Map<String, Map<String, dynamic>> merged = {};
+//       for (var item in newItems) {
+//         final key = "${item['name']}_${item['portion']}";
+//         if (merged.containsKey(key)) {
+//           merged[key]!['qty'] =
+//               (merged[key]!['qty'] as num) + (item['qty'] as num);
+//           merged[key]!['total'] =
+//               (merged[key]!['qty'] as num) * (merged[key]!['sellPrice'] as num);
+//         } else {
+//           merged[key] = Map<String, dynamic>.from(item);
+//         }
+//       }
 
-      for (var item in oldItems) {
-        final key = "${item['name']}_${item['portion']}";
-        merged[key] = Map<String, dynamic>.from(item);
-      }
+//       final finalList = merged.values.toList();
+//       final stringCart = jsonEncode(finalList);
 
-      for (var item in newItems) {
-        final key = "${item['name']}_${item['portion']}";
-        if (merged.containsKey(key)) {
-          merged[key]!['qty'] =
-              (merged[key]!['qty'] as num) + (item['qty'] as num);
-          merged[key]!['total'] =
-              (merged[key]!['qty'] as num) * (merged[key]!['sellPrice'] as num);
-        } else {
-          merged[key] = Map<String, dynamic>.from(item);
-        }
-      }
-
-      final finalList = merged.values.toList();
-      final stringCart = jsonEncode(finalList);
-
-      // STEP 4️⃣ : SAVE IN OBJECTBOX (NOT SHAREDPREFS)
-      if (finalList.isNotEmpty) {
-        if (existing != null) {
-          existing.tCart = stringCart;
-          cartBox.put(existing);
-          //debugPrint("🟢 Updated ObjectBox Cart → Table $tNo");
+//       // STEP 4️⃣ : SAVE IN OBJECTBOX (NOT SHAREDPREFS)
+//       if (finalList.isNotEmpty) {
+//         if (existing != null) {
+//           existing.tCart = stringCart;
+//           cartBox.put(existing);
+//           print_log("🟢 pending_kot Updated ObjectBox Cart → Table $tNo");
 
 
-        } else {
-          final newCart = tableCart(syid:ganarateID(), tableNo: tNo, tCart: stringCart);
-          cartBox.put(newCart);
-          //debugPrint("🟢 Created ObjectBox Cart → Table $tNo");
-        }
-      } else {
-        if (existing != null) {
-          cartBox.remove(existing.id);
-          //debugPrint("🗑️ Deleted empty cart → Table $tNo");
-        }
-      }
+//         } else {
+//           final newCart = tableCart(syid:ganarateID(), tableNo: tNo, tCart: stringCart);
+//           cartBox.put(newCart);
+//           print_log("🟢 pending_kot Created ObjectBox Cart → Table $tNo");
+//         }
+//       } else {
+//         if (existing != null) {
+//           cartBox.remove(existing.id);
+//           print_log("🗑️pending_kot Deleted empty cart → Table $tNo");
+//         }
+//       }
 
-      // STEP 5️⃣ : UPDATE ACTIVE TABLE TOTAL
-      final tQuery = activeBox
-          .query(Active_Table_view_.number.equals(tNo))
-          .build();
+//       // STEP 5️⃣ : UPDATE ACTIVE TABLE TOTAL
+//       final tQuery = activeBox
+//           .query(Active_Table_view_.number.equals(tNo))
+//           .build();
 
-      final tableList = tQuery.find();
-      tQuery.close();
+//       final tableList = tQuery.find();
+//       tQuery.close();
 
-      if (tableList.isNotEmpty) {
+//       if (tableList.isNotEmpty) {
         
-        updateTableTotal(tableList.first, finalList,skipFcm: true);
-        //debugPrint("🔄 Updated Table Total → $tNo (skipFcm)");
-      }
-    }
+//         updateTableTotal(tableList.first, finalList,skipFcm: true);
+//         print_log("🔄 pending_kot Updated Table Total → $tNo (skipFcm)");
+//       }
+//     }
 
-    // STEP 6️⃣ : CLEAR FILE SAFELY
-    //ignoreNextWrite = true;
-    await file.writeAsString(jsonEncode([]));
-    lastKotHash = getMd5("[]");
+//     // STEP 6️⃣ : CLEAR FILE SAFELY
+//     //ignoreNextWrite = true;
+//     await file.writeAsString(jsonEncode([]));
+//     lastKotHash = getMd5("[]");
 
-    //debugPrint("🧹 pending_kot.json cleared successfully");
+//     print_log("🧹 pending_kot.json cleared successfully");
 
-    if (mounted) setState(() => _loadTables());
-  } catch (e) {
-    //debugPrint("❌ Error → $e");
-  }
-}
+//     if (mounted) setState(() => _loadTables());
+//   } catch (e) {
+//     print_log("❌pending_kot Error → $e");
+//   }
+// }
+
+
+// Future<void> readAndSaveToPrefs() async {
+//   try {
+//     final dir = await getApplicationSupportDirectory();
+//     final file = File("${dir.path}/pending_kot.json");
+
+//     if (!file.existsSync()) {
+//       print_log("❌ pending_kot.json not found");
+//       return;
+//     }
+
+//     final  raw = await file.readAsString();
+//     print_log("pending_kot File raw → $raw ${file.path}");
+
+//     final Map<String, dynamic> rootList = jsonDecode(raw) as Map<String, dynamic>;;
+//     print_log("pending_kot File rootList → ${rootList.runtimeType}  $rootList  ");
+
+//     // Access ObjectBox
+//     final store = Provider.of<ObjectBoxService>(context, listen: false).store;
+//     final activeBox = store.box<Active_Table_view>();
+//     final cartBox = store.box<tableCart>();
+
+//     // STEP 2️⃣ : PROCESS EACH TABLE ONCE
+//     for (var tableNo in rootList.keys) {
+//       final int tNo = int.parse(tableNo);
+
+//       final cartQuery = cartBox.query(tableCart_.tableNo.equals(tNo)).build();
+//       tableCart? existing = cartQuery.findFirst();
+//       cartQuery.close();
+
+//       // Use this:
+//       List<Map<String, dynamic>> tcart = [];
+//       final data = rootList[tableNo.toString()];
+//       if (data is List) {
+//         tcart = data.map((item) => Map<String, dynamic>.from(item)).toList();
+//       }
+//       print_log("pending_kot File tcart → ${tcart.runtimeType}  $tcart  ");
+      
+//       final stringCartNew = jsonEncode(tcart);
+//       print_log("pending_kot File stringCartNew → ${stringCartNew.runtimeType}  $stringCartNew  ");
+
+
+//       if (existing == null) {
+//         // CREATE NEW CART
+//         print_log("Creating new cart for table $tNo");
+        
+//         final newCart = tableCart(
+//           syid: ganarateID(), // Make sure this function exists
+//           tableNo: tNo,
+//           tCart: stringCartNew,
+//         );
+        
+//         cartBox.put(newCart);
+//         print_log("✅ Created new cart for table $tNo with ${stringCartNew} items");
+        
+//         // Update active table total
+//         final tQuery = activeBox.query(Active_Table_view_.number.equals(tNo)).build();
+//         final tableList = tQuery.find();
+//         tQuery.close();
+        
+//         if (tableList.isNotEmpty) {
+//           updateTableTotal(tableList.first, tcart, skipFcm: true);
+//           print_log("Updated active table $tNo total");
+//           return;
+//         }
+      
+//       existing!.tCart = stringCartNew;
+//       cartBox.put(existing);
+
+//       final tQuery = activeBox.query(Active_Table_view_.number.equals(tNo)).build();
+//       final tableList = tQuery.find();
+//       tQuery.close();
+//       print_log("pending_kot File tableList → ${tableList.runtimeType}  $tableList  ");
+//       updateTableTotal(tableList.first, tcart , skipFcm: true);
+      
+//     }
+
+//     // STEP 6️⃣ : CLEAR FILE
+//     await file.writeAsString(jsonEncode({}));
+//     lastKotHash = getMd5("{}");
+
+//     print_log("pending_kot.json cleared successfully");
+
+//     if (mounted) setState(() => _loadTables());
+//   } catch (e) {
+//     print_log_red("❌ Error → $e");
+//   }
+// }
 
 
 Future<void> readAndSaveToPrefs() async {
@@ -605,120 +623,166 @@ Future<void> readAndSaveToPrefs() async {
     final file = File("${dir.path}/pending_kot.json");
 
     if (!file.existsSync()) {
-      //debugPrint("❌ pending_kot.json not found");
+      print_log("❌ pending_kot.json not found");
       return;
     }
 
     final raw = await file.readAsString();
-    //debugPrint("pending_kot File → $raw");
+    print_log("pending_kot File raw → $raw ${file.path}");
 
-    final List<dynamic> rootList = jsonDecode(raw);
-
-    // STEP 1️⃣ : GROUP ITEMS BY TABLE
-    Map<String, List<Map<String, dynamic>>> tableMap = {};
-
-    for (var entry in rootList) {
-      final List<dynamic> items = entry["items"] ?? [];
-      if (items.isEmpty) continue;
-
-      final tableNo = items.first["tableno"]?.toString();
-      if (tableNo == null || tableNo.isEmpty) continue;
-
-      tableMap.putIfAbsent(tableNo, () => []);
-      tableMap[tableNo]!.addAll(items.map<Map<String, dynamic>>((e) => Map<String, dynamic>.from(e)));
+    if (raw.isEmpty || raw == "[]" || raw == "{}") {
+      print_log("Empty file, nothing to process");
+      await file.writeAsString(jsonEncode({}));
+      return;
     }
-    print_log("create table map is $tableMap");
+
+    final dynamic parsedData = jsonDecode(raw);
+    print_log("pending_kot File type: ${parsedData.runtimeType} $parsedData");
+    
+    Map<String, dynamic> rootList = {};
+    
+    if (parsedData is Map) {
+      rootList = Map<String, dynamic>.from(parsedData);
+      print_log(" pending_kot Processing as Map with ${rootList.keys.length} tables $rootList");
+    } else if (parsedData is List) {
+      print_log("pending_kot Converting List format to Map format");
+      for (var entry in parsedData) {
+        if (entry is Map) {
+          final items = entry["items"];
+          final tableNo = entry["tableNo"]?.toString();
+          if (tableNo != null && items is List) {
+            rootList[tableNo] = items;
+          }
+        }
+      }
+      print_log("pending_kot Converted to Map with ${rootList.keys.length} tables $rootList");
+    } else {
+      print_log("pending_kot Unexpected data format");
+      await file.writeAsString(jsonEncode({}));
+      return;
+    }
+
+    if (rootList.isEmpty) {
+      print_log("pending_kot No tables to process $rootList");
+      await file.writeAsString(jsonEncode({}));
+      return;
+    }
 
     // Access ObjectBox
     final store = Provider.of<ObjectBoxService>(context, listen: false).store;
     final activeBox = store.box<Active_Table_view>();
     final cartBox = store.box<tableCart>();
 
-    // STEP 2️⃣ : PROCESS EACH TABLE ONCE
-    for (var tableNo in tableMap.keys) {
-      final int tNo = int.parse(tableNo);
+    // Process each table
+    for (var entry in rootList.entries) {
+      final tableNo = entry.key;
+      final tableData = entry.value;
+      
+      final int tNo = int.tryParse(tableNo) ?? 0;
+      if (tNo == 0) {
+        print_log("pending_kot Invalid table number: $tableNo");
+        continue;
+      }
 
+      print_log("pending_kot Processing table $tNo");
+
+      // Get existing cart
       final cartQuery = cartBox.query(tableCart_.tableNo.equals(tNo)).build();
-      tableCart? existing = cartQuery.findFirst();
+      final existing = cartQuery.findFirst();
       cartQuery.close();
 
-      List<Map<String, dynamic>> newItems = tableMap[tableNo]!;
-      List<Map<String, dynamic>> combinedItems = [];
-
-      // Load existing items if they exist
-      if (existing != null && existing.tCart.isNotEmpty) {
-        try {
-          combinedItems = List<Map<String, dynamic>>.from(jsonDecode(existing.tCart));
-        } catch (e) {
-          //debugPrint("Error decoding existing cart: $e");
+      // Extract items from tableData
+      List<Map<String, dynamic>> newItems = [];
+      
+      if (tableData is List) {
+        newItems = tableData.map((item) {
+          if (item is Map) {
+            return Map<String, dynamic>.from(item);
+          }
+          return <String, dynamic>{};
+        }).where((item) => item.isNotEmpty).toList();
+      } else if (tableData is Map && tableData.containsKey('items')) {
+        final items = tableData['items'];
+        if (items is List) {
+          newItems = items.map((item) {
+            if (item is Map) {
+              return Map<String, dynamic>.from(item);
+            }
+            return <String, dynamic>{};
+          }).where((item) => item.isNotEmpty).toList();
         }
       }
-
-      // 🔥 FIX: Merge logic instead of .addAll()
-      for (var newItem in newItems) {
-        // Find if the item already exists in the combined list (check by ID)
-        int existingIndex = combinedItems.indexWhere((item) => item['name'] == newItem['name']);
-
-        if (existingIndex != -1) {
-          
-          int oldQty = (combinedItems[existingIndex]['qty'] as num? ?? 0).toInt();
-          int newQty = (newItem['qty'] as num? ?? 0).toInt();
-
-          double newPrice = (newItem['sellPrice'] as num? ?? 0.0).toDouble();
-
-          combinedItems[existingIndex]['qty'] = oldQty + newQty;
-          combinedItems[existingIndex]['total'] = (oldQty + newQty) * newPrice;
-          
-          //debugPrint("marge and Updated ${newItem['name']} qty to ${combinedItems[existingIndex]['qty']} total to ${combinedItems[existingIndex]['total']}");
-        } else{
-          //debugPrint("ITEM DOES NOT EXIST: Add new item $newItem");
-          // ITEM DOES NOT EXIST: Add new item
-          combinedItems.add(newItem);
-        }
+      if (newItems.isEmpty) {
+        print_log("pending_kot No items for table $tNo, skipping");
+        continue;
       }
 
+      print_log("pending_kot Table $tNo has ${newItems.runtimeType} new items $newItems");
 
-      final stringCartNew = jsonEncode(combinedItems);
-      print_log("stringCartNew $stringCartNew");
-
-      // STEP 4️⃣ : SAVE IN OBJECTBOX
-      if (newItems.isNotEmpty) {
-        if (existing != null) {
-          existing.tCart = stringCartNew;
-          cartBox.put(existing);
-          //debugPrint("🟢 Merged ObjectBox Cart → Table $tNo");
+      if (existing == null) {
+        // CREATE NEW CART
+        print_log("pending_kot Creating new cart for table $tNo");
+        
+        final stringCartNew = jsonEncode(newItems);
+        
+        final newCart = tableCart(
+          syid: ganarateID(), // Make sure this function exists
+          tableNo: tNo,
+          tCart: stringCartNew,
+        );
+        
+        cartBox.put(newCart);
+        print_log("✅ pending_kot Created new cart for table $tNo with ${newItems.length} items");
+        
+        // Update active table total
+        final tQuery = activeBox.query(Active_Table_view_.number.equals(tNo)).build();
+        final tableList = tQuery.find();
+        tQuery.close();
+        
+        if (tableList.isNotEmpty) {
+          updateTableTotal(tableList.first, newItems, skipFcm: true);
+          print_log("pending_kot Updated active table $tNo total");
         } else {
-          final newCart = tableCart(syid:ganarateID(), tableNo: tNo, tCart: stringCartNew);
-          cartBox.put(newCart);
-          //debugPrint("🟢 Created new ObjectBox Cart → Table $tNo");
+          print_log("pending_kot Warning: Active table $tNo not found");
         }
+        
       } else {
-        if (existing != null) {
-          cartBox.remove(existing.id);
-          //debugPrint("🗑️ Deleted empty cart → Table $tNo");
+        // UPDATE EXISTING CART
+        print_log("pending_kot Updating existing cart for table $tNo");
+
+        // Merge items
+        List<Map<String, dynamic>> mergedItems = newItems;
+
+        final stringCartNew = jsonEncode(mergedItems);
+        existing.tCart = stringCartNew;
+        cartBox.put(existing);
+        print_log("✅ pending_kot Updated cart for table $tNo with ${mergedItems.length} items");
+        
+        // Update active table total
+        final tQuery = activeBox.query(Active_Table_view_.number.equals(tNo)).build();
+        final tableList = tQuery.find();
+        tQuery.close();
+        
+        if (tableList.isNotEmpty) {
+          updateTableTotal(tableList.first, mergedItems, skipFcm: true);
+          print_log("pending_kot Updated active table $tNo total");
         }
       }
-
-      // STEP 5️⃣ : UPDATE ACTIVE TABLE TOTAL
-      final tQuery = activeBox.query(Active_Table_view_.number.equals(tNo)).build();
-      final tableList = tQuery.find();
-      tQuery.close();
-
-      updateTableTotal(tableList.first, combinedItems, skipFcm: true);
     }
 
-    // STEP 6️⃣ : CLEAR FILE
-    await file.writeAsString(jsonEncode([]));
-    lastKotHash = getMd5("[]");
+    // Clear the file after processing
+    await file.writeAsString(jsonEncode({}));
+    lastKotHash = getMd5("{}");
 
-    //debugPrint("🧹 pending_kot.json cleared successfully");
+    print_log("✅ pending_kot.json cleared successfully");
 
     if (mounted) setState(() => _loadTables());
-  } catch (e) {
-    //debugPrint("❌ Error → $e");
+    
+  } catch (e, stackTrace) {
+    print_log_red("❌ Error → $e");
+    print_log_red("Stack trace: $stackTrace");
   }
 }
-
 
 
 
@@ -732,10 +796,7 @@ void _addNewTable() {
     final TextEditingController sectionController = TextEditingController(text: "Family Section");
     // 1. Get a unique list of all existing section names BEFORE showing the dialog
     //    I'm using 'paymentMethod' because that's what your constructor uses for the section.
-    final allSections = activeTables
-        .map((table) => table.paymentMethod) 
-        .toSet() // .toSet() automatically gets only unique names
-        .toList();
+    final allSections = activeTables.map((table) => table.paymentMethod).toSet().toList();
 
     // 2. Add a default "Family Section" section if it doesn't exist
     if (!allSections.contains("Family Section")) {
@@ -892,42 +953,42 @@ void _addNewTable() {
       
   void updateTableTotal(Active_Table_view table, List<Map<String, dynamic>> cart, {bool skipFcm = false}) async {
     double newTotal = 0.0;
-    
-    //debugPrint("updateTableTotal called with skipFcm: $skipFcm $cart");
-    
-    // Loop through each item in the cart
+    print_log("updateTableTotal called with skipFcm: $skipFcm $cart");
     for (final item in cart) {
-      //debugPrint("item['sellPrice'], ${item['sellPrice']}");
+      print_log("item['sellPrice'], ${item['sellPrice']}");
       final int quantity = int.parse(item['qty'].toString());
       final double price = double.parse(item['sellPrice'].toString());
       newTotal += price * quantity;
     }
-    
     final double oldTotal = table.total ?? 0.0;
-
     // Only update if total actually changed
     if (newTotal != oldTotal) {
       table.total = newTotal;
       _tablesList.put(table); 
-      _updateTableTimer(table.number, newTotal);
-      //debugPrint("🔥 Table #${table.number} total updated → ₹${newTotal.toStringAsFixed(2)}");
-      
-      // 🔥 PREVENT THE LOOP: Only send FCM if NOT skipping (i.e., not from FCM update)
+      // 🔥 Update timer based on new total
+      if (newTotal == 0) {
+        // Remove timer data when total becomes 0
+        await _removeTableTimer(table.number);
+      } else if (oldTotal == 0 && newTotal > 0) {
+        // Start timer when total becomes > 0
+        await _startTableTimer(table.number);
+      }
+      print_log(" Table #${table.number} total updated → ₹${newTotal.toStringAsFixed(2)}");
       if (!skipFcm) {
         final prefs = await SharedPreferences.getInstance();
         final role = prefs.getString('role');
         
         if (role == 'cashier') {
-          //debugPrint("💰 Cashier role detected → sending FCM notification");
+          print_log(" Cashier role detected → sending FCM notification");
           await sendFcmNotification(context, cart, table.number);
         }
       } else {
-        //debugPrint("⏭️ Skipping FCM notification (skipFcm=true)");
+        print_log(" Skipping FCM notification (skipFcm=true)");
       }
       
       if (mounted) setState(() { });
     } else {
-      //debugPrint("⏭️ Table #${table.number} total unchanged → ₹$oldTotal");
+      print_log(" Table #${table.number} total unchanged → ₹$oldTotal");
     }
   }
 
@@ -943,6 +1004,23 @@ void _addNewTable() {
     }
   }
 
+    // 🔥 New method to remove timer
+  Future<void> _removeTableTimer(int tableNumber) async {
+    final prefs = await SharedPreferences.getInstance();
+    final key = 'table_timer_$tableNumber';
+    await prefs.remove(key);
+    print_log(" Removed timer for table #$tableNumber");
+  }
+
+  // 🔥 New method to start timer
+  Future<void> _startTableTimer(int tableNumber) async {
+    final prefs = await SharedPreferences.getInstance();
+    final key = 'table_timer_$tableNumber';
+    final now = DateTime.now();
+    await prefs.setString(key, now.toIso8601String());
+    print_log(" Started timer for table #$tableNumber at ${now.toIso8601String()}");
+  }
+
   Future<Map<String, dynamic>> loadRecentTransactions(Active_Table_view table) async {
     final box12 = store.box<Transaction>();
     final prefs = await SharedPreferences.getInstance();
@@ -952,14 +1030,15 @@ void _addNewTable() {
     
     // 1. Get the ID from prefs. It might be null.
     final int? ttid = prefs.getInt(key);
-
+    print_log("ttid $ttid");
     // 2. Check if the ID even exists. If not, return an empty map.
-    if (ttid == null) {
+    if (ttid == null || ttid == 0) {
       return {};
     }
 
     // 3. Try to get the transaction from ObjectBox
     final Transaction? existingTx = box12.get(ttid);
+    print_log("existingTx $existingTx");
 
     // 4. Check if the transaction was found
     if (existingTx != null) {
@@ -981,8 +1060,8 @@ void _addNewTable() {
   /// Navigates to the order page for the selected table
   void _navigateToOrderPage(Active_Table_view table) async {
     final int tableNo = table.number;
-    // final key = "table$tableNo";
-
+    // final key = "tt$tableNo";
+    final prefs =await SharedPreferences.getInstance();
     final box = store.box<tableCart>();
     final query = box.query(tableCart_.tableNo.equals(tableNo)).build();
     tableCart? existingTableCart = await query.findFirst();
@@ -994,10 +1073,6 @@ void _addNewTable() {
       _cart1 = existingTableCart.tCart;
     }
     
-    // final prefs = await SharedPreferences.getInstance();
-    // final jsonString = prefs.getString(key);
-    //debugPrint("cart loded from the DB $_cart1");
-    
     List<Map<String, dynamic>> existingCart = [];
     if (_cart1 != null) {
       final decodedList = jsonDecode(_cart1) as List<dynamic>;
@@ -1005,7 +1080,14 @@ void _addNewTable() {
     }
 
     Map<String, dynamic> tt = await loadRecentTransactions(table);
-    //debugPrint("table transections $tt");
+    print_log("table transections $tt ${tt['status']}");
+    if(tt['status'] != null){
+      final bool = await prefs.getBool('hide_edit') ?? true;
+      if(tt['status'] == 'print' && bool){
+        screen_massage(context, "${AppLocalizations.of(context)!.access_denied} Add note for this transaction");
+        return;
+      }
+    }
 
     try{
       final carttt = await Navigator.push(context, MaterialPageRoute(builder: (context) => DetailPage(cart1:existingCart,
@@ -1013,42 +1095,59 @@ void _addNewTable() {
                         mode:"edit",
                         table:{'total':table.total.toInt(),'mode':"onlySettle",'kot': table.number},
                         )));
+                        // .then((_) async {
+                        //     // Wait for 2 seconds
+                        //     await Future.delayed(Duration(seconds: 2));
+                            
+                        //     print_log("going to update the tables after settle");
+                        //     _loadTables();
+                        //   });
       final tableNo = table.number;
       final box = store.box<tableCart>();
       final query = box.query(tableCart_.tableNo.equals(tableNo)).build();
       tableCart? existingTableCart = query.findFirst();
       query.close();
-      //debugPrint("✅ Updated cart for table #$tableNo in ObjectBox. existingTableCart $existingTableCart");
+      
       String? _cart1;
       if (existingTableCart != null) {
-        // 4a. If it exists, update it
         _cart1 = existingTableCart.tCart;
+      } else{
+        _cart1 = null;
       }
-      // String? _cart1 = existingTableCart.tCart ?? "";
-      //debugPrint("item['sellPrice'] ${_cart1} cartProvider.cart ${(_cart1).runtimeType}");
+      print_log("✅ updateTableTotal  cart for table #$tableNo in ObjectBox. existingTableCart ${carttt} $_cart1");
+      print_log("table ${_cart1.runtimeType}");
       if ((_cart1 ?? '').isEmpty || _cart1 == null) {
+        print_log("table updateTableTotal  _cart1 $_cart1");
         updateTableTotal(table, [], skipFcm: true);
-        _loadTables();
       } else {
-        final cartProvider = Provider.of<CartProvider>(context, listen: false);
-        //debugPrint("item['sellPrice'] ${cartProvider.cart.isNotEmpty} cartProvider.cart ${(cartProvider.cart).runtimeType}");
-        if (cartProvider.cart.isNotEmpty){
-          updateTableTotal(table, cartProvider.cart,skipFcm: true);
-          _loadTables();
-        } else{
+        //Auto Update table total and cart if any changes are done without click on add button in the editbill
+        final _cartProvider = Provider.of<CartProvider>(context, listen: false);
+        // final prefs =await SharedPreferences.getInstance();
+        // final role = prefs.getString('role');
+        // print_log("role to update table total to adjust stock $role");
+        // if (role == 'captain'){
+        //   print_log("table update _cartProvider.cart ${_cartProvider.cart} due to $role");
+        //   updateTableTotal(table, _cartProvider.cart,skipFcm: true);
+        //   _cartProvider.clearCart();
+        // } else{
           final cart = jsonDecode(_cart1 ?? "[]");
-          final cartData = List<Map<String, dynamic>>.from(cart); // Simpler conversion
-          //debugPrint("item['sellPrice'] ${cartData} cartProvider.cart ${cartData.runtimeType}");
+          final cartData = List<Map<String, dynamic>>.from(cart); 
+          print_log("table updateTableTotal  cartData $cartData");
           updateTableTotal(table, cartData, skipFcm: true);
-          _loadTables();
-        }
+          _cartProvider.clearCart();
+        // }
       }
     } catch (e) {
-      //debugPrint("Print error: $e");
+      print_log_red("Print error: $e");
     } 
-    
+    // printer.processSettleTables_utility(context, tableNo.toString());
     // After returning from the page, update the table total
     // (You'll need to add your updateTableTotal function back)
+    // Add delay before refreshing tables
+    print_log("Waiting 2 seconds before refreshing tables...");
+    await Future.delayed(Duration(seconds: 2));
+    
+    print_log("going to update the tables after settle");
     _loadTables(); // Reload tables to see updated total
   }
 
@@ -1057,6 +1156,7 @@ void _addNewTable() {
     // 1. Group the tables by section (Unchanged)
     final Map<String, List<Active_Table_view>> groupedTables = {};
     for (final table in activeTables) {
+      print_log("table ${table.total} ${table.paymentMethod} ");
       (groupedTables[table.paymentMethod] ??= []).add(table);
     }
 
@@ -1078,7 +1178,7 @@ return Scaffold(
         onPressed: () async {
           // Call your methods sequentially
           await readAndSaveToPrefs();
-          await processSettleTables();
+          await processSettleTables(context);
           _loadTables();
           //debugPrint("✅ Sync completed");
         },
@@ -1185,15 +1285,6 @@ return Scaffold(
                                             fontWeight: FontWeight.bold,
                                             color: (table.total > 0) ? const Color.fromARGB(255, 255, 255, 255) : Colors.green.shade900),
                                       ),
-                                      // Text(
-                                      //   table.number.toString(),
-                                      //   style: TextStyle(
-                                      //     fontSize: 14,
-                                      //     fontWeight: FontWeight.bold,
-                                      //     color:  (table.total > 0) ? const Color.fromARGB(255, 255, 255, 255) :const Color.fromARGB(
-                                      //         255, 0, 0, 0),
-                                      //   ),
-                                      // ),
                                       Text(
                                         '₹${table.total.toStringAsFixed(0)}',
                                         style: TextStyle(
@@ -1614,21 +1705,24 @@ class _TableTimerWidgetState extends State<TableTimerWidget> {
   @override
   void initState() {
     super.initState();
-    _checkTimer();
+    checkTimer(widget.total);
   }
 
   @override
   void didUpdateWidget(covariant TableTimerWidget oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.total != widget.total) {
-      _checkTimer();
+      print_log_red("table timer didUpdateWidget ${widget.total}");
+      checkTimer(widget.total);
     }
   }
 
-  void _checkTimer() async {
-    if (widget.total <= 0) {
+  void checkTimer(double total) async {
+    // print_log_red("table timer $total");
+    if (total <= 0) {
       _timer?.cancel();
       _timer = null;
+      print_log_red("table timer $total $_timer");
       if (mounted) setState(() => _duration = Duration.zero);
       return;
     }
@@ -1670,6 +1764,7 @@ class _TableTimerWidgetState extends State<TableTimerWidget> {
 
   @override
   Widget build(BuildContext context) {
+    
     if (widget.total <= 0) return const SizedBox.shrink();
     
     final hours = _duration.inHours.toString().padLeft(2, '0');

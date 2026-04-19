@@ -15,12 +15,15 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 // import 'Transctionreportpage.dart';
 import 'package:device_info_plus/device_info_plus.dart';
 import 'package:test1/table_selection/table_view.dart';
+
+//firebase
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:test1/settings/permissionUtils.dart';
 import 'package:firebase_core/firebase_core.dart';
 import './../firebase_options.dart';
-// import 'package:firebase_messaging/firebase_messaging.dart';
 import '../firebase/notification_service.dart';
+
+
 import 'package:provider/provider.dart';
 import '../database_Module/ObjectBoxService.dart';
 import '../database_Module/menu_item.dart';
@@ -29,6 +32,8 @@ import '../objectbox.g.dart';
 import 'package:flutter/foundation.dart';
 import 'package:test1/bill_printer.dart'; 
 import 'package:test1/inventory/sync_service.dart';
+import 'package:url_launcher/url_launcher.dart'; // Add this import
+import 'package:test1/buySerice/buy_service_page.dart';
 
 final printer = BillPrinter();
 
@@ -62,6 +67,7 @@ class _LoginPageState extends State<LoginPage> {
     getmodeldata();
     
     WidgetsBinding.instance.addPostFrameCallback((_) async {
+      _store = Provider.of<ObjectBoxService>(context, listen: false).store;
       auto_login();
     });
 
@@ -82,15 +88,13 @@ class _LoginPageState extends State<LoginPage> {
 
   Future<void> _initializeFirebase() async {
         // Initialize Firebase
-    await Firebase.initializeApp(
-      options: DefaultFirebaseOptions.currentPlatform,
-    );
+    print_log("going to initialize Firebase FCM");
+    await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform,);
+    print_log("going to initializeApp Firebase FCM");
     await NotificationService.initialize();
-    
-    // Set background handler
-    FirebaseMessaging.onBackgroundMessage(
-      NotificationService.backgroundHandler
-    );
+    print_log("going to initialized Firebase FCM");
+    FirebaseMessaging.onBackgroundMessage(NotificationService.backgroundHandler);
+    print_log("going to initialized backgroundHandler Firebase FCM");
     
   }
 
@@ -99,292 +103,76 @@ class _LoginPageState extends State<LoginPage> {
     final savedPassword = await secureStorage.read(key: 'password');
     final rememberStr = await secureStorage.read(key: 'remember_me');
     final remember = rememberStr == 'true';
-    print_log("auto_login1 $_rememberMe");
+    print_log("_rememberMe _loadLoginDetails $_rememberMe");
     if (remember && savedEmail != null && savedPassword != null) {
       setState(() {
         _emailController.text = savedEmail;
         _passwordController.text = savedPassword;
         _rememberMe = remember;
-        print_log("auto_login1 $_rememberMe");
+        print_log("_rememberMe _loadLoginDetails $_rememberMe");
       });
 
       // Future.delayed(const Duration(seconds: 1), _login);
     }
   }
 
-
-
-  // Future<void> _downloadNewApp(String id) async {
-  //   double downloadProgress = 0.0;
-  //   StateSetter? dialogSetState;
-  //   int? bytes = 0;
-  //   int? totalB = 0;
-
-  //   final downloadsDir1 = await getDownloadsDirectory();
-  //   if (downloadsDir1 != null) {
-  //     await _deleteDirectory(downloadsDir1);
-  //   }
-
-  //   // Show the dialog immediately
-  //   showDialog(
-  //     context: context,
-  //     barrierDismissible: false, // User cannot dismiss the dialog
-  //     builder: (BuildContext context) {
-  //       return StatefulBuilder(
-  //         builder: (context, setState) {
-  //           dialogSetState = setState; // Store setState function for later use
-  //           return AlertDialog(
-  //             title: const Text("Downloading Update"),
-  //             content: Column(
-  //               mainAxisSize: MainAxisSize.min,
-  //               children: [
-  //                 LinearProgressIndicator(
-  //                   value: downloadProgress,
-  //                   backgroundColor: Colors.grey[300],
-  //                   valueColor: const AlwaysStoppedAnimation<Color>(
-  //                     Colors.blue,
-  //                   ),
-  //                 ),
-  //                 const SizedBox(height: 16),
-  //                 Text(
-  //                   "${((bytes ?? 0) / (1024 * 1024)).toStringAsFixed(1)} MB / ${((totalB ?? 0) / (1024 * 1024)).toStringAsFixed(1)} MB and ${(downloadProgress * 100).toStringAsFixed(0)}%",
-  //                 ),
-  //               ],
-  //             ),
-  //           );
-  //         },
-  //       );
-  //     },
-  //   );
-
-  //   try {
-  //     // ✅ 1. Check and request permissions
-  //     // _checkAndRequestPermissions();
-
-  //     // ✅ 2. Extract the actual ID from the string
-  //     final nameId = id.split(":");
-  //     final version = nameId.isNotEmpty? nameId[0].replaceAll('{', ''): nameId;
-  //     final fileId = nameId.length > 1 ? nameId[1].replaceAll('}', '') : nameId;
-
-  //     // ✅ 4. Get a reliable downloads directory path
-  //     final downloadsDir = await getDownloadsDirectory();
-
-  //     if (downloadsDir == null) {
-  //       throw Exception("❌ Could not get downloads directory");
-  //     }
-  //     // Orbipay_$version
-  //     final savePath = '${downloadsDir.path}/Orbipay_$version.zip';
-  //     // await _extractZip (savePath, downloadsDir);
-
-  //     // Download using Dio
-  //     final dio = Dio();
-  //     await dio.download(
-  //       _downloadUrl,
-  //       savePath,
-  //       onReceiveProgress: (receivedBytes, totalBytes) {
-  //         if (totalBytes != -1) {
-  //           setState(() {
-  //             // //debugPrint( 'receivedBytes $receivedBytes and totalBytes $totalBytes and ${downloadProgress*100}');
-  //             dialogSetState?.call(() {
-  //               downloadProgress = receivedBytes / totalBytes;
-  //             });
-  //             bytes = receivedBytes;
-  //             totalB = totalBytes;
-  //           });
-  //         }
-  //       },
-  //       deleteOnError: true,
-  //       options: Options(
-  //         receiveTimeout: Duration(minutes: 5),
-  //         sendTimeout: Duration(minutes: 5),
-  //       ),
-  //     );
-
-  //     //debugPrint("✅ File saved to: $savePath");
-
-  //     // Close the dialog and immediately start the installation
-  //     // if (mounted) Navigator.of(context).pop();
-  //     await _extractZip(savePath, downloadsDir);
-  //   } catch (e) {
-  //     //debugPrint("❌ Error during download/install: $e");
-  //     // if (mounted) Navigator.of(context).pop(); // Close dialog on error
-  //     if (mounted) {
-  //       ScaffoldMessenger.of(
-  //         context,
-  //       ).showSnackBar(SnackBar(content: Text("❌ Error: $e")));
-  //     }
-  //   }
-  // }
-
-  // Extract ZIP file
-  // Future<void> _extractZip(String zipPath, Directory destinationDir) async {
-  //   try {
-  //     //debugPrint("zipPath $zipPath");
-
-  //     // Use the archive package to extract
-  //     final inputStream = InputFileStream(zipPath);
-  //     final archive = ZipDecoder().decodeStream(inputStream);
-  //     extractArchiveToDisk(archive, destinationDir.path);
-
-  //     //debugPrint("✅ ZIP extracted successfully to ${destinationDir.path}");
-
-  //     // ⭐ FIX: Safely find the .apk file instead of assuming the first file
-  //     String apkPath = '${destinationDir.path}/app-release.apk';
-  //     final entities = destinationDir.listSync(recursive: true);
-  //     for (var i in [1, 2, 3]) {
-  //       for (var entity in entities) {
-  //         if (entity is File) {
-  //           var pp = entity.path;
-  //           //debugPrint("$i entity.path ${entity.path}");
-  //           if (pp.contains('apk') || pp.contains('APK')) {
-  //             apkPath = entity.path;
-  //             break;
-  //           }
-  //         }
-  //       }
-  //     }
-
-  //     await _installApp(apkPath, zipPath); // Pass zipPath for deletion
-  //       } catch (e) {
-  //     throw Exception('Failed to extract ZIP file: $e');
-  //   }
-  // }
-
-  // Future<void> _installApp(String apkPath, String zipPathToDelete) async {
-  //   //debugPrint("Installer opening for: $apkPath");
-  //   // var toDelete = false;
-  //   if (mounted) {
-  //     showDialog(
-  //       context: context,
-  //       barrierDismissible: false, // User must interact with the dialog
-  //       builder: (BuildContext context) {
-  //         return AlertDialog(
-  //           title: const Text("Ready to Install"),
-  //           content: SingleChildScrollView(
-  //             // Prevents overflow if path is long
-  //             child: Text(
-  //               "The update has been downloaded.\n\nThe latest version includes performance improvements, bug fixes, and new features. Tap ‘Install Now’ to complete the update.",
-  //             ),
-  //           ),
-  //           actions: <Widget>[
-  //             TextButton(
-  //               child: const Text("CLOSE"),
-  //               onPressed: () {
-  //                 Navigator.of(context).pop();
-  //               },
-  //             ),
-  //             ElevatedButton(
-  //               child: const Text("INSTALL NOW"),
-  //               onPressed: () {
-  //                 // Manually trigger the installer again
-  //                 OpenFile.open(apkPath);
-  //                 Navigator.of(context).pop();
-  //               },
-  //             ),
-  //           ],
-  //         );
-  //       },
-  //     );
-  //   }
-  // }
-
-  // /// Deletes a directory and all its contents if it exists.
-  // Future<void> _deleteDirectory(Directory directory) async {
-  //   //debugPrint("Attempting to delete directory: ${directory.path}");
-  //   try {
-  //     // 1. Check if the directory exists.
-  //     if (await directory.exists()) {
-  //       // 2. Delete the directory and all its contents.
-  //       await directory.delete(recursive: true);
-  //       if (mounted) {
-  //         //debugPrint('🗑️ Directory cleaned up successfully');
-  //         ScaffoldMessenger.of(context).showSnackBar(
-  //           const SnackBar(
-  //             content: Text('🗑️ Directory cleaned up successfully'),
-  //           ),
-  //         );
-  //       }
-  //     } else {
-  //       // 3. Show a message if it doesn't exist.
-  //       if (mounted) {
-  //         //debugPrint('Directory not found, nothing to delete.');
-  //         ScaffoldMessenger.of(context).showSnackBar(
-  //           const SnackBar(
-  //             content: Text('Directory not found, nothing to delete.'),
-  //           ),
-  //         );
-  //       }
-  //     }
-  //   } catch (e) {
-  //     if (mounted) {
-  //       ScaffoldMessenger.of(context).showSnackBar(
-  //         SnackBar(content: Text('Failed to delete directory: $e')),
-  //       );
-  //     }
-  //   }
-  // }
-
-  Future<void> _showDownloadsFiles() async {
+  // Add this new method for WhatsApp
+  Future<void> _openWhatsApp() async {
+    const phoneNumber = "+919403029424";
+    // Remove any spaces or special characters
+    final cleanNumber = phoneNumber.replaceAll(RegExp(r'[^\d]'), '');
+    
+    // Try different WhatsApp URL formats
+    final whatsappUrl = "https://wa.me/$cleanNumber";
+    final whatsappApiUrl = "whatsapp://send?phone=$cleanNumber";
+    
     try {
-      final downloadsDir = await getApplicationDocumentsDirectory();
-
-      if (downloadsDir != null && await downloadsDir.exists()) {
-        final List<FileSystemEntity> files = downloadsDir.listSync();
-        final fileList = files.whereType<File>().toList();
-        //debugPrint("fileList $fileList");
-
-        if (fileList.isNotEmpty) {
+      // First try the whatsapp:// scheme
+      if (await canLaunchUrl(Uri.parse(whatsappApiUrl))) {
+        await launchUrl(Uri.parse(whatsappApiUrl));
+      } 
+      // If that fails, try the web URL
+      else if (await canLaunchUrl(Uri.parse(whatsappUrl))) {
+        await launchUrl(Uri.parse(whatsappUrl));
+      } 
+      else {
+        // If WhatsApp is not installed, show dialog with options
+        if (mounted) {
           showDialog(
             context: context,
-            builder: (BuildContext context) {
-              return AlertDialog(
-                title: const Text("Select a file to open"),
-                content: SizedBox(
-                  width: double.maxFinite,
-                  child: ListView.builder(
-                    shrinkWrap: true,
-                    itemCount: fileList.length,
-                    itemBuilder: (BuildContext context, int index) {
-                      final file = fileList[index];
-                      final fileName = file.path.split('/').last;
-
-                      return ListTile(
-                        title: Text(fileName),
-                        onTap: () async {
-                          Navigator.of(context).pop();
-                          await OpenFile.open(file.path);
-                        },
-                      );
-                    },
-                  ),
+            builder: (context) => AlertDialog(
+              title: const Text("WhatsApp Not Installed"),
+              content: const Text(
+                "WhatsApp is not installed on this device. Please install WhatsApp to contact support."
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(context),
+                  child: const Text("OK"),
                 ),
-              );
-            },
-          );
-        } else {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text("No files found in downloads directory"),
+              ],
             ),
           );
         }
-      } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text("Downloads directory not found")),
-        );
       }
     } catch (e) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text("Error accessing downloads: $e")));
+      print_log_red("Error opening WhatsApp: $e");
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text("Error opening WhatsApp: $e"),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
     }
   }
-  
+
+
+
   Future<Map<String, dynamic>> getmodeldata() async {
     try{
       String deviceModel13 = Platform.isAndroid ? 'Android Device' : Platform.isIOS ? 'iOS Device' : 'Unknown Device';
-
-
 
       DeviceInfoPlugin deviceInfo = DeviceInfoPlugin();
       AndroidDeviceInfo androidInfo = await deviceInfo.androidInfo;
@@ -427,34 +215,58 @@ class _LoginPageState extends State<LoginPage> {
   }
 
   void loadToken() async {
-    final prefs = await SharedPreferences.getInstance();
-      String? id = await prefs.getString('device_id');
-      String? token = id ?? await FirebaseMessaging.instance.getToken();
-      print_log("🔥 Loaded FCM Token from JSON: $token");
-      String? hotelname = prefs.getString('username');
-
-      if (token != null && hotelname != null) {
-        try {
-          
-          final response = await apiCalls('st',hotelname,{},token:token);
-
-          if (response!.statusCode == 200) {
-            print_log('Token saved successfully ✅');
-            print_log('Response: ${response.body}');
-          } else {
-            print_log('Failed to save token ❌');
-            screen_massage(context, "🔥Token Failed to save");
-            print_log('Status Code: ${response.statusCode}');
-          }
-        } catch (e) {
-          print_log('Error while saving token: $e');
-          }
-      } else {
-        screen_massage(context, "🔥Token Failed to Generate");
-        print_log('FCM token is null ❌');
-      }
+    try {
+        await Future.delayed(const Duration(milliseconds: 500));
+        final prefs = await SharedPreferences.getInstance();
+        
+        // First check if we have stored device_id
+        String? id = await prefs.getString('device_id');
+        String? token;
+        
+        if (id != null && id.isNotEmpty) {
+            token = id;
+            print_log("🔥 Using stored device_id: $token");
+        } else {
+            // Get fresh token from Firebase
+            token = await FirebaseMessaging.instance.getToken();
+            print_log("🔥 Got fresh FCM Token: $token");
+            
+            // Store it for future use
+            if (token != null) {
+                await prefs.setString('device_id', token);
+                print_log("🔥 Stored token in SharedPreferences");
+            }
+        }
+        
+        String? hotelname = prefs.getString('username');
+        print_log("🔥 Hotel name: $hotelname");
+        print_log("🔥 Token: $token");
+        
+        if (token != null && hotelname != null) {
+            print_log("🔥 Attempting to save token to server...");
+            
+            final response = await apiCalls('st', hotelname, {}, token: token);
+            
+            if (response != null && response.statusCode == 200) {
+                print_log('Token saved successfully ✅');
+                print_log('Response: ${response.body}');
+                // Don't show toast on every load, only show on first time
+                // screen_massage(context, "Token saved successfully");
+            } else {
+                print_log('Failed to save token ❌');
+                print_log('Status Code: ${response?.statusCode}');
+                print_log('Response Body: ${response?.body}');
+                screen_massage(context, "🔥 Failed to save token to server");
+            }
+        } else {
+            print_log('❌ Missing data - Token: $token, Hotelname: $hotelname');
+            screen_massage(context, "🔥 Token or Hotel name is null");
+        }
+    } catch (e) {
+        print_log('Error while saving token: $e');
+        screen_massage(context, "🔥 Error: $e");
+    }
   }
-
 
   Future<void> downloadHotelZip(String hotelName) async {
     try {
@@ -549,6 +361,7 @@ class _LoginPageState extends State<LoginPage> {
     // ✅ Insert fresh items
     for (int i = 0; i < menuItems.length; i++) {
       final item = menuItems[i];
+      item.synced = true;
       menuItemBox.put(item);
     }
     screen_massage(context, "Menu Updated Successfully");
@@ -557,7 +370,7 @@ class _LoginPageState extends State<LoginPage> {
 
 
  void loadMenu() async {
-    _store = Provider.of<ObjectBoxService>(context, listen: false).store;
+    
     Box<MenuItem> menuItemBox = _store.box<MenuItem>();
     List<MenuItem> items_all = menuItemBox.getAll();
     
@@ -650,146 +463,11 @@ class _LoginPageState extends State<LoginPage> {
     return defaultValue;
   }
 
-  Future<void> loadtransections(http.Response? response, SharedPreferences prefs) async {
-      _store = Provider.of<ObjectBoxService>(context, listen: false).store;
-      final box = _store.box<Transaction>();
-      try {
-        if (response == null) {
-          print_log_red("transection server response GOT NULL");
-          return;
-        }
-        if (response.statusCode == 200) {
-          final jsonData = jsonDecode(response.body);
-          final dataList = jsonData['data'];
-          print_log_red("transection server response $dataList");
-          if (dataList is List) {
-            final localTransactions = box.getAll();
-            final localBillNos = localTransactions.map((tx) => tx.billNo).toSet();
-            int newTransactionsCount = 0;
-
-            for (var serverTxData in dataList) {
-              try {
-                final serverTxMap = Map<String, dynamic>.from(serverTxData);
-                final transactionField = serverTxMap['transaction'];
-                Map<String, dynamic> transactionData;
-                
-                if (transactionField is String) {
-                  final decoded = jsonDecode(transactionField);
-                  if (decoded is Map) {
-                    transactionData = Map<String, dynamic>.from(decoded);
-                  } else {
-                    print_log("❌ Decoded data is not a Map");
-                    continue;
-                  }
-                } else if (transactionField is Map) {
-                  transactionData = Map<String, dynamic>.from(transactionField);
-                } else {
-                  print_log("❌ Unexpected transaction field type");
-                  continue;
-                }
-                
-                // SAFELY parse all fields with proper null handling
-                final int serverBillNo = _safeParseInt(transactionData['billNo'], defaultValue: 0);
-                final int total = _safeParseInt(transactionData['total'], defaultValue: 0);
-                final int tableNo = _safeParseInt(transactionData['tableNo'], defaultValue: 0);
-                final int upiamount = _safeParseInt(transactionData['upiamount'], defaultValue: 0);
-                final int cashamount = _safeParseInt(transactionData['cashamount'], defaultValue: 0);
-                final double discount = _safeParseDouble(transactionData['discount'], defaultValue: 0.0);
-                final double serviceCharge = _safeParseDouble(transactionData['serviceCharge'], defaultValue: 0.0);
-                final double discountPercent = _safeParseDouble(transactionData['discountPercent'], defaultValue: 0.0);
-                
-                // Handle string fields with empty string as default
-                final String status = _safeParseString(transactionData['status'], defaultValue: 'settle');
-                final String paymentMode = _safeParseString(
-                  transactionData['payment_mode'] ?? serverTxMap['payment_mode'], 
-                  defaultValue: 'UNKNOWN'
-                );
-                final String mobileNo = _safeParseString(transactionData['mobileNo']);
-                final String reserved = _safeParseString(transactionData['reserved']);
-                final String orderType = _safeParseString(transactionData['orderType'], defaultValue: 'Dine-In');
-                final String customerName = _safeParseString(transactionData['customerName']);
-                final String reservedField = _safeParseString(transactionData['reserved_field']);
-                
-                // Parse time
-                final DateTime time = _safeParseDateTime(
-                  transactionData['time'] ?? serverTxMap['transaction_time'],
-                  defaultValue: DateTime.now()
-                );
-                
-                // Handle cart data
-                String cartDataString = '[]';
-                if (transactionData.containsKey('cart')) {
-                  final cartValue = transactionData['cart'];
-                  if (cartValue is List) {
-                    cartDataString = jsonEncode(cartValue);
-                  } else if (cartValue is String) {
-                    try {
-                      jsonDecode(cartValue);
-                      cartDataString = cartValue;
-                    } catch (e) {
-                      cartDataString = '[]';
-                    }
-                  }
-                }
-                
-                if (serverBillNo != 0 && !localBillNos.contains(serverBillNo)) {
-                  final Map<String, dynamic> cleanTransactionData = {
-                    'id': serverBillNo,
-                    'billNo': serverBillNo,
-                    'time': time.toIso8601String(),
-                    'tableNo': tableNo,
-                    'total': total,
-                    'cartData': cartDataString,
-                    'payment_mode': paymentMode,
-                    'status': status,
-                    'synced': true,
-                    'discount': discount,
-                    'mobileNo': mobileNo,
-                    'reserved': reserved,
-                    'orderType': orderType,
-                    'upiamount': upiamount,
-                    'cashamount': cashamount,
-                    'customerName': customerName,
-                    'serviceCharge': serviceCharge,
-                    'reserved_field': reservedField,
-                    'discountPercent': discountPercent,
-                  };
-                  
-                  try {
-                    final transaction = Transaction.fromMap(cleanTransactionData);
-                    box.put(transaction);
-                    printer.setNextBillNo(context, cleanTransactionData['billNo']);
-                    newTransactionsCount++;
-                    print_log("✅ Added transaction: $serverBillNo");
-                  } catch (e) {
-                    print_log_red("❌ Error creating transaction: $e");
-                    print_log("Transaction data: $cleanTransactionData");
-                  }
-                }
-                
-              } catch (e) {
-                print_log_red("❌ Error processing transaction: $e");
-                continue;
-              }
-            }
-            if (newTransactionsCount > 0) {
-              print_log("✅ Synced $newTransactionsCount new transactions from server.");
-            }
-          } else {
-            print_log_red("❌ 'data' is not a list");
-          }
-        } else {
-          print_log_red('HTTP Error: ${response.statusCode}: ${response.reasonPhrase}');
-        }
-      } catch (error) {
-        screen_massage(context, "Error syncing transactions: $error");
-        print_log_red("❌ Error in loadtransections: $error");
-      }
-    }
 
   void auto_login() async{
     final prefs = await SharedPreferences.getInstance();
     final autoLogin = await prefs.getBool('autoLogin') ?? true;
+    print_log("autoLogin $autoLogin");
     if(autoLogin) {
       _autoLogin();
     }
@@ -798,7 +476,7 @@ class _LoginPageState extends State<LoginPage> {
 
   void _login() async {
     await hasSmsPermission();
-    print_log("auto_login1 $_rememberMe");
+    print_log("_rememberMe  $_rememberMe");
     try{
     final email = (_emailController.text.trim()).toLowerCase();
     final password = _passwordController.text.trim();
@@ -846,6 +524,8 @@ class _LoginPageState extends State<LoginPage> {
             await prefs.setString('adminPanel', adminPanel);
             await prefs.setString('role', role);
             await prefs.setBool('autoLogin',true);
+            final autoLogin = await prefs.getBool('autoLogin') ?? true;
+            print_log("autoLogin $autoLogin");
             await secureStorage.write(key: 'expiry_Date', value: expiry_date1);
             await secureStorage.write(key: 'expiresAtStr', value: expiresAtStr);
 
@@ -901,10 +581,13 @@ class _LoginPageState extends State<LoginPage> {
                 print_log("dates are $businessDate $previousDateString");
                 final hotelname = email;
                 http.Response? response = await apiCalls('get_t', hotelname, {}, start:previousDateString, end:businessDate);
-                loadtransections(response,prefs);
+                loadtransections(response,prefs,_store,context);
               }
-
+              try{
               loadMenu();
+              } catch(e){
+                print_log_red("menu not found $e");
+              }
 
               final captain = prefs.getBool('startcaptain') ?? false;
               print_log("Captain $captain");
@@ -912,8 +595,12 @@ class _LoginPageState extends State<LoginPage> {
                 await _initializeFirebase().then((value)=> loadToken());
               }
               if (role == 'captain') {
-
-                await _initializeFirebase().then((value)=> loadToken());
+                print_log("role $role going to tableview ${AppConstants.username}");
+                try{
+                  await _initializeFirebase().then((value)=> loadToken());
+                } catch(e){
+                  print_log_red("firebase not found $e");
+                }
                 
                 Navigator.pushReplacement(
                   context,
@@ -937,7 +624,7 @@ class _LoginPageState extends State<LoginPage> {
           }
         }
       } catch (e) {
-        
+        print_log_red("Login response error $e");
         final prefs = await SharedPreferences.getInstance();
         final expiresAtStr = prefs.getString('expiresAtStr');
         final expiry_Date =  prefs.getString('expiry_date');
@@ -1027,7 +714,7 @@ class _LoginPageState extends State<LoginPage> {
           
           // Check if subscription is still valid (expiry date is today or in future)
           final bool isExpiryValid = !expiryDateOnly.isBefore(today);
-          
+          print_log("autoLogin $isExpiryValid");
           if (isExpiryValid) {
             print_log("✅ Auto-login: Valid expiry date found: $savedExpiryDate");
             
@@ -1036,7 +723,11 @@ class _LoginPageState extends State<LoginPage> {
             
             // Load menu and transactions
             // await _loadInitialData(prefs, savedEmail, role);
-            
+            final captain = prefs.getBool('startcaptain') ?? false;
+            print_log("Captain FCM $captain");
+            if(captain){
+              await _initializeFirebase().then((value)=> loadToken());
+            }
             // Navigate based on role
             if (role == 'captain') {
               await _initializeFirebase().then((value) => loadToken());
@@ -1104,6 +795,20 @@ class _LoginPageState extends State<LoginPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.green.shade50,
+      floatingActionButton: FloatingActionButton.extended(
+        onPressed: () {
+                      _openWhatsApp();
+                    },
+        icon: const Icon(Icons.help_outline),
+        label: const Text("HELP"),
+        backgroundColor: Colors.green.shade700,
+        foregroundColor: Colors.white,
+        elevation: 4,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(30),
+        ),
+      ),
+      floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
       body: Center(
         child: SingleChildScrollView(
           padding: const EdgeInsets.all(24.0),
@@ -1119,10 +824,16 @@ class _LoginPageState extends State<LoginPage> {
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    Icon(Icons.lock, size: 80, color: Colors.green.shade700),
-                    const SizedBox(height: 16),
                     Text(
-                      "Welcome Back",
+                      "NEXTORBITALS",
+                      style: TextStyle(
+                        fontSize: 22,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.green.shade900,
+                      ),
+                    ),
+                    Text(
+                      "Welcome You",
                       style: TextStyle(
                         fontSize: 22,
                         fontWeight: FontWeight.bold,
@@ -1192,7 +903,7 @@ class _LoginPageState extends State<LoginPage> {
                         return null;
                       },
                     ),
-                    const SizedBox(height: 24),
+                    const SizedBox(height: 15),
 
                     Row(
                       children: [
@@ -1208,16 +919,17 @@ class _LoginPageState extends State<LoginPage> {
                       ],
                     ),
 
-                    const SizedBox(height: 24),
+                    const SizedBox(height: 15),
                     
                     SizedBox(
                       width: double.infinity,
                       child: ElevatedButton(
                         onPressed: _isLoading
                             ? null
-                            : _login, // disable when loading
+                            : _login,
                         style: ElevatedButton.styleFrom(
                           backgroundColor: Colors.green,
+                          foregroundColor: Colors.white,
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(12),
                           ),
@@ -1236,25 +948,44 @@ class _LoginPageState extends State<LoginPage> {
                       ),
                     ),
 
-                    const SizedBox(height: 16),
+                    const SizedBox(height: 24),
 
-                    TextButton(
-                      onPressed: () {
-                        // TODO: Navigate to signup/forgot password
-                      },
-                      child: const Text("Forgot Password?"),
-                    ),
-                    
-                    TextButton(
-                      onPressed: _showDownloadsFiles,
-                      child: Text(
-                        "Open Downloads Folder",
-                        style: TextStyle(
-                          color: Colors.blue.shade700,
-                          decoration: TextDecoration.underline,
+                    SizedBox(
+                      width: double.infinity,
+                      child: ElevatedButton(
+                        onPressed: _isLoading
+                            ? null
+                            : () {
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (context) => const BuyServicePage(),
+                                  ),
+                                );
+                              },
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.cyan,
+                          foregroundColor: Colors.white,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          padding: const EdgeInsets.symmetric(vertical: 14),
                         ),
+                        child: _isLoading
+                            ? const SizedBox(
+                                height: 20,
+                                width: 20,
+                                child: CircularProgressIndicator(
+                                  color: Colors.white,
+                                  strokeWidth: 2,
+                                ),
+                              )
+                            : const Text("BUY Service"),
                       ),
                     ),
+                    const SizedBox(height: 16),
+
+                    
                   ],
                 ),
               ),

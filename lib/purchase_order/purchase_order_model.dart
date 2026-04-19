@@ -18,6 +18,8 @@ enum PurchaseOrderStatus {
 }
 
 class PurchaseOrder {
+  int syid;
+  bool synced;
   final String id;
   final String orderNumber;
   final DateTime orderDate;
@@ -57,6 +59,8 @@ class PurchaseOrder {
   final String? signaturePath;
 
   PurchaseOrder({
+    required this.syid,
+    this.synced = false,
     required this.id,
     required this.orderNumber,
     required this.orderDate,
@@ -86,6 +90,8 @@ class PurchaseOrder {
 
   Map<String, dynamic> toMap() {
     return {
+      'syid': syid,  // ADD THIS
+      'synced': synced,  // ADD THIS
       'id': id,
       'orderNumber': orderNumber,
       'orderDate': orderDate.toIso8601String(),
@@ -116,6 +122,8 @@ class PurchaseOrder {
 
   factory PurchaseOrder.fromMap(Map<String, dynamic> map) {
     return PurchaseOrder(
+      syid: map['syid'] ?? 0,  // Provide default value if null
+      synced: map['synced'] ?? false,
       id: map['id'],
       orderNumber: map['orderNumber'],
       orderDate: DateTime.parse(map['orderDate']),
@@ -152,7 +160,7 @@ class PurchaseOrder {
   String get formattedExpectedDate => expectedDeliveryDate != null 
       ? DateFormat('dd/MM/yyyy').format(expectedDeliveryDate!) 
       : 'Not set';
-  String get formattedTotal => '₹ ${totalAmount.toStringAsFixed(2)}';
+  String get formattedTotal => 'Rs. ${totalAmount.toStringAsFixed(2)}';
   
   Color get statusColor {
     switch (status) {
@@ -203,6 +211,9 @@ class PurchaseOrderItem {
   // Stock tracking
   final double? currentStock;
   final double? minimumStock;
+  final double discountAmount; // calculated discount amount
+  final double taxAmount; // calculated tax amount
+  final double subtotal; // quantity * unitPrice
 
   PurchaseOrderItem({
     required this.id,
@@ -218,6 +229,9 @@ class PurchaseOrderItem {
     this.sourceType,
     this.currentStock,
     this.minimumStock,
+    required this.discountAmount,
+    required this.taxAmount,
+    required this.subtotal,
   });
 
   Map<String, dynamic> toMap() {
@@ -235,6 +249,9 @@ class PurchaseOrderItem {
       'sourceType': sourceType,
       'currentStock': currentStock,
       'minimumStock': minimumStock,
+      'discountAmount': discountAmount,
+      'taxAmount': taxAmount,
+      'subtotal': subtotal,
     };
   }
 
@@ -253,10 +270,15 @@ class PurchaseOrderItem {
       sourceType: map['sourceType'],
       currentStock: map['currentStock']?.toDouble(),
       minimumStock: map['minimumStock']?.toDouble(),
+      discountAmount: map['discountAmount'],
+      taxAmount: map['taxAmount'],
+      subtotal: map['subtotal'],
     );
   }
 
-  String get formattedUnitPrice => '₹ ${unitPrice.toStringAsFixed(2)}';
-  String get formattedTotal => '₹ ${total.toStringAsFixed(2)}';
+  String get formattedUnitPrice => 'Rs. ${unitPrice.toStringAsFixed(2)}';
+  String get formattedTotal => 'Rs. ${total.toStringAsFixed(2)}';
   String get formattedQuantity => quantity.toStringAsFixed(2);
+  String get formattedDiscount => '${discount.toStringAsFixed(0)}%';
+  String get formattedTax => '${tax.toStringAsFixed(0)}%';
 }

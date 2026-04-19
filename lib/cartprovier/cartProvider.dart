@@ -4,6 +4,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../database_Module/menu_item.dart';
 import 'dart:convert';
 import 'dart:io';
+import 'package:test1/utilities.dart';
 
 
 
@@ -24,12 +25,12 @@ Future<List<Map<String, dynamic>>> getCartItems({int? tableNo}) async {
   
   try {
     final List<dynamic> decodedList = jsonDecode(cartJson);
-    print('Error getting cart items: G $decodedList');
+    print_log('Error getting cart items: G $decodedList');
     return decodedList.map<Map<String, dynamic>>((item) => 
       Map<String, dynamic>.from(item)
     ).toList();
   } catch (e) {
-    print('Error getting cart items: $e');
+    print_log('Error getting cart items: $e');
     return [];
   }
 }
@@ -72,10 +73,10 @@ Future<void> removeFromCart(int id, String portion,{int? tableNo}) async {
     );
     
     final String updatedCartJson = jsonEncode(cartList);
-    print('Error getting cart items: R $cartList');
+    print_log('Error getting cart items: R $cartList');
     await prefs.setString(key, updatedCartJson);
   } catch (e) {
-    print('Error removing item from cart: $e');
+    print_log('Error removing item from cart: $e');
   }
 }
 
@@ -101,10 +102,10 @@ Future<int> getTotal({int? tableNo}) async {
         total = total + (item['total'] as num).toInt();
     }
   } catch (e) {
-    print('Error getting cart items: $e');
+    print_log('Error getting cart items: $e');
     return 0;
   }
-  print('Error getting cart items: T $total');
+  print_log('Error getting cart items: T $total');
   return total;
 }
 
